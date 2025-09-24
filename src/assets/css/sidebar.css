@@ -1,0 +1,212 @@
+/* Estilos para Sidebar y Dashboard */
+
+/* Sidebar principal */
+.sidebar {
+  background: linear-gradient(180deg, #132441 0%, #1a2d4a 100%);
+  box-shadow: 
+    4px 0 20px rgba(0, 0, 0, 0.1),
+    4px 0 40px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+}
+
+.sidebar-collapsed {
+  box-shadow: 
+    2px 0 10px rgba(0, 0, 0, 0.08),
+    2px 0 20px rgba(0, 0, 0, 0.03);
+}
+
+/* Transiciones suaves para el sidebar */
+.sidebar-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: left center;
+}
+
+.sidebar-expanded {
+  transform: translateX(0) scale(1);
+  opacity: 1;
+}
+
+.sidebar-collapsed-state {
+  transform: translateX(-10px) scale(0.98);
+  opacity: 0.95;
+}
+
+/* Animaciones para los elementos internos del sidebar */
+.sidebar-content {
+  transition: all 0.3s ease-in-out;
+}
+
+.sidebar-logo {
+  transition: all 0.3s ease-in-out;
+  transform-origin: left center;
+}
+
+.sidebar-logo-fade {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+/* Navegación */
+.nav-item {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  transform: scaleY(0);
+  transition: transform 0.2s ease-in-out;
+}
+
+.nav-item:hover::before,
+.nav-item.active::before {
+  transform: scaleY(1);
+}
+
+.nav-item:hover {
+  background: rgba(60, 86, 144, 0.7);
+  transform: translateX(2px);
+}
+
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(60, 86, 144, 0.8) 0%, rgba(60, 86, 144, 0.4) 100%);
+  border-right: 3px solid #60a5fa;
+}
+
+.nav-icon {
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 4px rgba(96, 165, 250, 0.3));
+}
+
+.nav-text {
+  transition: all 0.3s ease-in-out;
+  transform-origin: left center;
+}
+
+.nav-text-hide {
+  opacity: 0;
+  transform: translateX(-10px) scale(0.9);
+}
+
+.nav-text-show {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+/* Main content adaptativo */
+.main-content {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-content-expanded {
+  margin-left: 16rem; /* w-64 */
+}
+
+.main-content-collapsed {
+  margin-left: 4rem; /* w-16 */
+}
+
+/* Efectos de hover mejorados */
+.hover-lift {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Overlay para móviles */
+.mobile-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease-in-out;
+}
+
+.mobile-overlay-enter {
+  opacity: 0;
+}
+
+.mobile-overlay-enter-active {
+  opacity: 1;
+}
+
+.mobile-overlay-leave-active {
+  opacity: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    box-shadow: 
+      0 0 20px rgba(0, 0, 0, 0.2),
+      0 0 40px rgba(0, 0, 0, 0.1);
+  }
+  
+  .main-content-expanded,
+  .main-content-collapsed {
+    margin-left: 0;
+  }
+}
+
+/* Animaciones de entrada */
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Scroll personalizado */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}

@@ -1,0 +1,392 @@
+/* src/assets/css/dashboard-enhanced.css */
+
+/* Variables CSS para consistencia de colores y transiciones */
+:root {
+  --sidebar-width: 16rem;
+  --sidebar-collapsed-width: 4rem;
+  --sidebar-bg: #132441;
+  --sidebar-hover: #3c5690;
+  --transition-duration: 300ms;
+  --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sidebar: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Sidebar mejorado con transiciones suaves */
+.sidebar {
+  transition: all var(--transition-duration) var(--transition-easing);
+  box-shadow: var(--shadow-sidebar);
+  backdrop-filter: blur(8px);
+}
+
+/* Sidebar expandido */
+.sidebar-expanded {
+  width: var(--sidebar-width);
+  transform: translateX(0);
+}
+
+/* Sidebar colapsado */
+.sidebar-collapsed {
+  width: var(--sidebar-collapsed-width);
+  transform: translateX(0);
+}
+
+/* Sidebar oculto en móvil */
+.sidebar-hidden {
+  transform: translateX(-100%);
+}
+
+/* Animaciones para el contenido del sidebar */
+.sidebar-content {
+  transition: opacity var(--transition-duration) var(--transition-easing);
+}
+
+.sidebar-collapsed .sidebar-content {
+  opacity: 0;
+}
+
+.sidebar-expanded .sidebar-content {
+  opacity: 1;
+}
+
+/* Logo con transición */
+.sidebar-logo {
+  transition: all var(--transition-duration) var(--transition-easing);
+}
+
+.sidebar-collapsed .sidebar-logo {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+/* Elementos de navegación */
+.nav-item {
+  transition: all var(--transition-duration) var(--transition-easing);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  transform: scaleY(0);
+  transition: transform var(--transition-duration) var(--transition-easing);
+}
+
+.nav-item.active::before,
+.nav-item:hover::before {
+  transform: scaleY(1);
+}
+
+.nav-item:hover {
+  background-color: var(--sidebar-hover);
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  background-color: var(--sidebar-hover);
+  box-shadow: inset 4px 0 0 #3b82f6;
+}
+
+/* Iconos de navegación */
+.nav-icon {
+  transition: all var(--transition-duration) var(--transition-easing);
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+  color: #60a5fa;
+}
+
+/* Texto de navegación */
+.nav-text {
+  transition: all var(--transition-duration) var(--transition-easing);
+  white-space: nowrap;
+}
+
+.sidebar-collapsed .nav-text {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+/* Contenido principal adaptativo */
+.main-content {
+  transition: margin-left var(--transition-duration) var(--transition-easing);
+  min-height: 100vh;
+}
+
+/* Ajustes para diferentes tamaños de sidebar */
+.main-content-expanded {
+  margin-left: var(--sidebar-width);
+}
+
+.main-content-collapsed {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+.main-content-no-sidebar {
+  margin-left: 0;
+}
+
+/* Header/TopNavbar mejorado */
+.top-navbar {
+  transition: all var(--transition-duration) var(--transition-easing);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+.top-navbar-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Botones del header */
+.header-button {
+  transition: all 200ms var(--transition-easing);
+}
+
+.header-button:hover {
+  background-color: rgba(243, 244, 246, 0.8);
+  transform: scale(1.05);
+}
+
+.header-button:active {
+  transform: scale(0.95);
+}
+
+/* Menú desplegable mejorado */
+.dropdown-menu {
+  box-shadow: var(--shadow-elevated);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  backdrop-filter: blur(12px);
+}
+
+.dropdown-item {
+  transition: all 150ms var(--transition-easing);
+}
+
+.dropdown-item:hover {
+  background-color: rgba(249, 250, 251, 0.8);
+  transform: translateX(4px);
+}
+
+/* Búsqueda mejorada */
+.search-container {
+  position: relative;
+}
+
+.search-input {
+  transition: all var(--transition-duration) var(--transition-easing);
+  backdrop-filter: blur(8px);
+}
+
+.search-input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  transform: scale(1.02);
+}
+
+.search-results {
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.search-result-item {
+  transition: all 150ms var(--transition-easing);
+}
+
+.search-result-item:hover {
+  background-color: rgba(249, 250, 251, 0.8);
+  transform: translateX(2px);
+}
+
+/* Notificaciones mejoradas */
+.notification-badge {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.notification-panel {
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.notification-item {
+  transition: all 150ms var(--transition-easing);
+}
+
+.notification-item:hover {
+  background-color: rgba(249, 250, 251, 0.8);
+  transform: translateX(2px);
+}
+
+.notification-unread {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.05));
+  border-left: 3px solid #3b82f6;
+}
+
+/* Responsive Design */
+
+/* Tablets */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 14rem;
+  }
+  
+  .main-content-expanded {
+    margin-left: 0;
+  }
+  
+  .sidebar-expanded {
+    position: fixed;
+    z-index: 50;
+  }
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 16rem;
+  }
+  
+  .sidebar {
+    position: fixed;
+    z-index: 50;
+    height: 100vh;
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
+  
+  .top-navbar {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .search-container {
+    width: 100%;
+  }
+}
+
+/* Pantallas pequeñas */
+@media (max-width: 640px) {
+  .top-navbar {
+    padding: 0.75rem 1rem;
+  }
+  
+  .dropdown-menu {
+    width: calc(100vw - 2rem);
+    left: 1rem;
+    right: 1rem;
+  }
+}
+
+/* Televisores y pantallas grandes */
+@media (min-width: 1920px) {
+  :root {
+    --sidebar-width: 18rem;
+  }
+  
+  .main-content {
+    padding: 2rem;
+  }
+  
+  .top-navbar {
+    padding: 1.5rem 2rem;
+  }
+}
+
+/* Dark mode support (opcional) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: #1e293b;
+  }
+}
+
+/* Animaciones de entrada para contenido */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s var(--transition-easing);
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s var(--transition-easing);
+}
+
+/* Mejoras de accesibilidad */
+.focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Reducir movimiento para usuarios que lo prefieran */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(243, 244, 246, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+  transition: background var(--transition-duration) var(--transition-easing);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) rgba(243, 244, 246, 0.5);
+}

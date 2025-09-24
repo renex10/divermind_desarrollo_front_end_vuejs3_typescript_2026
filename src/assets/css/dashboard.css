@@ -1,0 +1,296 @@
+/* Dashboard Styles - src/assets/css/dashboard.css */
+
+/* Sidebar Transitions y Sombras */
+.sidebar {
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    2px 0 8px -2px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.sidebar-expanded {
+  animation: sidebarExpand 0.3s ease-out forwards;
+}
+
+.sidebar-collapsed {
+  animation: sidebarCollapse 0.3s ease-in forwards;
+}
+
+@keyframes sidebarExpand {
+  from {
+    width: 4rem;
+  }
+  to {
+    width: 16rem;
+  }
+}
+
+@keyframes sidebarCollapse {
+  from {
+    width: 16rem;
+  }
+  to {
+    width: 4rem;
+  }
+}
+
+/* Transiciones suaves para el contenido principal */
+.main-content {
+  transition: margin-left 0.3s ease-in-out, padding 0.2s ease-in-out;
+}
+
+.main-content-expanded {
+  margin-left: 16rem;
+}
+
+.main-content-collapsed {
+  margin-left: 4rem;
+}
+
+/* Mejoras para dispositivos móviles */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+  }
+  
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    animation: backdropFadeIn 0.2s ease-out;
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Efectos hover mejorados para navegación */
+.nav-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.nav-item:hover::before {
+  left: 100%;
+}
+
+/* Indicador activo mejorado */
+.nav-item.active {
+  background: linear-gradient(135deg, #3c5690, #4a67a3);
+  position: relative;
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: #ffffff;
+  border-radius: 1px 0 0 1px;
+}
+
+/* Animaciones de entrada para iconos */
+.nav-icon {
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+/* TopNavbar enhancements */
+.top-navbar {
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+/* Search Bar Styles */
+.search-container {
+  position: relative;
+}
+
+.search-results {
+  animation: searchResultsIn 0.2s ease-out;
+}
+
+@keyframes searchResultsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Profile Dropdown */
+.profile-dropdown {
+  animation: dropdownIn 0.2s ease-out;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsive Grid System */
+.dashboard-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Card Components */
+.dashboard-card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  border: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+.dashboard-card:hover {
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+/* Scrollbar personalizado */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Loading animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Notificación badge */
+.notification-badge {
+  animation: notificationPulse 2s infinite;
+}
+
+@keyframes notificationPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Layout fluido para contenido principal */
+.main-layout {
+  min-height: calc(100vh - 4rem);
+  transition: all 0.3s ease;
+}
+
+/* Efectos de glassmorphism para elementos destacados */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Utility classes para spacing responsivo */
+.responsive-padding {
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-padding {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-padding {
+    padding: 2rem;
+  }
+}
