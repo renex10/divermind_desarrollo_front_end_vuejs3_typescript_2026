@@ -1,8 +1,10 @@
 // src/services/authService.ts
 // Paso 3: Funciones para llamar al backend (autenticación)
 
-import type { User } from '@/types/user'
-import http from './http'
+import type { User } from "@/type/user.ts"
+import http from "./http.ts"
+
+
 
 interface LoginResponse {
   access: string

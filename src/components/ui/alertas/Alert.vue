@@ -71,7 +71,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useAlertStore } from '@/store/alertStore'
 
 // Importar iconos desde @heroicons/vue
@@ -85,8 +85,8 @@ import {
 
 const alert = useAlertStore()
 const progressWidth = ref(100)
-let progressInterval: NodeJS.Timeout | null = null
-let autoCloseTimeout: NodeJS.Timeout | null = null
+let progressInterval: number | null = null
+let autoCloseTimeout: number | null = null
 
 // Componente de icono según el tipo
 const iconComponent = computed(() => {
@@ -167,7 +167,7 @@ const startAutoClose = () => {
       progressWidth.value -= 100 / 30 // 30 frames en 3 segundos
       if (progressWidth.value <= 0) {
         progressWidth.value = 0
-        clearInterval(progressInterval!)
+        if (progressInterval) clearInterval(progressInterval)
       }
     }, 100)
 

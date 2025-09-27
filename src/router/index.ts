@@ -18,7 +18,7 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
-      { path: 'ingreso-nna', name: 'ingreso-nna', component: () => import('@/views/dashboard/IngresoNnaView.vue') },
+      { path: 'ingreso-nna', name: 'ingreso-nna', component: () => import('@/views/dashboard/IngresoNneDashboard.vue') },
       { path: 'histos', name: 'histos', component: () => import('@/views/dashboard/HistosView.vue') },
       { path: 'sessiones', name: 'sessiones', component: () => import('@/views/dashboard/SessionesView.vue') },
       { path: 'reportes', name: 'reportes', component: () => import('@/views/dashboard/ReportesView.vue') },
