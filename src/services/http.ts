@@ -1,10 +1,16 @@
 // src/services/http.ts
-// Paso 4: Configuración global de Axios
+// -------------------------------------------------------------
+// Configuración global de Axios para toda la aplicación.
+// - Usa la URL base definida en .env (VITE_API_BASE_URL).
+// - Añade automáticamente el token de acceso en cada request.
+// - Maneja expiración de tokens con refresh automático.
+// - Si el refresh falla, limpia la sesión y redirige al login.
+// -------------------------------------------------------------
 
 import axios from 'axios'
-import { refreshTokenApi } from './authService.ts'
+import { refreshTokenApi } from './authService'
 
-
+// Crear instancia de Axios con configuración base
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL, // URL definida en .env
   timeout: 5000,
@@ -13,7 +19,10 @@ const http = axios.create({
   },
 })
 
-// Interceptor de request: añade el access token en cada petición
+// -------------------------------------------------------------
+// Interceptor de REQUEST
+// Se ejecuta antes de cada petición y añade el token de acceso
+// -------------------------------------------------------------
 http.interceptors.request.use(config => {
   const token = localStorage.getItem('access')
   if (token) {
@@ -22,13 +31,16 @@ http.interceptors.request.use(config => {
   return config
 })
 
-// Interceptor de response: maneja errores globales y refresh de token
+// -------------------------------------------------------------
+// Interceptor de RESPONSE
+// Maneja errores globales y lógica de refresh de token
+// -------------------------------------------------------------
 http.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config
 
-    // Si el access token expiró y no hemos reintentado aún
+    // Caso: token expirado y aún no se intentó refrescar
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       try {
@@ -48,6 +60,7 @@ http.interceptors.response.use(
       }
     }
 
+    // Si no es un error 401 o ya falló el refresh, rechazar
     return Promise.reject(error)
   }
 )

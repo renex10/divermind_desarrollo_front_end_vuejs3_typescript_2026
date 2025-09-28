@@ -1,10 +1,27 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+
+    // 👇 Configuración moderna para Vite + Vue 3 + TS
+    "target": "ESNext",          
+    "module": "ESNext",          
+    "moduleResolution": "bundler", 
+
+    // Librerías y compatibilidad
+    "lib": ["ESNext", "DOM"],
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // Buenas prácticas
+    "strict": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }

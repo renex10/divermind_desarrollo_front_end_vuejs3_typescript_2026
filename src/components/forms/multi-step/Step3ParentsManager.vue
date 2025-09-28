@@ -18,92 +18,12 @@
       }"
     >
       <!-- Sección: Búsqueda de Padres Existentes -->
-      <div class="form-section">
-        <h4>🔍 Buscar Padres Existentes</h4>
-        
-        <!-- Búsqueda por RUT -->
-        <div class="search-container">
-          <FormKit
-            type="text"
-            name="parent_search_rut"
-            label="Buscar por RUT"
-            placeholder="Ej: 12.345.678-9"
-            validation="matches:/^(\d{1,2}\.\d{3}\.\d{3}-[\dkK])?$/"
-            validation-visibility="live"
-            :validation-messages="{
-              matches: 'Formato de RUT inválido (ej: 12.345.678-9)'
-            }"
-            help="Ingrese el RUT para buscar un padre existente"
-          />
-          
-          <button
-            type="button"
-            class="btn btn-primary"
-            :disabled="!internalFormData.parent_search_rut || isSearching"
-            @click="searchParentByRut"
-          >
-            <span v-if="isSearching">Buscando...</span>
-            <span v-else>🔍 Buscar</span>
-          </button>
-        </div>
-
-        <!-- Búsqueda por Email -->
-        <div class="search-container">
-          <FormKit
-            type="email"
-            name="parent_search_email"
-            label="Buscar por Email"
-            placeholder="Ej: padre@email.com"
-            validation="email"
-            validation-visibility="live"
-            :validation-messages="{
-              email: 'Formato de email inválido'
-            }"
-            help="Ingrese el email para buscar un padre existente"
-          />
-          
-          <button
-            type="button"
-            class="btn btn-primary"
-            :disabled="!internalFormData.parent_search_email || isSearching"
-            @click="searchParentByEmail"
-          >
-            <span v-if="isSearching">Buscando...</span>
-            <span v-else>🔍 Buscar</span>
-          </button>
-        </div>
-
-        <!-- Resultados de búsqueda -->
-        <div v-if="searchResults.length > 0" class="search-results">
-          <h5>Resultados de Búsqueda:</h5>
-          <div class="parent-cards">
-            <div 
-              v-for="parent in searchResults" 
-              :key="parent.id"
-              class="parent-card"
-            >
-              <div class="parent-info">
-                <h6>{{ parent.first_name }} {{ parent.last_name }}</h6>
-                <p>RUT: {{ parent.rut }}</p>
-                <p>Email: {{ parent.email }}</p>
-                <p v-if="parent.phone">Teléfono: {{ parent.phone }}</p>
-              </div>
-              <button
-                type="button"
-                class="btn btn-success btn-sm"
-                :disabled="isParentSelected(parent.id)"
-                @click="addParent(parent)"
-              >
-                {{ isParentSelected(parent.id) ? '✓ Seleccionado' : '+ Agregar' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="searchMessage" class="search-message" :class="searchMessageType">
-          {{ searchMessage }}
-        </div>
-      </div>
+      <BusquedaPadre 
+        :selected-parents="selectedParents"
+        @parent-selected="handleParentSelected"
+        @search-complete="handleSearchComplete"
+        @search-error="handleSearchError"
+      />
 
       <!-- Sección: Crear Nuevo Padre -->
       <div class="form-section">
@@ -262,7 +182,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import type { NneFormData, ParentUser } from '../../../../type/nne'
+import { createParentApi } from '@/services/nneService'
+import { NneFormData, ParentUser } from '@/type/nne'
+import BusquedaPadre from './components/BusquedaPadre.vue'
+import { useAlertModalStore } from '@/store/alertModalStore'
 
 interface Props {
   formData: Partial<NneFormData>
@@ -274,17 +197,14 @@ interface Emits {
   (e: 'validate', isValid: boolean): void
 }
 
-// Props y Emits
 const props = withDefaults(defineProps<Props>(), {
   showValidation: false
 })
-
 const emit = defineEmits<Emits>()
+const alertModal = useAlertModalStore()
 
-// Estado reactivo del formulario interno
+// Estado interno
 const internalFormData = reactive<any>({
-  parent_search_rut: '',
-  parent_search_email: '',
   new_parent_first_name: '',
   new_parent_last_name: '',
   new_parent_rut: '',
@@ -293,32 +213,23 @@ const internalFormData = reactive<any>({
   usuarios: props.formData.usuarios || []
 })
 
-// Estados locales
 const showCreateForm = ref(false)
 const selectedParents = ref<ParentUser[]>([])
-const searchResults = ref<ParentUser[]>([])
-const searchMessage = ref('')
-const searchMessageType = ref<'success' | 'error' | 'info'>('info')
-const isSearching = ref(false)
 const isCreating = ref(false)
 
-// Validación del formulario
+// Validaciones
 const isValid = computed(() => selectedParents.value.length > 0)
+const canCreateParent = computed(() =>
+  internalFormData.new_parent_first_name &&
+  internalFormData.new_parent_last_name &&
+  internalFormData.new_parent_rut &&
+  internalFormData.new_parent_email
+)
 
-// Validación para crear nuevo padre
-const canCreateParent = computed(() => {
-  return internalFormData.new_parent_first_name &&
-         internalFormData.new_parent_last_name &&
-         internalFormData.new_parent_rut &&
-         internalFormData.new_parent_email
-})
-
-// Métodos
+// Métodos auxiliares
 const toggleCreateForm = () => {
   showCreateForm.value = !showCreateForm.value
-  if (!showCreateForm.value) {
-    clearCreateForm()
-  }
+  if (!showCreateForm.value) clearCreateForm()
 }
 
 const clearCreateForm = () => {
@@ -329,190 +240,134 @@ const clearCreateForm = () => {
   internalFormData.new_parent_phone = ''
 }
 
-const clearSearchForm = () => {
-  internalFormData.parent_search_rut = ''
-  internalFormData.parent_search_email = ''
-  searchResults.value = []
-  searchMessage.value = ''
-}
+const isParentSelected = (parentId: number) =>
+  selectedParents.value.some(p => p.id === parentId)
 
-const isParentSelected = (parentId: number): boolean => {
-  return selectedParents.value.some(p => p.id === parentId)
-}
-
-// Simulación de búsqueda por RUT
-const searchParentByRut = async () => {
-  if (!internalFormData.parent_search_rut) return
-  
-  isSearching.value = true
-  searchMessage.value = ''
-  
-  try {
-    // Aquí iría la llamada real a la API
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Simular delay
+// Manejar eventos del componente BusquedaPadre
+const handleParentSelected = (parent: ParentUser) => {
+  if (!isParentSelected(parent.id)) {
+    selectedParents.value.push(parent)
+    updateFormData()
     
-    // Simulación de resultados
-    const mockResults: ParentUser[] = [
-      {
-        id: Math.floor(Math.random() * 1000),
-        username: `user_${Date.now()}`,
-        email: 'padre.simulado@email.com',
-        first_name: 'Juan Carlos',
-        last_name: 'González Pérez',
-        rut: internalFormData.parent_search_rut,
-        phone: '+56912345678'
-      }
-    ]
-    
-    if (mockResults.length > 0) {
-      searchResults.value = mockResults
-      searchMessage.value = `Se encontraron ${mockResults.length} resultado(s)`
-      searchMessageType.value = 'success'
-    } else {
-      searchResults.value = []
-      searchMessage.value = 'No se encontraron padres con ese RUT'
-      searchMessageType.value = 'info'
-    }
-    
-  } catch (error) {
-    searchResults.value = []
-    searchMessage.value = 'Error al buscar. Intente nuevamente.'
-    searchMessageType.value = 'error'
-  } finally {
-    isSearching.value = false
+    alertModal.success(
+      'Padre agregado', 
+      `${parent.first_name} ${parent.last_name} ha sido asignado al niño`
+    )
   }
 }
 
-// Simulación de búsqueda por Email
-const searchParentByEmail = async () => {
-  if (!internalFormData.parent_search_email) return
-  
-  isSearching.value = true
-  searchMessage.value = ''
-  
-  try {
-    // Aquí iría la llamada real a la API
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Simular delay
-    
-    // Simulación de resultados
-    const mockResults: ParentUser[] = [
-      {
-        id: Math.floor(Math.random() * 1000),
-        username: `user_${Date.now()}`,
-        email: internalFormData.parent_search_email,
-        first_name: 'María José',
-        last_name: 'Rodríguez Silva',
-        rut: '11.222.333-4',
-        phone: '+56987654321'
-      }
-    ]
-    
-    if (mockResults.length > 0) {
-      searchResults.value = mockResults
-      searchMessage.value = `Se encontraron ${mockResults.length} resultado(s)`
-      searchMessageType.value = 'success'
-    } else {
-      searchResults.value = []
-      searchMessage.value = 'No se encontraron padres con ese email'
-      searchMessageType.value = 'info'
-    }
-    
-  } catch (error) {
-    searchResults.value = []
-    searchMessage.value = 'Error al buscar. Intente nuevamente.'
-    searchMessageType.value = 'error'
-  } finally {
-    isSearching.value = false
-  }
+const handleSearchComplete = (results: ParentUser[]) => {
+  console.log('🔍 Búsqueda completada:', results.length, 'resultados')
 }
 
-// Crear nuevo padre
+const handleSearchError = (error: string) => {
+  console.error('❌ Error en búsqueda:', error)
+  // No mostramos alerta aquí porque ya se maneja en el componente hijo
+}
+
+// Crear padre nuevo con manejo de alertas modales
 const createNewParent = async () => {
   if (!canCreateParent.value) return
   
   isCreating.value = true
-  
   try {
-    // Aquí iría la llamada real a la API para crear el padre
-    await new Promise(resolve => setTimeout(resolve, 1500)) // Simular delay
-    
-    const newParent: ParentUser = {
-      id: Math.floor(Math.random() * 10000), // En realidad vendría del backend
-      username: internalFormData.new_parent_email,
-      email: internalFormData.new_parent_email,
+    const newParent = await createParentApi({
       first_name: internalFormData.new_parent_first_name,
       last_name: internalFormData.new_parent_last_name,
       rut: internalFormData.new_parent_rut,
-      phone: internalFormData.new_parent_phone || undefined
-    }
+      email: internalFormData.new_parent_email,
+      phone: internalFormData.new_parent_phone,
+      username: internalFormData.new_parent_email,
+      role: 'Padres'
+    })
     
-    addParent(newParent)
+    // Agregar el nuevo padre a la lista
+    handleParentSelected(newParent)
     clearCreateForm()
     showCreateForm.value = false
     
-    searchMessage.value = 'Padre creado y agregado exitosamente'
-    searchMessageType.value = 'success'
-    
+    alertModal.success(
+      'Padre creado', 
+      'El padre ha sido creado y agregado exitosamente al niño'
+    )
   } catch (error) {
-    searchMessage.value = 'Error al crear el padre. Intente nuevamente.'
-    searchMessageType.value = 'error'
+    console.error('❌ Error al crear padre:', error)
+    
+    let errorMessage = 'Error al crear el padre. Intente nuevamente.'
+    if (error instanceof Error) {
+      if (error.message.includes('RUT ya existe')) {
+        errorMessage = 'El RUT ingresado ya está registrado en el sistema'
+      } else if (error.message.includes('Email ya existe')) {
+        errorMessage = 'El email ingresado ya está registrado en el sistema'
+      }
+    }
+    
+    alertModal.error('Error al crear padre', errorMessage)
   } finally {
     isCreating.value = false
   }
 }
 
-const addParent = (parent: ParentUser) => {
-  if (!isParentSelected(parent.id)) {
-    selectedParents.value.push(parent)
-    updateFormData()
-    clearSearchForm()
+// Remover padre con confirmación modal
+const removeParent = (parentId: number) => {
+  const parent = selectedParents.value.find(p => p.id === parentId)
+  if (parent) {
+    alertModal.confirm(
+      '¿Remover padre?',
+      `¿Está seguro de que desea remover a ${parent.first_name} ${parent.last_name} de la lista?`,
+      () => {
+        selectedParents.value = selectedParents.value.filter(p => p.id !== parentId)
+        updateFormData()
+        
+        alertModal.info(
+          'Padre removido', 
+          `${parent.first_name} ${parent.last_name} ha sido removido de la lista`
+        )
+      }
+    )
   }
 }
 
-const removeParent = (parentId: number) => {
-  selectedParents.value = selectedParents.value.filter(p => p.id !== parentId)
-  updateFormData()
-}
-
-const handleFormInput = () => {
-  // FormKit maneja automáticamente los cambios
-  updateFormData()
-}
-
+// Sincronización con multipasos
 const updateFormData = () => {
   const formattedData: Partial<NneFormData> = {
     usuarios: selectedParents.value.map(p => p.id)
   }
-  
   emit('update:formData', formattedData)
 }
 
-// Cargar padres existentes desde props
+// Manejar cambios del formulario
+const handleFormInput = () => {
+  updateFormData()
+}
+
+// Cargar padres existentes si vienen en props
 const loadExistingParents = async () => {
   if (props.formData.usuarios && props.formData.usuarios.length > 0) {
-    // Aquí harías llamadas reales a la API para obtener los datos completos
-    // Por ahora simulamos datos
-    const mockParents: ParentUser[] = props.formData.usuarios.map(id => ({
+    // Aquí podrías llamar a la API para obtener datos completos de cada padre
+    // Por ahora simulamos con datos básicos
+    selectedParents.value = props.formData.usuarios.map(id => ({
       id,
       username: `user_${id}`,
       email: `padre${id}@email.com`,
       first_name: `Padre ${id}`,
       last_name: `Apellido ${id}`,
-      rut: `${10000000 + id}-${Math.floor(Math.random() * 9)}`,
-      phone: `+5691234567${id}`
+      rut: `${10000000 + id}-X`,
+      phone: `+5691234567${id}`,
+      role: 'Padres'
     }))
     
-    selectedParents.value = mockParents
+    alertModal.info(
+      'Padres cargados', 
+      `Se cargaron ${selectedParents.value.length} padre(s) existente(s)`
+    )
   }
 }
 
-// Watch para cambios en la validación
-watch(isValid, (newIsValid) => {
-  emit('validate', newIsValid)
-}, { immediate: true })
+// Watchers
+watch(isValid, newIsValid => emit('validate', newIsValid), { immediate: true })
 
-// Watch para cambios en los datos del padre
-watch(() => props.formData, (newData) => {
+watch(() => props.formData, newData => {
   if (newData.usuarios) {
     internalFormData.usuarios = newData.usuarios
   }
@@ -523,6 +378,7 @@ onMounted(() => {
 })
 </script>
 
+<!-- Los estilos se mantienen igual -->
 <style scoped>
 .step3-parents-manager {
   max-height: 600px;
@@ -563,85 +419,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.search-container {
-  display: flex;
-  gap: 1rem;
-  align-items: end;
-  margin-bottom: 1rem;
-}
-
-.search-container .formkit-outer {
-  flex: 1;
-}
-
-.search-results {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-}
-
-.search-results h5 {
-  margin: 0 0 1rem 0;
-  color: #374151;
-  font-size: 1rem;
-}
-
-.parent-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.parent-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-}
-
-.parent-info h6 {
-  margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.parent-info p {
-  margin: 0.25rem 0;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-.search-message {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-}
-
-.search-message.success {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-}
-
-.search-message.error {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-.search-message.info {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
 }
 
 .create-parent-form {
@@ -799,58 +576,6 @@ onMounted(() => {
   font-size: 0.875rem;
 }
 
-/* FormKit styles */
-:deep(.formkit-outer) {
-  margin-bottom: 0;
-}
-
-:deep(.formkit-label) {
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
-  display: block;
-}
-
-:deep(.formkit-help) {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 0.25rem;
-}
-
-:deep(.formkit-messages) {
-  list-style: none;
-  padding: 0;
-  margin: 0.25rem 0 0 0;
-}
-
-:deep(.formkit-message) {
-  font-size: 0.75rem;
-  color: #dc2626;
-}
-
-:deep(.formkit-input) {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-:deep(.formkit-input:focus) {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-:deep(.formkit-input[data-invalid="true"]) {
-  border-color: #dc2626;
-}
-
-:deep(.formkit-wrapper) {
-  margin-bottom: 1rem;
-}
-
 /* Animaciones */
 @keyframes slideDown {
   from {
@@ -867,11 +592,6 @@ onMounted(() => {
 @media (max-width: 768px) {
   .form-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .search-container {
-    flex-direction: column;
-    align-items: stretch;
   }
   
   .parent-card,
@@ -912,17 +632,5 @@ onMounted(() => {
 
 .step3-parents-manager::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-</style>
-
-<style>
-.formkit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.formkit-actions {
-  display: none;
 }
 </style>
