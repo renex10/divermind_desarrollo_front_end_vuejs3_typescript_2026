@@ -26,104 +26,7 @@
       />
 
       <!-- Sección: Crear Nuevo Padre -->
-      <div class="form-section">
-        <h4>➕ Crear Nuevo Padre/Tutor</h4>
-        
-        <button
-          type="button"
-          class="btn btn-outline"
-          @click="toggleCreateForm"
-        >
-          {{ showCreateForm ? '❌ Cancelar Creación' : '👤 Crear Nuevo Padre' }}
-        </button>
-
-        <!-- Formulario de creación de padre (expandible) -->
-        <div v-if="showCreateForm" class="create-parent-form">
-          <div class="form-grid">
-            <!-- Información Personal -->
-            <FormKit
-              type="text"
-              name="new_parent_first_name"
-              label="Nombres *"
-              placeholder="Ej: María José"
-              validation="required|length:2,50"
-              validation-visibility="live"
-              :validation-messages="{
-                required: 'Los nombres son requeridos',
-                length: 'Debe tener entre 2 y 50 caracteres'
-              }"
-              help="Nombres del padre/tutor"
-            />
-
-            <FormKit
-              type="text"
-              name="new_parent_last_name"
-              label="Apellidos *"
-              placeholder="Ej: González Pérez"
-              validation="required|length:2,50"
-              validation-visibility="live"
-              :validation-messages="{
-                required: 'Los apellidos son requeridos',
-                length: 'Debe tener entre 2 y 50 caracteres'
-              }"
-              help="Apellidos del padre/tutor"
-            />
-
-            <FormKit
-              type="text"
-              name="new_parent_rut"
-              label="RUT *"
-              placeholder="12.345.678-9"
-              validation="required|matches:/^\d{1,2}\.\d{3}\.\d{3}-[\dkK]$/"
-              validation-visibility="live"
-              :validation-messages="{
-                required: 'El RUT es requerido',
-                matches: 'Formato de RUT inválido (ej: 12.345.678-9)'
-              }"
-              help="RUT del padre/tutor"
-            />
-
-            <FormKit
-              type="email"
-              name="new_parent_email"
-              label="Email *"
-              placeholder="padre@email.com"
-              validation="required|email"
-              validation-visibility="live"
-              :validation-messages="{
-                required: 'El email es requerido',
-                email: 'Formato de email inválido'
-              }"
-              help="Email del padre/tutor"
-            />
-
-            <FormKit
-              type="tel"
-              name="new_parent_phone"
-              label="Teléfono"
-              placeholder="+56912345678"
-              validation="matches:/^(\+?\d{7,15})?$/"
-              validation-visibility="live"
-              :validation-messages="{
-                matches: 'Formato de teléfono inválido'
-              }"
-              help="Teléfono de contacto (opcional)"
-            />
-          </div>
-
-          <div class="create-actions">
-            <button
-              type="button"
-              class="btn btn-success"
-              :disabled="!canCreateParent || isCreating"
-              @click="createNewParent"
-            >
-              <span v-if="isCreating">Creando...</span>
-              <span v-else>✅ Crear y Agregar Padre</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <CrearNuevoPadre @parent-created="handleParentCreated" />
 
       <!-- Sección: Padres Seleccionados -->
       <div class="form-section">
@@ -182,9 +85,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { createParentApi } from '@/services/nneService'
-import { NneFormData, ParentUser } from '@/type/nne'
+import { NneFormData, ParentUser } from '@/types/nne'
 import BusquedaPadre from './components/BusquedaPadre.vue'
+import CrearNuevoPadre from './components/CrearNuevoPadre.vue'
 import { useAlertModalStore } from '@/store/alertModalStore'
 
 interface Props {
@@ -203,42 +106,15 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 const alertModal = useAlertModalStore()
 
-// Estado interno
+// Estado interno - SIMPLIFICADO: ya no necesita los campos de creación de padre
 const internalFormData = reactive<any>({
-  new_parent_first_name: '',
-  new_parent_last_name: '',
-  new_parent_rut: '',
-  new_parent_email: '',
-  new_parent_phone: '',
   usuarios: props.formData.usuarios || []
 })
 
-const showCreateForm = ref(false)
 const selectedParents = ref<ParentUser[]>([])
-const isCreating = ref(false)
 
 // Validaciones
 const isValid = computed(() => selectedParents.value.length > 0)
-const canCreateParent = computed(() =>
-  internalFormData.new_parent_first_name &&
-  internalFormData.new_parent_last_name &&
-  internalFormData.new_parent_rut &&
-  internalFormData.new_parent_email
-)
-
-// Métodos auxiliares
-const toggleCreateForm = () => {
-  showCreateForm.value = !showCreateForm.value
-  if (!showCreateForm.value) clearCreateForm()
-}
-
-const clearCreateForm = () => {
-  internalFormData.new_parent_first_name = ''
-  internalFormData.new_parent_last_name = ''
-  internalFormData.new_parent_rut = ''
-  internalFormData.new_parent_email = ''
-  internalFormData.new_parent_phone = ''
-}
 
 const isParentSelected = (parentId: number) =>
   selectedParents.value.some(p => p.id === parentId)
@@ -256,6 +132,19 @@ const handleParentSelected = (parent: ParentUser) => {
   }
 }
 
+// Manejar eventos del componente CrearNuevoPadre
+const handleParentCreated = (parent: ParentUser) => {
+  if (!isParentSelected(parent.id)) {
+    selectedParents.value.push(parent)
+    updateFormData()
+    
+    alertModal.success(
+      'Padre creado y agregado', 
+      `${parent.first_name} ${parent.last_name} ha sido creado y asignado al niño`
+    )
+  }
+}
+
 const handleSearchComplete = (results: ParentUser[]) => {
   console.log('🔍 Búsqueda completada:', results.length, 'resultados')
 }
@@ -263,49 +152,6 @@ const handleSearchComplete = (results: ParentUser[]) => {
 const handleSearchError = (error: string) => {
   console.error('❌ Error en búsqueda:', error)
   // No mostramos alerta aquí porque ya se maneja en el componente hijo
-}
-
-// Crear padre nuevo con manejo de alertas modales
-const createNewParent = async () => {
-  if (!canCreateParent.value) return
-  
-  isCreating.value = true
-  try {
-    const newParent = await createParentApi({
-      first_name: internalFormData.new_parent_first_name,
-      last_name: internalFormData.new_parent_last_name,
-      rut: internalFormData.new_parent_rut,
-      email: internalFormData.new_parent_email,
-      phone: internalFormData.new_parent_phone,
-      username: internalFormData.new_parent_email,
-      role: 'Padres'
-    })
-    
-    // Agregar el nuevo padre a la lista
-    handleParentSelected(newParent)
-    clearCreateForm()
-    showCreateForm.value = false
-    
-    alertModal.success(
-      'Padre creado', 
-      'El padre ha sido creado y agregado exitosamente al niño'
-    )
-  } catch (error) {
-    console.error('❌ Error al crear padre:', error)
-    
-    let errorMessage = 'Error al crear el padre. Intente nuevamente.'
-    if (error instanceof Error) {
-      if (error.message.includes('RUT ya existe')) {
-        errorMessage = 'El RUT ingresado ya está registrado en el sistema'
-      } else if (error.message.includes('Email ya existe')) {
-        errorMessage = 'El email ingresado ya está registrado en el sistema'
-      }
-    }
-    
-    alertModal.error('Error al crear padre', errorMessage)
-  } finally {
-    isCreating.value = false
-  }
 }
 
 // Remover padre con confirmación modal
@@ -378,7 +224,7 @@ onMounted(() => {
 })
 </script>
 
-<!-- Los estilos se mantienen igual -->
+<!-- Los estilos se mantienen igual, pero eliminamos los específicos de create-parent-form -->
 <style scoped>
 .step3-parents-manager {
   max-height: 600px;
@@ -419,29 +265,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.create-parent-form {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  border-left: 4px solid #10b981;
-  animation: slideDown 0.3s ease-out;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.create-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
 }
 
 .no-parents {
@@ -534,24 +357,6 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.btn-primary {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #2563eb;
-}
-
-.btn-success {
-  background: #10b981;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #059669;
-}
-
 .btn-danger {
   background: #ef4444;
   color: white;
@@ -561,40 +366,13 @@ onMounted(() => {
   background: #dc2626;
 }
 
-.btn-outline {
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-.btn-outline:hover:not(:disabled) {
-  background: #f9fafb;
-}
-
 .btn-sm {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
 }
 
-/* Animaciones */
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Responsive */
 @media (max-width: 768px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .parent-card,
   .selected-parent-card {
     flex-direction: column;
     align-items: stretch;
@@ -604,14 +382,6 @@ onMounted(() => {
   .parent-details {
     flex-direction: column;
     gap: 0.5rem;
-  }
-  
-  .create-actions {
-    justify-content: stretch;
-  }
-  
-  .create-actions .btn {
-    flex: 1;
   }
 }
 

@@ -2,7 +2,8 @@
 // Servicio API para gestión de NNE (Niños, Niñas y Estudiantes)
 
 import http from './http'
-import type { ParentUser, ParentUserCreate, NneFormData } from '@/types/nne'
+import type { ParentUser, ParentUserCreate, NneFormData } from '@/types'
+import { parseApiError, ApiError, ApiErrorType, getUserFriendlyErrorMessage } from '@/exceptions/apiError'
 
 // =====================================================
 // ENDPOINTS DE PADRES/TUTORES
@@ -68,34 +69,7 @@ export const searchParentsApi = async (query: string): Promise<ParentUser[]> => 
     
   } catch (error: any) {
     console.error('❌ Error en búsqueda de padres:', error)
-    
-    // Log detallado del error
-    if (error.response) {
-      console.error('📊 Detalles del error:', {
-        status: error.response.status,
-        data: error.response.data,
-        headers: error.response.headers
-      })
-    }
-    
-    if (error.response?.status === 404) {
-      // No encontrado no es realmente un error, devolver array vacío
-      return []
-    }
-    
-    if (error.response?.status === 400) {
-      throw new Error('Parámetros de búsqueda inválidos')
-    }
-    
-    if (error.code === 'NETWORK_ERROR' || !error.response) {
-      throw new Error('Error de conexión. Verifique su internet')
-    }
-    
-    throw new Error(
-      error.response?.data?.message || 
-      error.response?.data?.detail ||
-      'Error al buscar padres. Intente nuevamente.'
-    )
+    throw parseApiError(error)
   }
 }
 
@@ -134,25 +108,8 @@ export const createParentApi = async (parentData: ParentUserCreate): Promise<Par
     }
     
   } catch (error: any) {
-    console.error('❌ Error al crear padre:', error.response?.data || error.message)
-    
-    if (error.response?.status === 400) {
-      const errors = error.response.data.errors || error.response.data
-      const errorMessage = typeof errors === 'string' 
-        ? errors 
-        : 'Error de validación. Verifique los datos ingresados.'
-      throw new Error(errorMessage)
-    }
-    
-    if (error.response?.status === 409) {
-      throw new Error('Ya existe un usuario con ese RUT o email')
-    }
-    
-    throw new Error(
-      error.response?.data?.message || 
-      error.response?.data?.detail ||
-      'Error al crear el padre. Verifique los datos e intente nuevamente.'
-    )
+    console.error('❌ Error al crear padre:', error)
+    throw parseApiError(error)
   }
 }
 
@@ -177,7 +134,7 @@ export const getParentByIdApi = async (parentId: number): Promise<ParentUser> =>
     
   } catch (error: any) {
     console.error(`❌ Error al obtener padre ID ${parentId}:`, error)
-    throw new Error('Error al obtener información del padre')
+    throw parseApiError(error)
   }
 }
 
@@ -216,17 +173,8 @@ export const createNneApi = async (nneData: NneFormData): Promise<any> => {
     return response.data
     
   } catch (error: any) {
-    console.error('❌ Error al crear NNE:', error.response?.data || error.message)
-    
-    if (error.response?.status === 400) {
-      const errors = error.response.data.errors || error.response.data
-      throw new Error(`Error de validación: ${JSON.stringify(errors)}`)
-    }
-    
-    throw new Error(
-      error.response?.data?.message || 
-      'Error al crear el niño. Verifique los datos e intente nuevamente.'
-    )
+    console.error('❌ Error al crear NNE:', error)
+    throw parseApiError(error)
   }
 }
 
@@ -245,7 +193,7 @@ export const getNneListApi = async (filters?: any): Promise<any[]> => {
     
   } catch (error: any) {
     console.error('❌ Error al obtener lista de NNE:', error)
-    throw new Error('Error al cargar la lista de niños')
+    throw parseApiError(error)
   }
 }
 
@@ -260,7 +208,7 @@ export const getNneByIdApi = async (nneId: number): Promise<any> => {
     return response.data
   } catch (error: any) {
     console.error(`❌ Error al obtener NNE ID ${nneId}:`, error)
-    throw new Error('Error al cargar información del niño')
+    throw parseApiError(error)
   }
 }
 
@@ -277,7 +225,7 @@ export const updateNneApi = async (nneId: number, nneData: Partial<NneFormData>)
     return response.data
   } catch (error: any) {
     console.error(`❌ Error al actualizar NNE ID ${nneId}:`, error)
-    throw new Error('Error al actualizar información del niño')
+    throw parseApiError(error)
   }
 }
 
@@ -348,6 +296,106 @@ export const getEstablishmentsApi = async (): Promise<any[]> => {
 }
 
 // =====================================================
+// HELPERS ESPECÍFICOS PARA MANEJO DE ERRORES
+// =====================================================
+
+/**
+ * Helper para manejar errores específicos de RUT en el frontend
+ */
+export const handleRutValidationError = (error: ApiError): { title: string; message: string } => {
+  const rutError = error.getFieldError('rut')
+  
+  if (rutError?.message.includes('Dígito verificador incorrecto')) {
+    return {
+      title: 'Error en dígito verificador del RUT',
+      message: `El RUT ingresado tiene un error en el dígito verificador.\n\n${rutError.message}\n\nPor favor, verifique el RUT e intente nuevamente.`
+    }
+  }
+  
+  if (rutError?.message.includes('ya está registrado')) {
+    return {
+      title: 'RUT ya registrado',
+      message: 'El RUT ingresado ya está registrado en el sistema. Verifique el RUT o busque al padre existente.'
+    }
+  }
+  
+  if (rutError?.message.includes('Formato de RUT inválido')) {
+    return {
+      title: 'Formato de RUT incorrecto',
+      message: 'El formato del RUT es incorrecto. Debe tener el formato: 12345678-9 (con guión).'
+    }
+  }
+  
+  return {
+    title: 'Error en RUT',
+    message: getUserFriendlyErrorMessage(error)
+  }
+}
+
+/**
+ * Helper para determinar título y mensaje basado en el tipo de error
+ */
+export const getErrorDisplayInfo = (error: any): { title: string; message: string } => {
+  if (error instanceof ApiError) {
+    // Manejar errores específicos de RUT
+    if (error.hasFieldError('rut')) {
+      return handleRutValidationError(error)
+    }
+    
+    // Títulos específicos por tipo de error
+    switch (error.type) {
+      case ApiErrorType.VALIDATION_ERROR:
+        return {
+          title: 'Error de validación',
+          message: getUserFriendlyErrorMessage(error)
+        }
+      
+      case ApiErrorType.CONFLICT_ERROR:
+        return {
+          title: 'Conflicto de datos',
+          message: getUserFriendlyErrorMessage(error)
+        }
+      
+      case ApiErrorType.NETWORK_ERROR:
+        return {
+          title: 'Error de conexión',
+          message: getUserFriendlyErrorMessage(error)
+        }
+      
+      case ApiErrorType.AUTHENTICATION_ERROR:
+        return {
+          title: 'Error de autenticación',
+          message: getUserFriendlyErrorMessage(error)
+        }
+      
+      case ApiErrorType.AUTHORIZATION_ERROR:
+        return {
+          title: 'Error de autorización',
+          message: getUserFriendlyErrorMessage(error)
+        }
+      
+      case ApiErrorType.SERVER_ERROR:
+        return {
+          title: 'Error del servidor',
+          message: getUserFriendlyErrorMessage(error)
+        }
+      
+      default:
+        return {
+          title: 'Error',
+          message: getUserFriendlyErrorMessage(error)
+        }
+    }
+  }
+  
+  // Para errores que no son ApiError
+  return {
+    title: 'Error',
+    message: getUserFriendlyErrorMessage(error)
+  }
+}
+
+// =====================================================
 // EXPORTS CONSOLIDADOS
 // =====================================================
 
@@ -368,5 +416,9 @@ export default {
   checkEmailAvailabilityApi,
   checkRutAvailabilityApi,
   getCommunesApi,
-  getEstablishmentsApi
+  getEstablishmentsApi,
+  
+  // Helpers de errores (nuevos)
+  getErrorDisplayInfo,
+  getUserFriendlyErrorMessage
 }
