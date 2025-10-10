@@ -2,15 +2,18 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
+
+    // 👇 Rutas y alias
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["src/*"]
     },
 
-    // 👇 Configuración moderna para Vite + Vue 3 + TS
-    "target": "ESNext",          
-    "module": "ESNext",          
-    "moduleResolution": "bundler", 
+    // Configuración moderna para Vite + Vue 3 + TS
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
 
     // Librerías y compatibilidad
     "lib": ["ESNext", "DOM"],
@@ -21,7 +24,14 @@
     // Buenas prácticas
     "strict": true,
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0"
+
+    // 👇 Obligatorio con composite: true
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+
+    // 👇 Redirige los .d.ts a una carpeta separada
+    "outDir": "./types"
   },
   "include": ["src"]
 }

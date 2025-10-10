@@ -134,18 +134,20 @@
             }"
           />
 
-          <FormKit
-            type="tel"
-            name="phone"
-            label="Teléfono"
-            placeholder="+56912345678 o 912345678"
-            :validation="isDevelopment ? false : 'matches:/^[+]?[\\d\\s\\-\\(\\)]{7,20}$/'"
-            validation-visibility="live"
-            :validation-messages="{
-              matches: 'Formato de teléfono inválido'
-            }"
-            @blur="formatearTelefono"
-          />
+<FormKit
+  type="tel"
+  name="phone"
+  label="Teléfono"
+  placeholder="+56912345678 o 912345678"
+  validation="phoneValidation"
+  validation-visibility="live"
+  :validation-messages="{
+    matches: 'Formato de teléfono inválido'
+  }"
+  @blur="formatearTelefono"
+/>
+
+         
 
           <FormKit
             type="password"
@@ -194,7 +196,7 @@
 import { ref, reactive, computed, nextTick, watch } from 'vue'
 import { createParentApi } from '@/services/nneService'
 import { useAlertModalStore } from '@/store/alertModalStore'
-import type { ParentUser, ParentUserCreate } from '@/types/nne'
+import type { ParentUser, ParentUserCreate } from '@/type/nne'
 import { useRutValidation } from '@/composables/useRutValidation'
 import { 
   parseApiError, 
@@ -211,7 +213,7 @@ const alertModal = useAlertModalStore()
 
 const showCreateForm = ref(false)
 const isCreating = ref(false)
-const isDevelopment = ref(import.meta.env.MODE === 'development')
+const isDevelopment = ref(import.meta.env?.MODE === 'development')
 
 // Timeout para verificación automática del RUT
 let rutCheckTimeout: number | null = null
@@ -243,6 +245,7 @@ const formData = reactive({
 })
 
 // ✅ CORREGIDO: Nueva lógica más clara para habilitar el botón
+
 const canSubmit = computed(() => {
   const allFieldsFilled = Boolean(
     formData.first_name &&

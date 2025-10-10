@@ -1,4 +1,4 @@
-<!-- src/views/dashboard/IngresoNneDashboard.vue -->
+<!-- src/views/dashboard/IngresoNneDashboard.vue - CORREGIDO -->
 <template>
   <div class="p-6">
     <div class="header-section">
@@ -12,13 +12,22 @@
       </button>
     </div>
 
-    <!-- Lista de NNA existentes (placeholder para futuras funcionalidades) -->
-    <div class="mt-8">
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">Lista de NNA Registrados</h2>
-        <p class="text-gray-500">Aquí aparecerán los NNA registrados...</p>
-      </div>
-    </div>
+    <!-- SECCIÓN: Métricas del Dashboard -->
+    <MetricCardGrid 
+      :metricas="metricasData"
+      :loading="metricasLoading"
+      :error="metricasError"
+      @refresh="recargarMetricas"
+    />
+
+    <!-- Componente de tabla -->
+    <TablaFiltro 
+      :data="nnaList" 
+      :loading="cargando" 
+      @view="manejarView" 
+      @edit="manejarEdit" 
+      @delete="manejarDelete"
+    />
 
     <!-- Modal para formulario de NNA -->
     <BaseModal 
@@ -31,14 +40,10 @@
       <!-- Contenido del modal: Formulario multi-step -->
       <div class="nna-form-container">
         <NneMultiStepForm
-          v-if="NneMultiStepForm"
           :editData="editingNnaData"
           @submit="handleNnaSubmit"
           @cancel="handleNnaCancel"
         />
-        <div v-else class="loading-fallback">
-          <p>Cargando formulario...</p>
-        </div>
       </div>
 
       <!-- Footer del modal con información adicional -->
@@ -77,11 +82,27 @@
         </div>
         <div class="success-text">
           <h3 class="text-lg font-semibold text-center mb-2">
-            NNA registrado correctamente
+            {{ successMessage.title }}
           </h3>
           <p class="text-gray-600 text-center">
-            El registro se ha completado exitosamente y está disponible en el sistema.
+            {{ successMessage.body }}
           </p>
+          <div v-if="createdChildInfo" class="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p class="text-sm text-gray-700">
+              <strong>Nombre:</strong> {{ createdChildInfo.nombre }}
+            </p>
+            <p class="text-sm text-gray-700">
+              <strong>RUT:</strong> {{ createdChildInfo.rut }}
+            </p>
+            <div v-if="createdChildInfo.padres_asociados && createdChildInfo.padres_asociados.length > 0" class="mt-2">
+              <p class="text-sm text-gray-700 font-semibold">Padres asociados:</p>
+              <ul class="text-sm text-gray-600 ml-4">
+                <li v-for="padre in createdChildInfo.padres_asociados" :key="padre.id">
+                  • {{ padre.nombre_completo }} ({{ padre.email }})
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -106,55 +127,182 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent, type AsyncComponentLoader } from 'vue'
-
-// Importaciones seguras con manejo de errores
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 import BaseModal from '@/components/modal/BaseModal.vue'
+import TablaFiltro from '@/components/ninos/TablaFiltro.vue'
+import filtroService, { transformNnaListForTable } from '@/services/filtroService'
+import MetricCardGrid from '@/components/ninos/SubComponentes/metricasCard/MetricCardGrid.vue'
+import { useMetricas } from '@/composables/useMetricas'
+import { useAlertModalStore } from '@/store/alertModalStore'
 
-// Importación asíncrona con fallback
-const NneMultiStepForm = defineAsyncComponent({
-  loader: (() => import('@/components/forms/multi-step/NneMultiStepForm.vue')) as AsyncComponentLoader,
-  loadingComponent: {
-    template: '<div class="loading">Cargando formulario...</div>'
-  },
-  errorComponent: {
-    template: '<div class="error">Error al cargar el formulario. Por favor, recarga la página.</div>'
-  },
-  delay: 200,
-  timeout: 3000
-})
+// ✅ IMPORTAR EL SERVICIO DE NNE
+import { createNneApi } from '@/services/nneService'
+import { parseApiError, getUserFriendlyErrorMessage } from '@/exceptions/apiError'
 
-// Definición del tipo NneFormData (temporal hasta que lo tengas en tu archivo de tipos)
-interface NneFormData {
-  first_name: string
-  last_name: string
-  rut: string
-  birth_date: string
-  gender: string
-  street: string
-  street_number: string
-  current_grade: string
-  [key: string]: any // Para propiedades adicionales
-}
+// Alert modal store
+const alertModal = useAlertModalStore()
 
-// Estado del modal principal
+// Estado de métricas usando el composable
+const { 
+  metricas: metricasData, 
+  loading: metricasLoading, 
+  error: metricasError, 
+  cargarMetricas, 
+  recargarMetricas 
+} = useMetricas()
+
+// Estado principal
+const nnaList = ref<any[]>([])
+const cargando = ref(false)
 const showNnaModal = ref(false)
 const showSuccessModal = ref(false)
-
-// Datos para edición (en caso de editar un NNA existente)
-const editingNnaData = ref<Partial<NneFormData> | undefined>(undefined)
-
-// Estado de carga
+const editingNnaData = ref<any>(undefined)
 const isSubmitting = ref(false)
+
+// ✅ NUEVO: Estado para mensaje de éxito y datos del niño creado
+const successMessage = ref({
+  title: 'NNA registrado correctamente',
+  body: 'El registro se ha completado exitosamente y está disponible en el sistema.'
+})
+const createdChildInfo = ref<any>(null)
+
+// Estado de paginación y filtros
+const pagination = ref({
+  count: 0,
+  total_pages: 0,
+  current_page: 1,
+  page_size: 10,
+  has_next: false,
+  has_previous: false
+})
+
+const selectedFilters = ref({
+  search: '',
+  grade: '',
+  status: '',
+  commune: '',
+  region: '',
+  autism_level: '',
+  school_journey: ''
+})
+
+// Importación asíncrona del formulario
+const NneMultiStepForm = defineAsyncComponent(() =>
+  import('@/components/forms/multi-step/NneMultiStepForm.vue')
+)
+
+// Cargar datos al montar el componente
+onMounted(async () => {
+  await cargarNnaList()
+})
+
+// Función para cargar datos del backend
+const cargarNnaList = async (page = 1) => {
+  try {
+    cargando.value = true
+    console.log('🔄 Cargando lista de NNA desde el backend...')
+
+    const response = await filtroService.getNnaListApi({
+      page,
+      page_size: pagination.value.page_size,
+      ...selectedFilters.value
+    })
+
+    nnaList.value = transformNnaListForTable(response.results)
+    pagination.value = response.pagination
+
+    console.log(`✅ ${nnaList.value.length} NNA cargados en página ${pagination.value.current_page}`)
+  } catch (error) {
+    console.error('❌ Error al cargar lista de NNA:', error)
+    alertModal.error(
+      'Error al cargar datos',
+      'No se pudo cargar la lista de NNA. Por favor, intente nuevamente.'
+    )
+  } finally {
+    cargando.value = false
+  }
+}
+
+// ✅ CORREGIDO: handleNnaSubmit ahora llama al servicio real
+const handleNnaSubmit = async (formData: any) => {
+  console.log('📥 ========== HANDLER SUBMIT RECIBIDO ==========')
+  console.log('Datos del NNA recibidos en el handler:', JSON.stringify(formData, null, 2))
+  console.log('================================================')
+  
+  try {
+    isSubmitting.value = true
+    
+    // ✅ LLAMAR AL SERVICIO REAL DE CREACIÓN
+    console.log('🚀 Llamando a createNneApi...')
+    const response = await createNneApi(formData)
+    
+    console.log('✅ ========== RESPUESTA DEL BACKEND ==========')
+    console.log('Respuesta completa:', response)
+    console.log('============================================')
+    
+    // Extraer datos de la respuesta
+    const responseData = response.data || response
+    
+    // Actualizar información para el modal de éxito
+    createdChildInfo.value = responseData
+    successMessage.value = {
+      title: '¡Registro Exitoso!',
+      body: `La ficha de ${responseData.nombre} ha sido creada correctamente.`
+    }
+    
+    // Recargar lista y métricas
+    await Promise.all([
+      cargarNnaList(pagination.value.current_page),
+      recargarMetricas()
+    ])
+    
+    // Cerrar modal del formulario y mostrar modal de éxito
+    showNnaModal.value = false
+    showSuccessModal.value = true
+    
+    // Limpiar datos de edición
+    setTimeout(() => {
+      editingNnaData.value = undefined
+    }, 300)
+    
+    // Mostrar alerta de éxito
+    alertModal.success(
+      '¡Éxito!',
+      `La ficha de ${responseData.nombre} ha sido creada correctamente.`
+    )
+    
+  } catch (error: any) {
+    console.error('❌ ========== ERROR AL CREAR NNA ==========')
+    console.error('Error completo:', error)
+    console.error('Respuesta del servidor:', error.response?.data)
+    console.error('Status:', error.response?.status)
+    console.error('==========================================')
+    
+    // Parsear error
+    const parsedError = parseApiError(error)
+    const errorMessage = getUserFriendlyErrorMessage(parsedError)
+    
+    // Mostrar error al usuario
+    alertModal.error(
+      'Error al registrar NNA',
+      errorMessage || 'No se pudo registrar el NNA. Por favor, verifique los datos e intente nuevamente.'
+    )
+    
+  } finally {
+    isSubmitting.value = false
+    console.log('🏁 ========== FIN HANDLER SUBMIT ==========')
+  }
+}
 
 // Función para abrir el modal de nuevo NNA
 const openNnaModal = () => {
-  editingNnaData.value = undefined // Resetear datos de edición
+  editingNnaData.value = undefined
+  createdChildInfo.value = null
   showNnaModal.value = true
 }
 
-// Función para abrir modal en modo edición (para uso futuro)
-const editNna = (nnaData: Partial<NneFormData>) => {
+// Función para abrir modal en modo edición
+const editNna = (nnaData: any) => {
   editingNnaData.value = nnaData
   showNnaModal.value = true
 }
@@ -162,7 +310,6 @@ const editNna = (nnaData: Partial<NneFormData>) => {
 // Manejar cierre del modal
 const handleModalClose = () => {
   showNnaModal.value = false
-  // Resetear datos después de un breve delay para evitar flickering
   setTimeout(() => {
     editingNnaData.value = undefined
   }, 300)
@@ -173,79 +320,49 @@ const handleNnaCancel = () => {
   handleModalClose()
 }
 
-// Manejar envío del formulario
-const handleNnaSubmit = async (formData: NneFormData) => {
-  console.log('Datos del NNA a enviar:', formData)
-  
-  try {
-    isSubmitting.value = true
-    
-    // Aquí implementarías la llamada a tu API
-    // Ejemplo:
-    // const response = await nnaApi.create(formData)
-    
-    // Simular delay de API
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // Cerrar modal principal y mostrar mensaje de éxito
-    showNnaModal.value = false
-    showSuccessModal.value = true
-    
-    // Resetear datos
-    setTimeout(() => {
-      editingNnaData.value = undefined
-    }, 300)
-    
-  } catch (error) {
-    console.error('Error al enviar los datos:', error)
-    
-    // Aquí podrías mostrar un modal de error o un toast
-    alert('Error al registrar el NNA. Por favor, inténtelo nuevamente.')
-    
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
 // Cerrar modal de éxito
 const closeSuccessModal = () => {
   showSuccessModal.value = false
+  createdChildInfo.value = null
 }
 
 // Agregar otro NNA después del éxito
 const addAnotherNna = () => {
   showSuccessModal.value = false
-  // Abrir nuevamente el modal para un nuevo registro
+  createdChildInfo.value = null
   setTimeout(() => {
     openNnaModal()
   }, 100)
 }
 
-// Funciones de utilidad para desarrollo/testing
-const logFormData = (data: any) => {
-  console.log('Form Data Updated:', data)
+// Manejadores para la tabla
+const manejarView = (nna: any) => {
+  console.log('👁️ Ver NNA:', nna)
 }
 
-// Función para testing rápido (puedes remover en producción)
-const fillTestData = () => {
-  editingNnaData.value = {
-    first_name: 'Juan',
-    last_name: 'Pérez',
-    rut: '12345678-9',
-    birth_date: '2015-05-15',
-    gender: 'male',
-    street: 'Av. Principal',
-    street_number: '123',
-    current_grade: '3° Básico'
+const manejarEdit = (nna: any) => {
+  console.log('✏️ Editar NNA:', nna)
+  editNna(nna)
+}
+
+const manejarDelete = (nna: any) => {
+  console.log('🗑️ Eliminar NNA:', nna)
+  if (confirm(`¿Estás seguro de eliminar a ${nna.first_name} ${nna.last_name}?`)) {
+    // Aquí deberías llamar al endpoint real de borrado
+    nnaList.value = nnaList.value.filter(item => item.id !== nna.id)
   }
-  showNnaModal.value = true
 }
 
-// Exponer funciones para uso en el template de desarrollo
+// Función para recargar datos
+const recargarDatos = async () => {
+  await cargarNnaList(pagination.value.current_page)
+}
+
+// Exponer funciones para uso en el template
 defineExpose({
   openNnaModal,
   editNna,
-  fillTestData
+  recargarDatos
 })
 </script>
 
@@ -260,32 +377,7 @@ defineExpose({
 .nna-form-container {
   min-height: 600px;
   max-height: 80vh;
-}
-
-.loading-fallback {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 400px;
-  color: #666;
-}
-
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-  color: #666;
-}
-
-.error {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-  color: #ef4444;
-  text-align: center;
-  padding: 1rem;
+  overflow-y: auto;
 }
 
 .modal-footer-content {
@@ -317,6 +409,7 @@ defineExpose({
 
 .success-text {
   text-align: center;
+  width: 100%;
 }
 
 /* Responsive design */
@@ -339,7 +432,7 @@ defineExpose({
   }
 }
 
-/* Estilos para mejorar la experiencia del modal */
+/* Animaciones */
 :deep(.modal-container) {
   animation: modalSlideIn 0.3s ease-out;
 }
@@ -371,17 +464,15 @@ button:not(:disabled):hover {
 </style>
 
 <style>
-/* Estilos globales para mejorar el modal */
 .modal-overlay {
   backdrop-filter: blur(4px);
 }
 
-/* Clases CSS para los colores mencionados (asegúrate de definirlas en tu CSS global) */
 .bg-color3 {
-  background-color: #3b82f6; /* Azul por defecto, cámbialo por tu color */
+  background-color: #3b82f6;
 }
 
 .bg-color4 {
-  background-color: #2563eb; /* Azul más oscuro para hover */
+  background-color: #2563eb;
 }
 </style>

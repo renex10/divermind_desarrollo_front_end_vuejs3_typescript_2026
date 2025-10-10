@@ -1,5 +1,8 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-amber-50 to-yellow-50" style="background-color: #fffaf2;">
+  <div
+    class="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-amber-50 to-yellow-50"
+    style="background-color: #fffaf2;"
+  >
     <!-- Container principal con sombra sutil -->
     <div class="max-w-md w-full space-y-8">
       <!-- Card principal -->
@@ -89,7 +92,7 @@
           </template>
         </FormKit>
 
-        <!-- Enlaces adicionales (opcional) -->
+        <!-- Enlaces adicionales -->
         <div class="mt-6 text-center">
           <a 
             href="#" 
@@ -101,7 +104,7 @@
         </div>
       </div>
 
-      <!-- Footer opcional -->
+      <!-- Footer -->
       <div class="text-center">
         <p class="text-xs" style="color: #8c8377;">
           Protegido por medidas de seguridad avanzadas
@@ -113,8 +116,7 @@
 
 <script lang="ts" setup>
 import { useAuth } from '@/composables/useAuth'
-import { LockClosedIcon } from '@heroicons/vue/24/solid'
-import logoHorizontal from '@/assets/img/logo-horizontal.png'
+import logoHorizontal from '../../assets/img/logo-horizontal.png'
 
 const { login } = useAuth()
 
@@ -127,18 +129,15 @@ const handleLogin = (formData: { email: string; password: string }) => {
 </script>
 
 <style scoped>
-/* Estilos adicionales para FormKit si es necesario */
 :deep(.formkit-form) {
   --fk-color-primary: #ffe923;
   --fk-color-primary-contrast: #311906;
 }
 
-/* Animaciones sutiles */
 .group:hover .absolute {
   transform: translateX(1px);
 }
 
-/* Mejorar la apariencia de los inputs en focus */
 :deep(.formkit-input:focus) {
   box-shadow: 0 0 0 3px rgba(255, 233, 35, 0.1);
 }

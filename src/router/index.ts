@@ -20,6 +20,14 @@ const routes = [
       { path: '', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
       { path: 'ingreso-nna', name: 'ingreso-nna', component: () => import('@/views/dashboard/IngresoNneDashboard.vue') },
       { path: 'histos', name: 'histos', component: () => import('@/views/dashboard/HistosView.vue') },
+       // 🆕 NUEVA RUTA PARA PERFIL DE SEGUIMIENTO
+      { 
+        path: 'perfil-nino/:id', 
+        name: 'perfil-nino', 
+        component: () => import('@/views/dashboard/PerfilSeguimientoPersonal.vue'),
+        props: true // Pasa los params como props
+      },
+      
       { path: 'sessiones', name: 'sessiones', component: () => import('@/views/dashboard/SessionesView.vue') },
       { path: 'reportes', name: 'reportes', component: () => import('@/views/dashboard/ReportesView.vue') },
       { path: 'configuracion', name: 'configuracion', component: () => import('@/views/dashboard/ConfiguracionView.vue') },

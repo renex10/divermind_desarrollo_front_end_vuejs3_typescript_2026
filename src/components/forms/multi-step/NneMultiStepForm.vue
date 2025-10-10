@@ -1,5 +1,5 @@
-<!-- src\components\forms\multi-step\NneMultiStepForm.vue -->
-<!-- FORMULARIO MULTIPASOS PRINCIPAL - VERSIÓN MEJORADA -->
+<!-- src/components/forms/multi-step/NneMultiStepForm.vue -->
+<!-- FORMULARIO MULTIPASOS PRINCIPAL - VERSIÓN COMPLETAMENTE CORREGIDA -->
 <template>
   <div class="multi-step-form">
     <!-- Progress Steps -->
@@ -22,43 +22,96 @@
       </div>
     </div>
 
-    <!-- Debug Info (remover en producción) -->
+    <!-- Debug Info -->
     <div class="debug-info" v-if="showDebug">
       <h4>🐛 Debug Info:</h4>
       <p>Current Step: {{ currentStep }}</p>
       <p>Step Validity: {{ JSON.stringify(stepValidity) }}</p>
-      <p>Can proceed: {{ stepValidity[currentStep] }}</p>
+      <p>Can proceed: {{ getStepValidity(currentStep) }}</p>
+      <p>Form Data usuarios: {{ formData.usuarios }}</p>
       <button @click="showDebug = false" class="btn btn-sm">Ocultar Debug</button>
     </div>
 
     <!-- Step Content -->
     <div class="step-content">
-      <Step1BasicData
+      <!-- Paso 1: Datos Personales -->
+      <Paso1StepPersonal
         v-if="currentStep === 1"
-        v-model:form-data="formData"
+        :formData="paso1Data"
+        @update:formData="updatePaso1Data"
         @validate="setStepValidity(1, $event)"
         ref="step1Ref"
       />
       
-      <Step2MedicalInfo
+      <!-- Paso 2: Ubicación -->
+      <Paso2Location
         v-if="currentStep === 2"
-        v-model:form-data="formData"
+        :formData="paso2Data"
+        @update:formData="updatePaso2Data"
         @validate="setStepValidity(2, $event)"
         ref="step2Ref"
       />
       
-      <Step3ParentsManager
+      <!-- Paso 3: Información Escolar -->
+      <Paso3School
         v-if="currentStep === 3"
-        v-model:form-data="formData"
+        :formData="paso3Data"
+        @update:formData="updatePaso3Data"
         @validate="setStepValidity(3, $event)"
         ref="step3Ref"
       />
       
-      <Step4ReviewConsent
+      <!-- Paso 4: Perfil Médico -->
+      <Paso4Medical
         v-if="currentStep === 4"
-        v-model:form-data="formData"
+        :formData="paso4Data"
+        @update:formData="updatePaso4Data"
         @validate="setStepValidity(4, $event)"
         ref="step4Ref"
+      />
+      
+      <!-- Paso 5: Necesidades Especiales -->
+      <Paso5SpecialNeeds
+        v-if="currentStep === 5"
+        :formData="paso5Data"
+        @update:formData="updatePaso5Data"
+        @validate="setStepValidity(5, $event)"
+        ref="step5Ref"
+      />
+      
+      <!-- Paso 6: Historial Terapias -->
+      <Paso6Therapy
+        v-if="currentStep === 6"
+        :formData="paso6Data"
+        @update:formData="updatePaso6Data"
+        @validate="setStepValidity(6, $event)"
+        ref="step6Ref"
+      />
+      
+      <!-- Paso 7: Consentimiento -->
+      <Paso7Guardian
+        v-if="currentStep === 7"
+        :formData="paso7Data"
+        @update:formData="updatePaso7Data"
+        @validate="setStepValidity(7, $event)"
+        ref="step7Ref"
+      />
+      
+      <!-- Paso 8: Padres/Tutores -->
+      <Paso8Parents
+        v-if="currentStep === 8"
+        :formData="formData"
+        @update:formData="updateFormData"
+        @validate="setStepValidity(8, $event)"
+        ref="step8Ref"
+      />
+      
+      <!-- Paso 9: Revisión Final -->
+      <Paso9Review
+        v-if="currentStep === 9"
+        :formData="formData"
+        @validate="setStepValidity(9, $event)"
+        ref="step9Ref"
       />
     </div>
 
@@ -74,7 +127,6 @@
       </button>
       
       <div class="navigation-spacer">
-        <!-- Botón de debug -->
         <button 
           @click="showDebug = !showDebug" 
           class="btn btn-outline btn-sm debug-toggle"
@@ -83,7 +135,6 @@
           🐛 Debug
         </button>
         
-        <!-- Botón para forzar validación -->
         <button 
           @click="forceValidation" 
           class="btn btn-outline btn-sm"
@@ -96,25 +147,25 @@
       <button 
         v-if="currentStep < totalSteps"
         class="btn btn-primary"
-        :disabled="!stepValidity[currentStep]"
-        :class="{ 'btn-disabled': !stepValidity[currentStep] }"
+        :disabled="!getStepValidity(currentStep)"
+        :class="{ 'btn-disabled': !getStepValidity(currentStep) }"
         @click="nextStep"
         type="button"
       >
-        <span v-if="stepValidity[currentStep]">Siguiente →</span>
+        <span v-if="getStepValidity(currentStep)">Siguiente →</span>
         <span v-else>⚠️ Complete los campos requeridos</span>
       </button>
       
       <button 
         v-if="currentStep === totalSteps"
         class="btn btn-success"
-        :disabled="!stepValidity[currentStep] || isSubmitting"
-        :class="{ 'btn-disabled': !stepValidity[currentStep] || isSubmitting }"
+        :disabled="!getStepValidity(currentStep) || isSubmitting"
+        :class="{ 'btn-disabled': !getStepValidity(currentStep) || isSubmitting }"
         @click="submitForm"
         type="button"
       >
         <span v-if="isSubmitting">⏳ Enviando...</span>
-        <span v-else-if="stepValidity[currentStep]">✅ Registrar Niño</span>
+        <span v-else-if="getStepValidity(currentStep)">✅ Registrar Niño</span>
         <span v-else>⚠️ Complete la revisión</span>
       </button>
     </div>
@@ -122,18 +173,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, nextTick } from 'vue'
-import type { NneFormData } from '../../../type/nne'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 
-// Step Components
-import Step1BasicData from './Step1BasicData.vue'
-import Step2MedicalInfo from './Step2MedicalInfo.vue'
-import Step3ParentsManager from './Step3ParentsManager.vue'
-import Step4ReviewConsent from './Step4ReviewConsent.vue'
+// Importar los 9 componentes
+import Paso1StepPersonal from './pasos/Paso1StepPersonal.vue'
+import Paso2Location from './pasos/Paso2Location.vue'
+import Paso3School from './pasos/Paso3School.vue'
+import Paso4Medical from './pasos/Paso4Medical.vue'
+import Paso5SpecialNeeds from './pasos/Paso5SpecialNeeds.vue'
+import Paso6Therapy from './pasos/Paso6Therapy.vue'
+import Paso7Guardian from './pasos/Paso7Guardian.vue'
+import Paso8Parents from './pasos/Paso8Parents.vue'
+import Paso9Review from './pasos/Paso9Review.vue'
+
+// ✅ CORREGIDO: Interface con tipo explícito para stepValidity
+interface StepValidityMap {
+  [key: number]: boolean
+}
+
+// Interface para los datos del formulario
+interface NneFormData {
+  first_name: string
+  last_name: string
+  rut: string
+  birth_date: string
+  gender: string
+  street: string
+  street_number: string
+  commune: any
+  region: any
+  establishment: any
+  current_grade: string
+  school_journey: string
+  adaptation_notes: string
+  allergies: string
+  current_medication: string
+  emergency_contact: string
+  emergency_phone: string
+  medical_notes: string
+  has_special_needs: boolean
+  special_needs_type: string
+  autism_level: string
+  pie_diagnosis: string
+  pie_entry_date: string
+  pie_status: string
+  guardian_consent: boolean
+  consent_date: string
+  has_previous_therapies: boolean
+  therapies_detail: string
+  referred_by: string
+  referred_by_detail: string
+  attended_where: any
+  usuarios: number[]
+}
 
 interface Props {
   editData?: Partial<NneFormData>
 }
+
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
@@ -141,161 +238,264 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-// Referencias a los componentes de pasos
-const step1Ref = ref(null)
-const step2Ref = ref(null)
-const step3Ref = ref(null)
-const step4Ref = ref(null)
+// Referencias a los componentes
+const step1Ref = ref<InstanceType<typeof Paso1StepPersonal> | null>(null)
+const step2Ref = ref<InstanceType<typeof Paso2Location> | null>(null)
+const step3Ref = ref<InstanceType<typeof Paso3School> | null>(null)
+const step4Ref = ref<InstanceType<typeof Paso4Medical> | null>(null)
+const step5Ref = ref<InstanceType<typeof Paso5SpecialNeeds> | null>(null)
+const step6Ref = ref<InstanceType<typeof Paso6Therapy> | null>(null)
+const step7Ref = ref<InstanceType<typeof Paso7Guardian> | null>(null)
+const step8Ref = ref<InstanceType<typeof Paso8Parents> | null>(null)
+const step9Ref = ref<InstanceType<typeof Paso9Review> | null>(null)
 
+// Configuración de pasos
 const steps = [
-  { number: 1, label: 'Datos Básicos' },
-  { number: 2, label: 'Información Médica' },
-  { number: 3, label: 'Padres/Tutores' },
-  { number: 4, label: 'Revisión' }
+  { number: 1, label: 'Datos Personales' },
+  { number: 2, label: 'Ubicación' },
+  { number: 3, label: 'Info. Escolar' },
+  { number: 4, label: 'Perfil Médico' },
+  { number: 5, label: 'Necesidades' },
+  { number: 6, label: 'Terapias' },
+  { number: 7, label: 'Consentimiento' },
+  { number: 8, label: 'Padres' },
+  { number: 9, label: 'Revisión' }
 ]
 
 const totalSteps = steps.length
 const currentStep = ref(1)
-const stepValidity = reactive({ 1: false, 2: false, 3: false, 4: false })
-const isSubmitting = ref(false)
-const showDebug = ref(false)
 
-// Datos del formulario - inicializados con valores por defecto más completos
+// ✅ CORREGIDO: stepValidity con tipo explícito
+const stepValidity = ref<StepValidityMap>({ 
+  1: false, 2: false, 3: false, 4: false, 
+  5: false, 6: false, 7: false, 8: false, 9: false 
+})
+
+const showDebug = ref(false)
+const isSubmitting = ref(false)
+
+// Datos del formulario
 const formData = reactive<NneFormData>({
-  first_name: '', 
+  first_name: '',
   last_name: '', 
   rut: '', 
   birth_date: '', 
-  gender: '',
+  gender: 'unspecified',
   street: '', 
   street_number: '', 
   commune: null, 
+  region: null,
   establishment: null,
   current_grade: '', 
   school_journey: '', 
-  school_adaptation_notes: '',
-  special_needs: false, 
-  special_needs_type: '', 
-  autism_level_value: 'no_review',
-  pie_diagnosis: '', 
-  pie_entry_date: '', 
-  pie_status: '',
+  adaptation_notes: '',
   allergies: '', 
   current_medication: '', 
   emergency_contact: '',
   emergency_phone: '', 
   medical_notes: '',
-  usuarios: [],
+  has_special_needs: false, 
+  special_needs_type: '', 
+  autism_level: 'no_review',
+  pie_diagnosis: '', 
+  pie_entry_date: '', 
+  pie_status: '',
   guardian_consent: false, 
   consent_date: '',
-  previous_therapies: false, 
-  previous_therapies_detail: '',
+  has_previous_therapies: false, 
+  therapies_detail: '',
   referred_by: '', 
   referred_by_detail: '', 
-  attended_where: ''
+  attended_where: null,
+  usuarios: []
 })
 
-// Cargar datos de edición
-onMounted(async () => {
-  if (props.editData) {
-    Object.assign(formData, props.editData)
-  }
-  
-  // Esperar a que Vue renderice los componentes
-  await nextTick()
-  
-  // Forzar validación inicial después de un delay más largo
-  setTimeout(() => {
-    console.log('🚀 Iniciando validación inicial...')
-    forceValidation()
-  }, 500)
-})
+// ✅ FUNCIONES DE ACTUALIZACIÓN (deben estar antes de los computed)
+const updatePaso1Data = (data: any) => {
+  Object.assign(formData, {
+    first_name: data.first_name,
+    last_name: data.last_name,
+    rut: data.rut,
+    birth_date: data.birth_date,
+    gender: data.gender
+  })
+}
 
-// Función mejorada para establecer la validez de cada paso
+const updatePaso2Data = (data: any) => {
+  Object.assign(formData, {
+    establishment: data.establishment,
+    region: data.region,
+    commune: data.commune,
+    street: data.street,
+    street_number: data.street_number
+  })
+}
+
+const updatePaso3Data = (data: any) => {
+  Object.assign(formData, {
+    current_grade: data.current_grade,
+    school_journey: data.school_journey,
+    adaptation_notes: data.school_adaptation_notes
+  })
+}
+
+const updatePaso4Data = (data: any) => {
+  Object.assign(formData, {
+    allergies: data.allergies,
+    current_medication: data.current_medication,
+    emergency_contact: data.emergency_contact,
+    emergency_phone: data.emergency_phone,
+    medical_notes: data.medical_notes
+  })
+}
+
+const updatePaso5Data = (data: any) => {
+  Object.assign(formData, {
+    has_special_needs: data.has_special_needs,
+    special_needs_type: data.special_needs_type,
+    autism_level: data.autism_level,
+    pie_diagnosis: data.pie_diagnosis,
+    pie_entry_date: data.pie_entry_date,
+    pie_status: data.pie_status
+  })
+}
+
+const updatePaso6Data = (data: any) => {
+  console.log('📥 Actualizando datos Paso 6:', data)
+  Object.assign(formData, {
+    has_previous_therapies: data.has_previous_therapies,
+    therapies_detail: data.therapies_detail,
+    referred_by: data.referred_by,
+    referred_by_detail: data.referred_by_detail,
+    attended_where: data.attended_where
+  })
+  console.log('✅ formData.has_previous_therapies:', formData.has_previous_therapies)
+}
+
+const updatePaso7Data = (data: any) => {
+  Object.assign(formData, {
+    guardian_consent: data.guardian_consent,
+    consent_date: data.consent_date
+  })
+}
+
+// ✅ COMPUTED PROPERTIES para cada paso
+const paso1Data = computed(() => ({
+  first_name: formData.first_name,
+  last_name: formData.last_name,
+  rut: formData.rut,
+  birth_date: formData.birth_date,
+  gender: formData.gender
+}))
+
+const paso2Data = computed(() => ({
+  establishment: formData.establishment,
+  region: formData.region,
+  commune: formData.commune,
+  street: formData.street,
+  street_number: formData.street_number
+}))
+
+const paso3Data = computed(() => ({
+  current_grade: formData.current_grade,
+  school_journey: formData.school_journey,
+  school_adaptation_notes: formData.adaptation_notes
+}))
+
+const paso4Data = computed(() => ({
+  allergies: formData.allergies,
+  current_medication: formData.current_medication,
+  emergency_contact: formData.emergency_contact,
+  emergency_phone: formData.emergency_phone,
+  medical_notes: formData.medical_notes
+}))
+
+const paso5Data = computed(() => ({
+  has_special_needs: formData.has_special_needs,
+  special_needs_type: formData.special_needs_type,
+  autism_level: formData.autism_level,
+  pie_diagnosis: formData.pie_diagnosis,
+  pie_entry_date: formData.pie_entry_date,
+  pie_status: formData.pie_status
+}))
+
+const paso6Data = computed(() => ({
+  has_previous_therapies: formData.has_previous_therapies,
+  therapies_detail: formData.therapies_detail,
+  referred_by: formData.referred_by,
+  referred_by_detail: formData.referred_by_detail,
+  attended_where: formData.attended_where
+}))
+
+const paso7Data = computed(() => ({
+  guardian_consent: formData.guardian_consent,
+  consent_date: formData.consent_date
+}))
+
+// ✅ NUEVO: Función helper para obtener validez de paso de forma segura
+const getStepValidity = (step: number): boolean => {
+  return stepValidity.value[step] ?? false
+}
+
+// ✅ CORREGIDO: setStepValidity con tipo seguro
 const setStepValidity = (step: number, isValid: boolean) => {
   console.log(`✅ Step ${step} validity changed to:`, isValid)
-  const oldValue = stepValidity[step]
-  stepValidity[step] = isValid
-  
-  if (oldValue !== isValid) {
-    console.log(`🔄 Step ${step} validity CHANGED from ${oldValue} to ${isValid}`)
+  stepValidity.value = {
+    ...stepValidity.value,
+    [step]: isValid
   }
 }
 
-// Función para forzar validación del paso actual - SIN BUCLES
+// ✅ NUEVO: Actualizar formData desde Paso8
+const updateFormData = (data: any) => {
+  console.log('📥 Actualizando formData desde paso 8:', data)
+  Object.assign(formData, data)
+  console.log('✅ formData.usuarios actualizado:', formData.usuarios)
+}
+
 const forceValidation = async () => {
   console.log(`🔍 Forzando validación del paso ${currentStep.value}`)
-  
   await nextTick()
   
-  // Intentar llamar al método de validación del componente actual
   const currentStepRef = getCurrentStepRef()
   if (currentStepRef && typeof currentStepRef.validate === 'function') {
-    console.log('📞 Llamando método validate del componente')
-    currentStepRef.validate()
+    const isValid = currentStepRef.validate()
+    setStepValidity(currentStep.value, isValid)
   }
-  
-  // NO modificar formData aquí para evitar bucles infinitos
-  // const formDataCopy = JSON.parse(JSON.stringify(formData))
-  // Object.assign(formData, formDataCopy)
-  
-  console.log(`📊 Estado después de forzar validación: ${stepValidity[currentStep.value]}`)
 }
 
-// Obtener referencia del componente del paso actual
 const getCurrentStepRef = () => {
   switch (currentStep.value) {
     case 1: return step1Ref.value
     case 2: return step2Ref.value  
     case 3: return step3Ref.value
     case 4: return step4Ref.value
+    case 5: return step5Ref.value
+    case 6: return step6Ref.value
+    case 7: return step7Ref.value
+    case 8: return step8Ref.value
+    case 9: return step9Ref.value
     default: return null
   }
 }
 
-// Navegación entre pasos mejorada
-const goToStep = (step: number) => { 
-  console.log(`🎯 Intentando ir al paso ${step}`)
-  
-  // Permitir ir hacia atrás o al paso actual
+const goToStep = async (step: number) => { 
   if (step >= 1 && step <= totalSteps && step <= currentStep.value) {
     currentStep.value = step
-    console.log(`✅ Navegado al paso ${step}`)
-    
-    // Forzar validación del nuevo paso después de un pequeño delay
-    setTimeout(() => {
-      forceValidation()
-    }, 100)
-  } else {
-    console.log(`❌ No se puede navegar al paso ${step} desde el paso ${currentStep.value}`)
+    await nextTick()
+    setTimeout(() => forceValidation(), 200)
   }
 }
 
 const nextStep = async () => { 
-  console.log('▶️ Next step clicked. Current validity:', stepValidity[currentStep.value])
-  console.log('📋 Form data state:', JSON.stringify(formData, null, 2))
-  
   if (currentStep.value < totalSteps) {
-    // Forzar una última validación antes de avanzar
     await forceValidation()
+    await new Promise(resolve => setTimeout(resolve, 150))
     
-    // Esperar un momento para que la validación se procese
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    if (stepValidity[currentStep.value]) {
-      const oldStep = currentStep.value
+    if (getStepValidity(currentStep.value)) {
       currentStep.value++
-      console.log(`✅ Avanzado del paso ${oldStep} al paso ${currentStep.value}`)
-      
-      // Validar el nuevo paso
-      setTimeout(() => {
-        forceValidation()
-      }, 100)
+      setTimeout(() => forceValidation(), 300)
     } else {
-      console.warn('⚠️ No se puede proceder: El paso actual no es válido')
-      console.warn('📊 Estado de validez actual:', stepValidity)
-      
-      // Mostrar información de debug automáticamente
       showDebug.value = true
     }
   }
@@ -303,89 +503,182 @@ const nextStep = async () => {
 
 const previousStep = () => { 
   if (currentStep.value > 1) {
-    const oldStep = currentStep.value
     currentStep.value--
-    console.log(`⬅️ Retrocedido del paso ${oldStep} al paso ${currentStep.value}`)
+    setTimeout(() => forceValidation(), 100)
   }
 }
 
-// Watchers mejorados
-watch(stepValidity, (newValidity, oldValidity) => {
-  console.log('📊 Step validity status changed:', {
-    old: oldValidity,
-    new: newValidity
-  })
-}, { deep: true })
+// ✅ HELPER: Convertir a booleano
+const convertToBoolean = (value: any): boolean => {
+  if (typeof value === 'boolean') return value
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return Boolean(value)
+}
 
-watch(currentStep, (newStep, oldStep) => {
-  console.log(`🔀 Current step changed from ${oldStep} to ${newStep}`)
-})
-
-// Watch más específico para cambios importantes en formData - DESHABILITADO PARA EVITAR BUCLES
-// watch(() => [
-//   formData.first_name,
-//   formData.last_name,
-//   formData.rut,
-//   formData.birth_date,
-//   formData.gender
-// ], () => {
-//   if (currentStep.value === 1) {
-//     console.log('🔄 Datos básicos cambiaron, revalidando...')
-//     setTimeout(() => forceValidation(), 50)
-//   }
-// }, { deep: true })
-
-// Watch simplificado que NO causa bucles infinitos
-watch(formData, () => {
-  // Solo loggear, no forzar validación automática
-  console.log('📝 Form data changed, waiting for manual validation...')
-}, { deep: true })
-
-const submitForm = async () => {
-  console.log('📤 Submitting form. Step 4 validity:', stepValidity[4])
+// ✅ NUEVA FUNCIÓN: Preparar datos para el backend
+const prepareDataForBackend = (data: NneFormData) => {
+  console.log('🔄 Preparando datos para backend:', data)
   
-  if (!stepValidity[4]) {
-    console.error('❌ Cannot submit: Step 4 is not valid')
+  const prepared = {
+    // Datos personales
+    first_name: data.first_name,
+    last_name: data.last_name,
+    rut: data.rut,
+    birth_date: data.birth_date,
+    gender: data.gender || 'unspecified',
+    
+    // Ubicación
+    establishment: Number(data.establishment) || 0,
+    region: Number(data.region) || 0,
+    commune: Number(data.commune) || 0,
+    street: data.street,
+    street_number: data.street_number,
+    
+    // Escolar
+    current_grade: data.current_grade,
+    school_journey: data.school_journey || '',
+    adaptation_notes: data.adaptation_notes || '',
+    
+    // Médico
+    allergies: data.allergies || 'Ninguna',
+    current_medication: data.current_medication || 'Ninguna',
+    emergency_contact: data.emergency_contact,
+    emergency_phone: data.emergency_phone,
+    medical_notes: data.medical_notes || '',
+    
+    // Necesidades especiales - ✅ CONVERTIR A BOOLEANO
+    has_special_needs: convertToBoolean(data.has_special_needs),
+    special_needs_type: data.special_needs_type || 'none',
+    autism_level: data.autism_level || 'no_review',
+    
+    // PIE
+    pie_diagnosis: data.pie_diagnosis || '',
+    pie_entry_date: data.pie_entry_date || null,
+    pie_status: data.pie_status || '',
+    
+    // Consentimiento - ✅ CONVERTIR A BOOLEANO
+    guardian_consent: convertToBoolean(data.guardian_consent),
+    consent_date: data.consent_date || new Date().toISOString().split('T')[0],
+    
+    // Terapias - ✅ CONVERTIR A BOOLEANO
+    has_previous_therapies: convertToBoolean(data.has_previous_therapies),
+    therapies_detail: data.therapies_detail || '',
+    referred_by: data.referred_by || '',
+    referred_by_detail: data.referred_by_detail || '',
+    attended_where: Number(data.attended_where) || 0,
+    
+    // Padres - ✅ ASEGURAR ARRAY DE NÚMEROS
+    usuarios: Array.isArray(data.usuarios) 
+      ? data.usuarios.map(Number).filter(Boolean)
+      : []
+  }
+  
+  console.log('📤 Datos preparados:', prepared)
+  return prepared
+}
+
+// ✅ CORREGIDO: submitForm con preparación de datos y LOGS DETALLADOS
+const submitForm = async () => {
+  console.log('🚀 ========== INICIO SUBMIT FORM ==========')
+  console.log('📊 Estado de validación completo:', stepValidity.value)
+  console.log('📋 Datos del formulario ANTES de preparar:', JSON.stringify(formData, null, 2))
+  console.log('🔍 Paso actual:', currentStep.value)
+  console.log('🔍 Total de pasos:', totalSteps)
+  console.log('🔍 Validez del último paso:', getStepValidity(totalSteps))
+  
+  if (!getStepValidity(totalSteps)) {
+    console.error('❌ SUBMIT BLOQUEADO: Paso 9 no está válido')
+    console.error('❌ Estado de validación del paso 9:', stepValidity.value[9])
     showDebug.value = true
+    alert('⚠️ Por favor complete todos los campos requeridos en la revisión final.')
     return
   }
   
+  console.log('✅ Validación del paso 9 APROBADA, continuando...')
   isSubmitting.value = true
+  
   try {
     await nextTick()
-    const submitData = { ...formData }
-    console.log('📤 Submitting data:', submitData)
-    emit('submit', submitData)
+    
+    // Preparar datos para el backend
+    const dataToSubmit = prepareDataForBackend(formData)
+    
+    console.log('📤 ========== DATOS FINALES A ENVIAR ==========')
+    console.log(JSON.stringify(dataToSubmit, null, 2))
+    console.log('📤 Usuarios a asociar:', dataToSubmit.usuarios)
+    console.log('📤 Has special needs:', dataToSubmit.has_special_needs, typeof dataToSubmit.has_special_needs)
+    console.log('📤 Guardian consent:', dataToSubmit.guardian_consent, typeof dataToSubmit.guardian_consent)
+    console.log('📤 Has previous therapies:', dataToSubmit.has_previous_therapies, typeof dataToSubmit.has_previous_therapies)
+    console.log('================================================')
+    
+    console.log('🎯 Emitiendo evento submit...')
+    emit('submit', dataToSubmit as NneFormData)
+    console.log('✅ Evento submit emitido correctamente')
+    
   } catch (error) {
-    console.error('💥 Error submitting form:', error)
+    console.error('❌ ========== ERROR EN SUBMIT ==========')
+    console.error('Error completo:', error)
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack available')
+    console.error('==========================================')
+    alert(`❌ Error al enviar el formulario: ${error instanceof Error ? error.message : 'Error desconocido'}`)
   } finally {
     isSubmitting.value = false
+    console.log('🏁 ========== FIN SUBMIT FORM ==========')
   }
 }
+
+onMounted(async () => {
+  if (props.editData) {
+    Object.assign(formData, props.editData)
+  }
+  
+  await nextTick()
+  setTimeout(() => forceValidation(), 800)
+})
+
+watch(currentStep, async () => {
+  await nextTick()
+  setTimeout(() => forceValidation(), 200)
+})
+
+defineExpose({
+  forceValidation,
+  getCurrentStep: () => currentStep.value,
+  getStepValidity: () => stepValidity.value
+})
 </script>
 
 <style scoped>
 .multi-step-form {
-  display: flex;
-  flex-direction: column;
-  height: 600px;
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 2rem;
 }
 
 .steps-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 0.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem 1rem;
   margin-bottom: 2rem;
-  padding: 0 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .step-indicator {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.5rem;
-  min-width: 80px;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
+  border-radius: 0.5rem;
   transition: all 0.3s ease;
-  border-radius: 8px;
+  cursor: default;
+  min-width: 0;
 }
 
 .step-indicator.clickable {
@@ -393,41 +686,47 @@ const submitForm = async () => {
 }
 
 .step-indicator.clickable:hover {
-  background-color: #f3f4f6;
-  transform: translateY(-2px);
+  background-color: #f8fafc;
 }
 
-.step-number {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-}
-
-.step-indicator.active .step-number {
-  background: #3b82f6;
-  color: white;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+.step-indicator.active {
+  background-color: #eff6ff;
 }
 
 .step-indicator.completed .step-number {
-  background: #10b981;
+  background-color: #10b981;
   color: white;
-  border-color: #059669;
+}
+
+.step-number {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.step-indicator.active .step-number {
+  background-color: #3b82f6;
+  color: white;
 }
 
 .step-label {
-  font-size: 0.875rem;
-  text-align: center;
+  font-size: 0.75rem;
   font-weight: 500;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.2;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .step-indicator.active .step-label {
@@ -440,62 +739,63 @@ const submitForm = async () => {
 }
 
 .step-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 0.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 2rem;
+  min-height: 400px;
+  padding: 2rem;
 }
 
 .step-navigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
-  gap: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .navigation-spacer {
-  flex: 1;
   display: flex;
-  justify-content: center;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 44px;
-}
-
-.btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 .btn-primary {
-  background-color: #3b82f6;
+  background: #3b82f6;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
+  background: #2563eb;
 }
 
 .btn-secondary {
-  background-color: #6b7280;
-  color: white;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #4b5563;
+  background: #e5e7eb;
 }
 
 .btn-success {
@@ -522,18 +822,11 @@ const submitForm = async () => {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
 }
 
 .btn-sm {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  min-height: 36px;
-}
-
-.debug-toggle {
-  margin-right: 0.5rem;
 }
 
 .debug-info {
@@ -554,5 +847,85 @@ const submitForm = async () => {
 .debug-info p {
   margin: 0.25rem 0;
   color: #78350f;
+}
+
+@media (max-width: 1200px) {
+  .steps-header {
+    grid-template-columns: repeat(9, minmax(70px, 1fr));
+    gap: 0.25rem;
+    padding: 1rem 0.5rem;
+  }
+  
+  .step-label {
+    font-size: 0.65rem;
+  }
+  
+  .step-number {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .multi-step-form {
+    padding: 1rem;
+  }
+  
+  .steps-header {
+    grid-template-columns: repeat(9, 1fr);
+    gap: 0.25rem;
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .step-label {
+    font-size: 0.6rem;
+  }
+  
+  .step-number {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.7rem;
+  }
+  
+  .step-content {
+    padding: 1rem;
+  }
+  
+  .step-navigation {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .navigation-spacer {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .steps-header {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+  
+  .step-label {
+    font-size: 0.7rem;
+  }
+  
+  .step-number {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+  }
 }
 </style>

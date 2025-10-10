@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { searchParentsApi } from '@/services/nneService'
 import type { ParentUser } from '@/type/nne'
 import { useAlertModalStore } from '@/store/alertModalStore'

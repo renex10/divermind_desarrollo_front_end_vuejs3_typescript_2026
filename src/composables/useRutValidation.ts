@@ -2,7 +2,7 @@
 
 import { ref, computed, watch } from 'vue';
 import { validarRut, validarRutProgresivo, formatearRut, type RutValidationResult } from '@/utils/rutValidator';
-import { checkRutAvailabilityApi } from '@/services/nneService';
+import { checkRutAvailabilityApi, validateChildRutApi } from '@/services/nneService';
 
 /**
  * Composable para validación reactiva de RUT - VERSIÓN MEJORADA
@@ -58,65 +58,94 @@ export function useRutValidation() {
   /**
    * Validación asincrónica de disponibilidad del RUT - VERSIÓN MEJORADA
    */
-  const checkRutAvailability = async (rut: string = rutValue.value): Promise<boolean> => {
-    // ✅ NUEVO: Evitar verificaciones duplicadas del mismo RUT
-    if (rut === lastCheckedRut.value && isAvailable.value !== null) {
-      console.log('⚡ RUT ya verificado recientemente, usando cache:', rut);
-      return isAvailable.value;
-    }
+// En useRutValidation.ts - MODIFICAR la función checkRutAvailability
 
-    // Primero validar formato con validación estricta
-    const validation = validarRut(rut);
+const checkRutAvailability = async (rut: string = rutValue.value): Promise<boolean> => {
+  // ✅ MEJORADO: Validación más estricta para RUT obligatorio
+  if (!rut || rut.trim() === '') {
+    availabilityError.value = 'El RUT es obligatorio para el registro de niños'
+    isAvailable.value = false
+    lastCheckedRut.value = ''
+    return false
+  }
+
+  // ✅ NUEVO: Validación de formato más estricta
+  const validation = validarRut(rut)
+  if (!validation.isValid && !validation.isPartial) {
+    availabilityError.value = validation.message || 'Formato de RUT inválido'
+    isAvailable.value = false
+    lastCheckedRut.value = ''
+    return false
+  }
+
+  // No verificar disponibilidad para RUTs parciales
+  if (validation.isPartial) {
+    availabilityError.value = null
+    isAvailable.value = null
+    lastCheckedRut.value = ''
+    return false
+  }
+
+  // ✅ VERIFICACIÓN: Usar el nuevo endpoint específico para niños
+  if (rut === lastCheckedRut.value && isAvailable.value !== null) {
+    console.log('⚡ RUT ya verificado recientemente, usando cache:', rut)
+    return isAvailable.value
+  }
+
+  lastCheckedRut.value = rut
+  isCheckingAvailability.value = true
+  availabilityError.value = null
+
+  try {
+    console.log('🔍 Verificando disponibilidad del RUT para niño:', rut)
     
-    // No verificar disponibilidad para RUTs parciales
-    if (validation.isPartial || !validation.isValid) {
-      availabilityError.value = validation.isPartial ? null : (validation.message ?? null);
-      isAvailable.value = false;
-      lastCheckedRut.value = '';
-      return false;
+    // ✅ CAMBIO: Usar la nueva función específica para niños
+    const validationResult = await validateChildRutApi(validation.rutNormalized!)
+    
+    console.log('✅ Resultado validación RUT niño:', validationResult)
+    
+    isAvailable.value = validationResult.isAvailable
+    
+    if (!validationResult.isValid) {
+      availabilityError.value = validationResult.message || 'RUT inválido'
+      isAvailable.value = false
+    } else if (!validationResult.isAvailable) {
+      availabilityError.value = 'El RUT ya está registrado para otro niño en el sistema'
+    } else {
+      availabilityError.value = null
     }
-
-    // ✅ NUEVO: Marcar que estamos verificando este RUT
-    lastCheckedRut.value = rut;
-    isCheckingAvailability.value = true;
-    availabilityError.value = null;
-
-    try {
-      console.log('🔍 Verificando disponibilidad del RUT:', rut);
-      const disponible = await checkRutAvailabilityApi(validation.rutNormalized!);
-      
-      console.log('✅ Resultado disponibilidad:', { rut, disponible });
-      isAvailable.value = disponible;
-      
-      if (!disponible) {
-        availabilityError.value = 'El RUT ya está registrado en el sistema';
+    
+    return validationResult.isValid && validationResult.isAvailable
+  } catch (error: any) {
+    console.error('❌ Error verificando disponibilidad de RUT para niño:', error)
+    
+    // ✅ MEJORADO: Manejo específico de errores para ingreso_fichas
+    if (error?.response?.status === 400) {
+      // Error de validación del backend
+      const errorData = error.response.data
+      if (errorData.rut) {
+        availabilityError.value = Array.isArray(errorData.rut) 
+          ? errorData.rut[0] 
+          : errorData.rut
       } else {
-        availabilityError.value = null; // ✅ Limpiar error si ahora está disponible
+        availabilityError.value = 'Error validando el RUT'
       }
-      
-      return disponible;
-    } catch (error: any) {
-      console.error('❌ Error verificando disponibilidad de RUT:', error);
-      
-      // ✅ MEJORADO: Manejo específico de errores
-      if (error?.response?.status === 404) {
-        availabilityError.value = 'Servicio de verificación de RUT no disponible';
-        isAvailable.value = null; // No marcar como no disponible
-      } else if (error?.response?.status === 500) {
-        availabilityError.value = 'Error del servidor al verificar RUT';
-        isAvailable.value = null;
-      } else {
-        availabilityError.value = 'Error al verificar disponibilidad del RUT';
-        isAvailable.value = false;
-      }
-      
-      // ✅ En caso de error, resetear lastCheckedRut para permitir reintento
-      lastCheckedRut.value = '';
-      return false;
-    } finally {
-      isCheckingAvailability.value = false;
+    } else if (error?.response?.status === 404) {
+      // Endpoint no disponible, usar validación local
+      availabilityError.value = null
+      isAvailable.value = true // Asumir disponible temporalmente
+      return true
+    } else {
+      availabilityError.value = 'Error al verificar disponibilidad del RUT'
+      isAvailable.value = false
     }
-  };
+    
+    lastCheckedRut.value = ''
+    return false
+  } finally {
+    isCheckingAvailability.value = false
+  }
+}
 
   /**
    * Forzar re-verificación de disponibilidad (ignorar cache)
