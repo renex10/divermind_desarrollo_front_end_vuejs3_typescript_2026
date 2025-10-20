@@ -1,10 +1,27 @@
+import formkitTheme from '@formkit/themes/tailwindcss'
+import forms from '@tailwindcss/forms'
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html',
-    'src/**/*.{vue,ts,js,jsx,tsx}'],
+  content: [
+    './index.html',
+    './src/**/*.{vue,ts,js,jsx,tsx}',
+    './tailwind-formkit-theme.js' // 👈 Añadir el archivo de tema de FormKit
+  ],
+  safelist: [ // 👈 Añadir safelist para clases dinámicas
+    'priority-alta',
+    'priority-media',
+    'priority-baja',
+    'bg-red-100',
+    'text-red-800',
+    'bg-yellow-100',
+    'text-yellow-800',
+    'bg-green-100',
+    'text-green-800',
+  ],
   theme: {
     extend: {
-  
+ 
        // ====================
       // COLORES PERSONALIZADOS
       // ====================
@@ -142,6 +159,9 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    forms, // 👈 Usar la variable importada
+    formkitTheme // 👈 Añadir el plugin de FormKit
+  ],
 }
 

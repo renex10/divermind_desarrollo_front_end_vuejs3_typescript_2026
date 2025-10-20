@@ -1,7 +1,18 @@
 <!-- src/components/forms/multi-step/NneMultiStepForm.vue -->
-<!-- FORMULARIO MULTIPASOS PRINCIPAL - VERSIÓN COMPLETAMENTE CORREGIDA -->
+<!-- FORMULARIO MULTIPASOS PRINCIPAL - CON PERSISTENCIA INTEGRADA -->
 <template>
   <div class="multi-step-form">
+    <!-- ✅ DRAFT MANAGER PARA PERSISTENCIA -->
+    <DraftManager
+      :form-id="'nne-multi-step-form'"
+      :show-status="true"
+      :current-data="formData"
+      :current-step="currentStep"
+      @recover="handleRecover"
+      @discard="handleDiscard"
+      @save="handleSave"
+    />
+
     <!-- Progress Steps -->
     <div class="steps-header">
       <div 
@@ -22,6 +33,14 @@
       </div>
     </div>
 
+    <!-- ✅ INDICADOR DE RECUPERACIÓN -->
+    <div v-if="isRecovering" class="recovery-notice">
+      <div class="recovery-content">
+        <ArrowPathIcon class="h-5 w-5 animate-spin" />
+        <span>Recuperando borrador anterior...</span>
+      </div>
+    </div>
+
     <!-- Debug Info -->
     <div class="debug-info" v-if="showDebug">
       <h4>🐛 Debug Info:</h4>
@@ -29,6 +48,8 @@
       <p>Step Validity: {{ JSON.stringify(stepValidity) }}</p>
       <p>Can proceed: {{ getStepValidity(currentStep) }}</p>
       <p>Form Data usuarios: {{ formData.usuarios }}</p>
+      <p>Has Unsaved Changes: {{ hasUnsavedChanges }}</p>
+      <p>Is Recovering: {{ isRecovering }}</p>
       <button @click="showDebug = false" class="btn btn-sm">Ocultar Debug</button>
     </div>
 
@@ -142,6 +163,16 @@
         >
           🔄 Validar
         </button>
+
+        <!-- ✅ INDICADOR DE GUARDADO -->
+        <div v-if="hasUnsavedChanges" class="unsaved-indicator">
+          <div class="saving-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span class="text-xs text-gray-600">Guardando...</span>
+        </div>
       </div>
       
       <button 
@@ -185,6 +216,11 @@ import Paso6Therapy from './pasos/Paso6Therapy.vue'
 import Paso7Guardian from './pasos/Paso7Guardian.vue'
 import Paso8Parents from './pasos/Paso8Parents.vue'
 import Paso9Review from './pasos/Paso9Review.vue'
+
+// ✅ IMPORTAR SISTEMA DE PERSISTENCIA
+import { useFormDraft } from '@/composables/useFormDraft'
+import DraftManager from '@/components/forms/DraftManager.vue'
+import { ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 // ✅ CORREGIDO: Interface con tipo explícito para stepValidity
 interface StepValidityMap {
@@ -310,7 +346,136 @@ const formData = reactive<NneFormData>({
   usuarios: []
 })
 
-// ✅ FUNCIONES DE ACTUALIZACIÓN (deben estar antes de los computed)
+// ==========================
+// ✅ INICIALIZAR SISTEMA DE PERSISTENCIA (MEJORADO)
+// ==========================
+const {
+  formData: draftData,
+  currentStep: draftStep,
+  hasUnsavedChanges,
+  isRecovering,
+  lastSaveTime,
+  hasExistingDrafts,
+  canRecover,
+  saveDraft,
+  recoverDraft,
+  clearAllDrafts,
+  forceSave
+} = useFormDraft({
+  formId: 'nne-multi-step-form',
+  autoSave: true,
+  autoSaveDelay: 3000,
+  draftExpiryDays: 7
+})
+
+// ✅ CORREGIDO: Estado de inicialización
+const isInitialized = ref(false)
+
+// ✅ CORREGIDO: Inicialización mejorada para sincronización
+const initializeFormData = () => {
+  console.log('🔄 Inicializando formData con datos del draft...')
+  
+  // Si hay datos en el draft, usarlos
+  if (draftData?.value && Object.keys(draftData.value).length > 0) {
+    console.log('📥 Cargando datos del draft:', draftData.value)
+    Object.assign(formData, draftData.value)
+  } else if (props.editData) {
+    // Si no hay draft pero hay datos de edición, usarlos
+    console.log('📥 Cargando datos de edición:', props.editData)
+    Object.assign(formData, props.editData)
+  }
+  
+  console.log('✅ formData inicializado:', formData)
+}
+
+// ==========================
+// ✅ SINCRONIZACIÓN MEJORADA ENTRE formData <-> draftData y pasos
+// ==========================
+
+// Watch para sincronizar formData -> draftData (cuando el usuario edita)
+watch(() => formData, (newFormData) => {
+  if (!isRecovering.value && isInitialized.value) {
+    console.log('📤 Sincronizando formData -> draftData:', newFormData)
+    Object.assign(draftData.value, newFormData)
+  }
+}, { deep: true, immediate: false })
+
+// Watch para sincronizar draftData -> formData (durante recuperación)
+watch(draftData, (newDraftData) => {
+  if (isRecovering.value) {
+    console.log('📥 Sincronizando draftData -> formData (recuperación):', newDraftData)
+    Object.assign(formData, newDraftData)
+  }
+}, { deep: true })
+
+// Sincronizar currentStep -> draftStep
+watch(() => currentStep.value, (newStep) => {
+  if (!isRecovering.value && isInitialized.value) {
+    draftStep.value = newStep
+    console.log('🔀 Sincronizando currentStep -> draftStep:', newStep)
+  }
+})
+
+// Sincronizar draftStep -> currentStep (durante recuperación)
+watch(draftStep, (newDraftStep) => {
+  if (isRecovering.value) {
+    currentStep.value = newDraftStep
+    console.log('🔀 Sincronizando draftStep -> currentStep (recuperación):', newDraftStep)
+  }
+})
+
+// ✅ CORREGIDO: Manejo mejorado de recuperación (manual / programático)
+const handleRecover = async (data: any, step: number) => {
+  console.log('🔄 Iniciando recuperación manual...', { step, data })
+  try {
+    // Asignar datos directamente al formData
+    Object.assign(formData, data)
+    currentStep.value = step
+
+    console.log('✅ Datos recuperados asignados al formData:', formData)
+    console.log('✅ Paso actualizado:', currentStep.value)
+    
+    // Forzar re-renderizado de los componentes y validaciones
+    await nextTick()
+    await forceValidation()
+
+    console.log('✅ Recuperación manual completada')
+  } catch (error) {
+    console.error('❌ Error en recuperación manual:', error)
+  }
+}
+
+const handleDiscard = () => {
+  console.log('🗑️ Descartando borrador...')
+  clearAllDrafts()
+  
+  // Resetear formulario a valores por defecto
+  Object.keys(formData).forEach(key => {
+    if (Array.isArray((formData as any)[key])) {
+      ;(formData as any)[key] = []
+    } else if (typeof (formData as any)[key] === 'object' && (formData as any)[key] !== null) {
+      ;(formData as any)[key] = null
+    } else if (key === 'gender') {
+      ;(formData as any)[key] = 'unspecified'
+    } else if (key === 'autism_level') {
+      ;(formData as any)[key] = 'no_review'
+    } else {
+      ;(formData as any)[key] = ''
+    }
+  })
+  currentStep.value = 1
+  
+  console.log('✅ Formulario reseteado')
+}
+
+const handleSave = () => {
+  console.log('💾 Guardado manual solicitado...')
+  forceSave()
+}
+
+// ==========================
+// FUNCIONES DE ACTUALIZACIÓN (deben estar antes de los computed)
+// ==========================
 const updatePaso1Data = (data: any) => {
   Object.assign(formData, {
     first_name: data.first_name,
@@ -379,7 +544,9 @@ const updatePaso7Data = (data: any) => {
   })
 }
 
-// ✅ COMPUTED PROPERTIES para cada paso
+// ==========================
+// COMPUTED PROPERTIES para cada paso
+// ==========================
 const paso1Data = computed(() => ({
   first_name: formData.first_name,
   last_name: formData.last_name,
@@ -432,7 +599,9 @@ const paso7Data = computed(() => ({
   consent_date: formData.consent_date
 }))
 
+// ==========================
 // ✅ NUEVO: Función helper para obtener validez de paso de forma segura
+// ==========================
 const getStepValidity = (step: number): boolean => {
   return stepValidity.value[step] ?? false
 }
@@ -458,8 +627,8 @@ const forceValidation = async () => {
   await nextTick()
   
   const currentStepRef = getCurrentStepRef()
-  if (currentStepRef && typeof currentStepRef.validate === 'function') {
-    const isValid = currentStepRef.validate()
+  if (currentStepRef && typeof (currentStepRef as any).validate === 'function') {
+    const isValid = (currentStepRef as any).validate()
     setStepValidity(currentStep.value, isValid)
   }
 }
@@ -508,7 +677,9 @@ const previousStep = () => {
   }
 }
 
+// ==========================
 // ✅ HELPER: Convertir a booleano
+// ==========================
 const convertToBoolean = (value: any): boolean => {
   if (typeof value === 'boolean') return value
   if (value === 'true') return true
@@ -516,7 +687,9 @@ const convertToBoolean = (value: any): boolean => {
   return Boolean(value)
 }
 
+// ==========================
 // ✅ NUEVA FUNCIÓN: Preparar datos para el backend
+// ==========================
 const prepareDataForBackend = (data: NneFormData) => {
   console.log('🔄 Preparando datos para backend:', data)
   
@@ -578,7 +751,9 @@ const prepareDataForBackend = (data: NneFormData) => {
   return prepared
 }
 
-// ✅ CORREGIDO: submitForm con preparación de datos y LOGS DETALLADOS
+// ==========================
+// ✅ CORREGIDO: submitForm con preparación de datos y LIMPIEZA DE BORRADORES
+// ==========================
 const submitForm = async () => {
   console.log('🚀 ========== INICIO SUBMIT FORM ==========')
   console.log('📊 Estado de validación completo:', stepValidity.value)
@@ -614,10 +789,15 @@ const submitForm = async () => {
     
     console.log('🎯 Emitiendo evento submit...')
     emit('submit', dataToSubmit as NneFormData)
+    
+    // ✅ LIMPIAR BORRADORES DESPUÉS DE ENVÍO EXITOSO
+    clearAllDrafts()
+    console.log('🧹 Borradores limpiados después del envío exitoso')
+    
     console.log('✅ Evento submit emitido correctamente')
     
   } catch (error) {
-    console.error('❌ ========== ERROR EN SUBMIT ==========')
+    console.error('❌ ========== ERROR EN SUBMIT ==========>')
     console.error('Error completo:', error)
     console.error('Stack:', error instanceof Error ? error.stack : 'No stack available')
     console.error('==========================================')
@@ -628,10 +808,24 @@ const submitForm = async () => {
   }
 }
 
+// ==========================
+// MOUNT y WATCHERS GLOBALES
+// ==========================
 onMounted(async () => {
-  if (props.editData) {
+  console.log('🚀 Montando NneMultiStepForm...')
+
+  // Cargar datos de edición si existen (inmediatamente para evitar sobrescritura por draft)
+  if (props.editData && Object.keys(props.editData).length > 0) {
+    console.log('📥 Cargando props.editData en onMounted:', props.editData)
     Object.assign(formData, props.editData)
   }
+
+  // Pequeño delay para permitir que useFormDraft se inicialice
+  setTimeout(() => {
+    initializeFormData()
+    isInitialized.value = true
+    console.log('✅ NneMultiStepForm inicializado completamente')
+  }, 100)
   
   await nextTick()
   setTimeout(() => forceValidation(), 800)
@@ -763,6 +957,36 @@ defineExpose({
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+/* ✅ ESTILOS PARA INDICADOR DE RECUPERACIÓN */
+.recovery-notice {
+  @apply bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4;
+}
+
+.recovery-content {
+  @apply flex items-center gap-3 text-blue-700 font-medium;
+}
+
+/* ✅ ESTILOS PARA INDICADOR DE GUARDADO */
+.unsaved-indicator {
+  @apply flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg;
+}
+
+.saving-dots {
+  @apply flex space-x-1;
+}
+
+.saving-dots span {
+  @apply w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse;
+}
+
+.saving-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.saving-dots span:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 .btn {
@@ -907,6 +1131,11 @@ defineExpose({
   .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .unsaved-indicator {
+    justify-content: center;
+    width: 100%;
   }
 }
 

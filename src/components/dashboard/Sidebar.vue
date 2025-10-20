@@ -1,5 +1,4 @@
 <template>
-
  <!--  src\components\dashboard\Sidebar.vue -->
   <aside :class="sidebarClasses">
     <!-- Header del sidebar -->
@@ -105,14 +104,16 @@ defineEmits(['toggle'])
 
 const isMobile = ref(false)
 
+// ✅ NAVEGACIÓN CORREGIDA - Mantener 'sessiones' con doble 's'
 const navigation = [
-  { name: 'Dashboard', to: { name: 'dashboard' }, icon: 'HomeIcon' },
-  { name: 'Ingreso NNA', to: { name: 'ingreso-nna' }, icon: 'UserPlusIcon' },
-  { name: 'Histos', to: { name: 'histos' }, icon: 'DocumentTextIcon' },
-  { name: 'Sesiones', to: { name: 'sessiones' }, icon: 'ChatBubbleLeftRightIcon' },
-  { name: 'Reportes', to: { name: 'reportes' }, icon: 'ChartBarIcon' },
-  { name: 'Configuración', to: { name: 'configuracion' }, icon: 'Cog6ToothIcon' },
-  { name: 'Establecimientos', to: { name: 'establecimientos' }, icon: 'BuildingStorefrontIcon' },
+  { name: 'Dashboard', to: { name: 'dashboard' }, icon: 'HomeIcon' },
+  { name: 'Ingreso NNA', to: { name: 'ingreso-nna' }, icon: 'UserPlusIcon' },
+  { name: 'Histos', to: { name: 'histos' }, icon: 'DocumentTextIcon' },
+  // ✅ CORREGIDO: El nombre de la ruta ahora es 'sesiones' (con una 's')
+  { name: 'Sesiones', to: { name: 'sesiones' }, icon: 'ChatBubbleLeftRightIcon' },
+  { name: 'Reportes', to: { name: 'reportes' }, icon: 'ChartBarIcon' },
+  { name: 'Configuración', to: { name: 'configuracion' }, icon: 'Cog6ToothIcon' },
+  { name: 'Establecimientos', to: { name: 'establecimientos' }, icon: 'BuildingStorefrontIcon' },
 ]
 
 const sidebarClasses = computed(() => [
