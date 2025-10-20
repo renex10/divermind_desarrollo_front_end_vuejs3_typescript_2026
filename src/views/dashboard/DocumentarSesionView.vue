@@ -72,6 +72,8 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormKitNode } from '@formkit/core'
 import { getTherapySessionById, updateTherapySession } from '@/services/sessionService'
 import { useAlertModalStore } from '@/store/alertModalStore'
+import { useAlertStore } from '@/store/alertStore' // ✅ 1. IMPORTAR EL NUEVO STORE DE ALERTAS
+
 
 // Importar los componentes de sección
 import CabeceraDocumentacion from '@/components/sesiones/documentacion-sesion/CabeceraDocumentacion.vue'
@@ -84,6 +86,7 @@ import GestionObjetivosSesion from '@/components/sesiones/documentacion-sesion/G
 const route = useRoute()
 const router = useRouter()
 const alertModal = useAlertModalStore()
+const alert = useAlertStore() // ✅ 2. INSTANCIAR EL NUEVO STORE PARA NOTIFICACIONES
 
 const childId = Number(route.params.childId)
 const sessionId = Number(route.params.sessionId)
@@ -120,6 +123,10 @@ async function handleGuardarInforme(formData: any, node: FormKitNode) {
   try {
     const { child_name, ...payload } = formData
     await updateTherapySession(childId, sessionId, payload)
+     
+    // ✅ 3. USAR EL NUEVO SISTEMA DE ALERTAS PARA EL ÉXITO
+    alert.success('Informe Guardado', 'La documentación de la sesión se ha guardado correctamente.')
+    
     
     alertModal.success('Informe Guardado', 'La documentación de la sesión se ha guardado correctamente.')
     navegarAlPerfil()
@@ -129,6 +136,8 @@ async function handleGuardarInforme(formData: any, node: FormKitNode) {
       node.setErrors(error.response.data)
     } else {
       alertModal.error('Error al Guardar', 'Ocurrió un problema al intentar guardar el informe.')
+       // ✅ 4. USAR EL NUEVO SISTEMA DE ALERTAS PARA ERRORES GENERALES
+       alert.error('Error al Guardar', 'Ocurrió un problema al intentar guardar el informe.')
     }
   } finally {
     isSaving.value = false
@@ -154,4 +163,7 @@ function navegarAlPerfil() {
   min-height: 50vh;
 }
 </style>
+
+
+
 
