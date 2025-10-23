@@ -1,4 +1,3 @@
-<!-- src/components/profile/tabcontent/card/SesionesTerapia.vue -->
 <template>
   <div class="tab-pane">
     <div class="sesiones-header">
@@ -7,6 +6,10 @@
         <h3>Sesiones de Terapia</h3>
       </div>
       <div class="header-actions">
+        <button class="btn btn-outline" @click="imprimir">
+          <PrinterIcon class="icon-sm" />
+          Imprimir
+        </button>
         <button class="btn btn-secondary" @click="$emit('cargarSesiones')">
           <ArrowPathIcon class="icon-sm" />
           Actualizar
@@ -18,7 +21,6 @@
       </div>
     </div>
 
-    <!-- ESTADÍSTICAS RÁPIDAS -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon total">
@@ -58,7 +60,6 @@
       </div>
     </div>
 
-    <!-- LISTA DE SESIONES -->
     <div class="sesiones-list">
       <div v-if="loadingSesiones" class="loading-state">
         Cargando sesiones...
@@ -125,7 +126,8 @@ import {
   FlagIcon,
   EyeIcon,
   PencilIcon,
-  UserIcon
+  UserIcon,
+  PrinterIcon  // ✅ NUEVO: Importar ícono de impresora
 } from '@heroicons/vue/24/outline'
 
 defineProps<{
@@ -143,6 +145,11 @@ defineEmits<{
 
 const formatFecha = (fecha: string) => {
   return new Date(fecha).toLocaleDateString('es-CL')
+}
+
+// ✅ NUEVO: Función para llamar a la impresión del navegador
+const imprimir = () => {
+  window.print()
 }
 </script>
 

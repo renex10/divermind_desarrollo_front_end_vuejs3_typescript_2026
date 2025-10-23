@@ -1,10 +1,14 @@
 <template>
   <div class="documentacion-vista bg-gray-50 min-h-screen">
-    <!-- 1. Cabecera de la Vista -->
+    <!-- 1. Cabecera de la Vista - CORREGIDO: Pasando todas las props -->
     <CabeceraDocumentacion
       v-if="sessionData"
       :child-name="sessionData.child_name || 'Niño'"
       :session-number="sessionData.session_number"
+      :child-rut="sessionData.child_rut"
+      :guardian-name="sessionData.guardian_name"
+      :entry-date="sessionData.entry_date"
+      :total-sessions="sessionData.total_sessions"
       @volver="navegarAlPerfil"
     />
 
@@ -70,10 +74,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormKitNode } from '@formkit/core'
-import { getTherapySessionById, updateTherapySession } from '@/services/sessionService'
+import { getTherapySessionById, updateTherapySession, type TherapySessionDetail } from '@/services/sessionService'
 import { useAlertModalStore } from '@/store/alertModalStore'
-import { useAlertStore } from '@/store/alertStore' // ✅ 1. IMPORTAR EL NUEVO STORE DE ALERTAS
-
+import { useAlertStore } from '@/store/alertStore'
 
 // Importar los componentes de sección
 import CabeceraDocumentacion from '@/components/sesiones/documentacion-sesion/CabeceraDocumentacion.vue'
@@ -86,17 +89,23 @@ import GestionObjetivosSesion from '@/components/sesiones/documentacion-sesion/G
 const route = useRoute()
 const router = useRouter()
 const alertModal = useAlertModalStore()
-const alert = useAlertStore() // ✅ 2. INSTANCIAR EL NUEVO STORE PARA NOTIFICACIONES
+const alert = useAlertStore()
 
 const childId = Number(route.params.childId)
 const sessionId = Number(route.params.sessionId)
 
-const sessionData = ref<any>(null)
+// CORREGIDO: Usar el tipo específico TherapySessionDetail
+const sessionData = ref<TherapySessionDetail | null>(null)
 const isLoading = ref(true)
 const isSaving = ref(false)
 
+// DEBUG: Log para verificar que el componente padre se monta
 onMounted(() => {
+  console.log('🏠 Componente padre DocumentacionSesion.vue - MONTADO')
+  console.log('🔗 Parámetros de ruta:', { childId, sessionId })
+  
   if (!childId || !sessionId) {
+    console.error('❌ Error: childId o sessionId no válidos')
     alertModal.error('Error', 'No se ha proporcionado un ID de niño o sesión válido en la URL.')
     router.push({ name: 'dashboard' })
     return
@@ -105,46 +114,59 @@ onMounted(() => {
 })
 
 async function cargarDatosSesion() {
+  console.log('🔄 Iniciando carga de datos de sesión...')
   isLoading.value = true
   try {
+    console.log(`📡 Llamando a getTherapySessionById(${childId}, ${sessionId})`)
     const data = await getTherapySessionById(childId, sessionId)
+    console.log('✅ Datos recibidos del backend:', data)
+    
     sessionData.value = data
-    sessionData.value.child_name = "Nombre del Niño" // Placeholder
+    // ❌ ELIMINADO: No sobrescribir child_name con valor fijo
+    // sessionData.value.child_name = "Nombre del Niño" // <- ESTO CAUSABA EL PROBLEMA
+    
+    console.log('📦 sessionData después de asignar:', sessionData.value)
   } catch (error) {
-    console.error("Error al cargar la sesión:", error)
+    console.error("❌ Error al cargar la sesión:", error)
     alertModal.error('Error de Carga', 'No se pudieron cargar los datos de la sesión.')
   } finally {
     isLoading.value = false
+    console.log('🏁 Carga de datos completada, isLoading:', false)
   }
 }
 
 async function handleGuardarInforme(formData: any, node: FormKitNode) {
+  console.log('💾 Iniciando guardado de informe...', formData)
   isSaving.value = true
   try {
-    const { child_name, ...payload } = formData
+    // Excluir campos que no son parte del modelo TherapySession base
+    const { child_name, child_rut, guardian_name, entry_date, total_sessions, ...payload } = formData
+    console.log('📤 Payload para actualizar:', payload)
+    
     await updateTherapySession(childId, sessionId, payload)
-     
-    // ✅ 3. USAR EL NUEVO SISTEMA DE ALERTAS PARA EL ÉXITO
+    
+    console.log('✅ Informe guardado exitosamente')
     alert.success('Informe Guardado', 'La documentación de la sesión se ha guardado correctamente.')
-    
-    
     alertModal.success('Informe Guardado', 'La documentación de la sesión se ha guardado correctamente.')
+    
     navegarAlPerfil()
   } catch (error: any) {
-    console.error("Error al guardar el informe:", error)
+    console.error("❌ Error al guardar el informe:", error)
     if (error.response && error.response.status === 400) {
+      console.error('📋 Errores de validación:', error.response.data)
       node.setErrors(error.response.data)
     } else {
       alertModal.error('Error al Guardar', 'Ocurrió un problema al intentar guardar el informe.')
-       // ✅ 4. USAR EL NUEVO SISTEMA DE ALERTAS PARA ERRORES GENERALES
-       alert.error('Error al Guardar', 'Ocurrió un problema al intentar guardar el informe.')
+      alert.error('Error al Guardar', 'Ocurrió un problema al intentar guardar el informe.')
     }
   } finally {
     isSaving.value = false
+    console.log('🏁 Guardado completado, isSaving:', false)
   }
 }
 
 function navegarAlPerfil() {
+  console.log('🔙 Navegando al perfil del niño...')
   if (childId) {
     router.push({ name: 'perfil-nino', params: { id: childId } })
   } else {
@@ -163,7 +185,3 @@ function navegarAlPerfil() {
   min-height: 50vh;
 }
 </style>
-
-
-
-

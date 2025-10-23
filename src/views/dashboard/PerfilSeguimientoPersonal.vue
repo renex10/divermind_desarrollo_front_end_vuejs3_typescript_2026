@@ -1,14 +1,11 @@
-<!-- src/views/dashboard/PerfilSeguimientoPersonal.vue -->
 <template>
   <div class="perfil-seguimiento">
-    <!-- HEADER DEL PERFIL -->
     <PerfilHeader
       :nna-data="headerData"
       @ver-dashboard="verDashboard"
       @exportar-datos="exportarDatos"
     />
 
-    <!-- SISTEMA DE PESTAÑAS -->
     <div class="tabs-container">
       <nav class="tabs-nav">
         <button
@@ -22,13 +19,13 @@
         </button>
       </nav>
 
-      <!-- CONTENIDO PESTAÑAS -->
       <TabContent
         :active-tab="activeTab"
         :profile-data="profileData"
+        :child-id="childId"
         :loading="loading"
         :contactos="contactos"
-        :diagnosticos="diagnosticos"
+        :diagnosticos="diagnosticosList"
         :historial-count="historialCount"
         :medicamentos-count="medicamentosCount"
         :loading-sesiones="loadingSesiones"
@@ -40,6 +37,7 @@
         :loading-documentos="loadingDocumentos"
         :documentos="documentos"
         :stats-documentos="statsDocumentos"
+        :interest-update-key="interestUpdateKey"
         @gestionar-contactos="gestionarContactos"
         @ver-historial-completo="verHistorialCompleto"
         @cargar-sesiones="cargarSesiones"
@@ -63,15 +61,30 @@
         @generar-reporte-progreso="generarReporteProgreso"
         @generar-reporte-comportamiento="generarReporteComportamiento"
         @generar-reporte-medico="generarReporteMedico"
+        @add-diagnosis="abrirModalDiagnostico"
+        @gestionar-intereses="abrirModalIntereses"
       />
     </div>
 
-    <!-- MODAL PARA NUEVA SESIÓN -->
     <NuevaSession
       v-if="childId"
       v-model:show="showModalSesion"
       :child-id="parseInt(childId)"
       @sesionCreada="handleSesionCreada"
+    />
+
+    <DiagnosticoModal
+      v-if="childId && showDiagnosticoModal"
+      v-model:show="showDiagnosticoModal"
+      :child-id="parseInt(childId)"
+      @diagnosis-created="handleDiagnosticoCreado"
+    />
+
+    <InteresModal
+      v-if="childId && showInteresModal"
+      v-model:show="showInteresModal"
+      :child-id="parseInt(childId)"
+      @interest-created="handleInteresCreado"
     />
   </div>
 </template>
@@ -83,7 +96,18 @@ import { useRoute } from 'vue-router'
 
 import PerfilHeader from '@/components/profile/header/PerfilHeader.vue'
 import TabContent from '@/components/profile/tabcontent/TabContent.vue'
-import NuevaSession from '@/components/forms/sesiones/NuevaSession.vue' // <-- 1. IMPORTADO
+import NuevaSession from '@/components/forms/sesiones/NuevaSession.vue'
+import DiagnosticoModal from '@/components/profile/profile/modals/DiagnosticoModal.vue'
+import InteresModal from '@/components/profile/profile/modals/InteresModal.vue'
+
+import {
+  getTherapySessionsForChild,
+  getTherapyMetricsForChild,
+  getDiagnosesForChild,
+  type Diagnosis,
+  type TherapySession,
+  type TherapyMetrics
+} from '@/services/sessionService'
 
 import {
   UserCircleIcon,
@@ -96,80 +120,36 @@ import {
 const route = useRoute()
 const childId = ref<string>(route.params.id as string)
 
-// ========================================
-// ESTADO REACTIVO - DATOS DEL API
-// ========================================
 const profileData = ref<any>(null)
 const loading = ref(false)
 const activeTab = ref('general')
 
-// Estados para otras pestañas (TODO: Conectar con API)
-const sesiones = ref<any[]>([])
+const sesiones = ref<TherapySession[]>([])
 const loadingSesiones = ref(false)
-const showModalSesion = ref(false) // <-- 2. ESTE ESTADO AHORA CONTROLA EL NUEVO MODAL
+const showModalSesion = ref(false)
+const statsSesiones = ref({ total: 0, completadas: 0, pendientes: 0, objetivos: 0 })
+
+const diagnosticosList = ref<Diagnosis[]>([])
+const showDiagnosticoModal = ref(false)
+const loadingDiagnosticos = ref(false)
+
+const showInteresModal = ref(false)
+const interestUpdateKey = ref(0)
+
 const periodo = ref('30d')
 const documentos = ref<any[]>([])
 const loadingDocumentos = ref(false)
+const metricas = ref({ hitos_desarrollo: 0, progresos_comunicacion: 0, habilidades_sociales: 0 })
+const statsDocumentos = ref({ total: 0, imagenes: 0, videos: 0, reportes: 0 })
+const registrosRecientes = ref([])
 
-// ========================================
-// COMPUTED - DATOS DERIVADOS DEL PERFIL
-// ========================================
-
-// Datos para el header
 const headerData = computed(() => profileData.value?.header || null)
-
-// Contactos de emergencia desde el API
 const contactos = computed(() => profileData.value?.emergencyContacts || [])
-
-// Diagnósticos desde el API (si existen en el perfil PIE)
-const diagnosticos = computed(() => {
-  if (!profileData.value?.cards?.pie?.diagnosis) return []
-
-  return [
-    {
-      id: 1,
-      type: 'primary',
-      description: profileData.value.cards.pie.diagnosis
-    }
-  ]
-})
-
-// Contadores médicos (TODO: Obtener del API cuando estén disponibles)
 const historialCount = computed(() => 0)
 const medicamentosCount = computed(() => {
-  // Contar si tiene medicación actual
   return profileData.value?.cards?.medical?.has_medication ? 1 : 0
 })
 
-// Métricas (TODO: Conectar con API real)
-const metricas = ref({
-  hitos_desarrollo: 0,
-  progresos_comunicacion: 0,
-  habilidades_sociales: 0
-})
-
-// Stats de sesiones (TODO: Conectar con API real)
-const statsSesiones = ref({
-  total: 0,
-  completadas: 0,
-  pendientes: 0,
-  objetivos: 0
-})
-
-// Stats de documentos (TODO: Conectar con API real)
-const statsDocumentos = ref({
-  total: 0,
-  imagenes: 0,
-  videos: 0,
-  reportes: 0
-})
-
-// Registros recientes (TODO: Conectar con API real)
-const registrosRecientes = ref([])
-
-// ========================================
-// CONFIGURACIÓN DE TABS
-// ========================================
 const tabs = ref([
   { id: 'general', label: 'Información General', icon: UserCircleIcon },
   { id: 'sesiones', label: 'Sesiones de Terapia', icon: ChatBubbleLeftRightIcon },
@@ -178,38 +158,45 @@ const tabs = ref([
   { id: 'reportes', label: 'Reportes', icon: DocumentChartBarIcon }
 ])
 
-// ========================================
-// LIFECYCLE HOOKS
-// ========================================
 onMounted(async () => {
-  await cargarDatosNino()
-  // TODO: Cargar datos de otras pestañas cuando estén disponibles
-  // await cargarSesiones()
-  // await cargarDocumentos()
+  if (!childId.value) return
+
+  loading.value = true
+  loadingSesiones.value = true
+  loadingDiagnosticos.value = true
+
+  await Promise.all([
+    cargarDatosNino(),
+    cargarSesiones(),
+    cargarMetricasSesiones(),
+    cargarDiagnosticos()
+  ])
+
+  loading.value = false
 })
 
 watch(
   () => route.params.id,
   (newId) => {
     childId.value = newId as string
-    cargarDatosNino()
+    if (childId.value) {
+      cargarDatosNino()
+      cargarSesiones()
+      cargarMetricasSesiones()
+      cargarDiagnosticos()
+      interestUpdateKey.value++
+    }
   }
 )
 
-// ========================================
-// FUNCIONES DE CARGA DE DATOS
-// ========================================
 const cargarDatosNino = async () => {
+  if (!childId.value) return
   loading.value = true
   try {
     console.log(`🔄 Cargando perfil del niño ID: ${childId.value}`)
-
     const data = await profileService.getChildProfile(childId.value)
     profileData.value = data
-
     console.log('✅ Datos completos cargados:', profileData.value)
-    console.log('📋 Cards disponibles:', profileData.value?.cards)
-    console.log('📞 Contactos de emergencia:', profileData.value?.emergencyContacts)
   } catch (error) {
     console.error('❌ Error cargando perfil:', error)
   } finally {
@@ -218,22 +205,59 @@ const cargarDatosNino = async () => {
 }
 
 const cargarSesiones = async () => {
+  if (!childId.value) return
   loadingSesiones.value = true
   try {
-    // TODO: Implementar llamada al API de sesiones
-    console.log('⏳ Cargando sesiones...')
-    sesiones.value = []
+    console.log(`⏳ Cargando sesiones para el niño ID: ${childId.value}...`)
+    const data = await getTherapySessionsForChild(parseInt(childId.value))
+    sesiones.value = data
+    console.log(`✅ ${data.length} sesiones cargadas.`)
   } catch (error) {
     console.error('❌ Error cargando sesiones:', error)
+    sesiones.value = []
   } finally {
     loadingSesiones.value = false
   }
 }
 
+const cargarMetricasSesiones = async () => {
+  if (!childId.value) return
+  try {
+    console.log(`⏳ Cargando métricas de sesiones para el niño ID: ${childId.value}...`)
+    const metrics: TherapyMetrics = await getTherapyMetricsForChild(parseInt(childId.value))
+    statsSesiones.value = {
+      total: metrics.sessions_count,
+      completadas: metrics.completed_sessions,
+      pendientes: metrics.upcoming_sessions,
+      objetivos: metrics.goals_count
+    }
+    console.log('✅ Métricas de sesiones cargadas:', statsSesiones.value)
+  } catch (error) {
+    console.error('❌ Error cargando métricas de sesiones:', error)
+    statsSesiones.value = { total: 0, completadas: 0, pendientes: 0, objetivos: 0 }
+  }
+}
+
+const cargarDiagnosticos = async () => {
+  if (!childId.value) return
+  loadingDiagnosticos.value = true
+  try {
+    console.log(`⏳ Cargando diagnósticos para el niño ID: ${childId.value}...`)
+    const data = await getDiagnosesForChild(parseInt(childId.value))
+    diagnosticosList.value = data
+    console.log(`✅ ${data.length} diagnósticos cargados.`)
+  } catch (error) {
+    console.error('❌ Error al cargar diagnósticos:', error)
+    diagnosticosList.value = []
+  } finally {
+    loadingDiagnosticos.value = false
+  }
+}
+
 const cargarDocumentos = async () => {
+  if (!childId.value) return
   loadingDocumentos.value = true
   try {
-    // TODO: Implementar llamada al API de documentos
     console.log('⏳ Cargando documentos...')
     documentos.value = []
   } catch (error) {
@@ -243,113 +267,58 @@ const cargarDocumentos = async () => {
   }
 }
 
-// ========================================
-// HANDLERS DE EVENTOS
-// ========================================
-const gestionarContactos = () => {
-  console.log('📞 Gestionar contactos')
-  // TODO: Abrir modal de gestión de contactos
-}
-
-const verHistorialCompleto = () => {
-  console.log('📋 Ver historial completo')
-  // TODO: Navegar a vista de historial médico
-}
+const gestionarContactos = () => { console.log('📞 Gestionar contactos') }
+const verHistorialCompleto = () => { console.log('📋 Ver historial completo') }
 
 const abrirModalSesion = () => {
   showModalSesion.value = true
 }
 
-// 3. NUEVO HANDLER PARA EL EVENTO DEL MODAL
+const abrirModalDiagnostico = () => {
+  console.log('➕ Abriendo modal para agregar diagnóstico...')
+  showDiagnosticoModal.value = true
+}
+
+const abrirModalIntereses = () => {
+  console.log('✨ Abriendo modal para gestionar intereses...')
+  showInteresModal.value = true
+}
+
+const handleInteresCreado = () => {
+  console.log('💡 Interés creado/actualizado. Cerrando modal y forzando recarga de tarjeta.')
+  showInteresModal.value = false
+  interestUpdateKey.value++
+}
+
+const handleDiagnosticoCreado = () => {
+  console.log('🩺 Diagnóstico creado exitosamente. Recargando lista...')
+  showDiagnosticoModal.value = false
+  cargarDiagnosticos()
+}
+
 const handleSesionCreada = () => {
-  console.log('🎉 Sesión creada exitosamente, recargando la lista...')
+  console.log('🎉 Sesión creada exitosamente, recargando la lista y métricas...')
   cargarSesiones()
+  cargarMetricasSesiones()
 }
 
-const verDetalleSesion = (id: number) => {
-  console.log(`👁️ Ver detalle sesión ${id}`)
-  // TODO: Navegar a detalle de sesión
-}
-
-const editarSesion = (id: number) => {
-  console.log(`✏️ Editar sesión ${id}`)
-  // TODO: Abrir modal de edición
-}
-
-const cargarHitosDesarrollo = () => {
-  console.log('📈 Cargar hitos de desarrollo')
-  // TODO: Implementar carga de hitos
-}
-
-const cargarProgresosComunicacion = () => {
-  console.log('💬 Cargar progresos de comunicación')
-  // TODO: Implementar carga de progresos
-}
-
-const cargarHabilidadesSociales = () => {
-  console.log('👥 Cargar habilidades sociales')
-  // TODO: Implementar carga de habilidades
-}
-
-const subirDocumento = () => {
-  console.log('📤 Subir documento')
-  // TODO: Abrir modal de carga de archivo
-}
-
-const descargarDocumento = (id: number) => {
-  console.log(`💾 Descargar documento ${id}`)
-  // TODO: Implementar descarga
-}
-
-const verDocumento = (id: number) => {
-  console.log(`👁️ Ver documento ${id}`)
-  // TODO: Abrir visor de documento
-}
-
-const eliminarDocumento = (id: number) => {
-  console.log(`🗑️ Eliminar documento ${id}`)
-  // TODO: Confirmar y eliminar
-}
-
-const exportarDatos = () => {
-  console.log('📊 Exportar datos')
-  // TODO: Generar y descargar export
-}
-
-const verDashboard = () => {
-  console.log('📊 Ver dashboard')
-  // TODO: Navegar a dashboard
-}
-
-const generarReporteCompleto = () => {
-  console.log('📄 Generar reporte completo')
-  // TODO: Generar PDF completo
-}
-
-const compararProgreso = () => {
-  console.log('📊 Comparar progreso')
-  // TODO: Abrir vista de comparación
-}
-
-const generarReporteSesiones = () => {
-  console.log('📄 Generar reporte de sesiones')
-  // TODO: Generar PDF de sesiones
-}
-
-const generarReporteProgreso = () => {
-  console.log('📄 Generar reporte de progreso')
-  // TODO: Generar PDF de progreso
-}
-
-const generarReporteComportamiento = () => {
-  console.log('📄 Generar reporte de comportamiento')
-  // TODO: Generar PDF de comportamiento
-}
-
-const generarReporteMedico = () => {
-  console.log('📄 Generar reporte médico')
-  // TODO: Generar PDF médico
-}
+const verDetalleSesion = (id: number) => { console.log(`👁️ Ver detalle sesión ${id}`) }
+const editarSesion = (id: number) => { console.log(`✏️ Editar sesión ${id}`) }
+const cargarHitosDesarrollo = () => { console.log('📈 Cargar hitos de desarrollo') }
+const cargarProgresosComunicacion = () => { console.log('💬 Cargar progresos de comunicación') }
+const cargarHabilidadesSociales = () => { console.log('👥 Cargar habilidades sociales') }
+const subirDocumento = () => { console.log('📤 Subir documento') }
+const descargarDocumento = (id: number) => { console.log(`💾 Descargar documento ${id}`) }
+const verDocumento = (id: number) => { console.log(`👁️ Ver documento ${id}`) }
+const eliminarDocumento = (id: number) => { console.log(`🗑️ Eliminar documento ${id}`) }
+const exportarDatos = () => { console.log('📊 Exportar datos') }
+const verDashboard = () => { console.log('📊 Ver dashboard') }
+const generarReporteCompleto = () => { console.log('📄 Generar reporte completo') }
+const compararProgreso = () => { console.log('📊 Comparar progreso') }
+const generarReporteSesiones = () => { console.log('📄 Generar reporte de sesiones') }
+const generarReporteProgreso = () => { console.log('📄 Generar reporte de progreso') }
+const generarReporteComportamiento = () => { console.log('📄 Generar reporte de comportamiento') }
+const generarReporteMedico = () => { console.log('📄 Generar reporte médico') }
 </script>
 
 <style scoped>

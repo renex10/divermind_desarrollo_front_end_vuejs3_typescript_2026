@@ -1,89 +1,66 @@
-<!-- src/components/profile/tabcontent/TabContent.vue -->
 <template>
   <div class="tab-content">
-    <!-- PESTAÑA: INFORMACIÓN GENERAL -->
     <div v-if="activeTab === 'general'" class="tab-pane">
-      <!-- DEBUG INFO (remover después) -->
-      <div style="background: #fef3c7; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
-        <strong>🐛 DEBUG TabContent:</strong>
-        <pre style="font-size: 0.75rem; overflow: auto;">{{ JSON.stringify({
-          hasProfileData: !!profileData,
-          hasCards: !!profileData?.cards,
-          cardKeys: profileData?.cards ? Object.keys(profileData.cards) : []
-        }, null, 2) }}</pre>
-      </div>
-
       <div class="info-grid">
-        <!-- ========================================= -->
-        <!-- TARJETAS NUEVAS CON DATOS DEL API -->
-        <!-- ========================================= -->
-        
-        <!-- 1. INFORMACIÓN PERSONAL -->
-        <InformacionPersonal 
+        <InformacionPersonal
           :personal-data="profileData?.cards?.personal"
         />
 
-        <!-- 2. NECESIDADES ESPECIALES -->
-        <NecesidadesEspeciales 
+        <NecesidadesEspeciales
           :special-needs-data="profileData?.cards?.special_needs"
         />
 
-        <!-- 3. REGISTRO PIE -->
-        <RegistroPIE 
+        <RegistroPIE
           :pie-data="profileData?.cards?.pie"
         />
 
-        <!-- 4. INFORMACIÓN MÉDICA -->
-        <InformacionMedica 
+        <InformacionMedica
           :medical-data="profileData?.cards?.medical"
         />
 
-        <!-- 5. INFORMACIÓN ESCOLAR -->
-        <InformacionEscolar 
+        <InformacionEscolar
           :school-data="profileData?.cards?.school"
         />
 
-        <!-- 6. INFORMACIÓN DEL TUTOR -->
-        <InformacionTutor 
+        <InformacionTutor
           :guardian-data="profileData?.cards?.guardian"
         />
 
-        <!-- 7. HISTORIAL DE TERAPIAS -->
-        <HistorialTerapias 
+        <HistorialTerapias
           :therapy-data="profileData?.cards?.therapy"
         />
 
-        <!-- 8. INFORMACIÓN DE UBICACIÓN -->
-        <InformacionBasica 
+        <InformacionBasica
           :location-data="profileData?.cards?.location"
           :loading="loading"
         />
 
-        <!-- ========================================= -->
-        <!-- TARJETAS EXISTENTES (Mantener por ahora) -->
-        <!-- ========================================= -->
-        
-        <!-- CONTACTOS DE EMERGENCIA -->
-        <ContactoEmergencia 
+        <ContactoEmergencia
           :contactos="contactos"
           @gestionar-contactos="$emit('gestionarContactos')"
         />
 
-        <!-- DIAGNÓSTICOS -->
-        <RegistroDiagnostico 
+        <RegistroDiagnostico
           :diagnosticos="diagnosticos"
+          @add-diagnosis="$emit('add-diagnosis')"
         />
 
-        <!-- HISTORIAL MÉDICO -->
-        <HistorialMedico 
+        <HistorialMedico
           :historial-count="historialCount"
           :medicamentos-count="medicamentosCount"
           @ver-historial-completo="$emit('verHistorialCompleto')"
         />
+
+        <InteresesPrincipales
+          v-if="childId"
+          :key="`intereses-${childId}-${interestUpdateKey}`"
+          :child-id="childId"
+          @gestionar-intereses="$emit('gestionarIntereses')"
+        />
+
       </div>
     </div>
 
-    <!-- PESTAÑA: SESIONES DE TERAPIA -->
     <div v-if="activeTab === 'sesiones'">
       <SesionesTerapia
         :loading-sesiones="loadingSesiones"
@@ -96,7 +73,6 @@
       />
     </div>
 
-    <!-- PESTAÑA: PROGRESO Y MÉTRICAS -->
     <div v-if="activeTab === 'progreso'">
       <ProgresoMetricas
         :periodo="periodo"
@@ -109,7 +85,6 @@
       />
     </div>
 
-    <!-- PESTAÑA: DOCUMENTOS -->
     <div v-if="activeTab === 'documentos'">
       <DocumentosArchivos
         :loading-documentos="loadingDocumentos"
@@ -123,7 +98,6 @@
       />
     </div>
 
-    <!-- PESTAÑA: REPORTES -->
     <div v-if="activeTab === 'reportes'">
       <ReporteCompleto
         @generar-reporte-completo="$emit('generarReporteCompleto')"
@@ -144,9 +118,6 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 
-// ========================================
-// IMPORTAR TODAS LAS TARJETAS NUEVAS
-// ========================================
 import InformacionPersonal from './card/informaciongeneral/InformacionPersonal.vue'
 import NecesidadesEspeciales from './card/informaciongeneral/NecesidadesEspeciales.vue'
 import RegistroPIE from './card/informaciongeneral/RegistroPIE.vue'
@@ -155,25 +126,21 @@ import InformacionEscolar from './card/informaciongeneral/InformacionEscolar.vue
 import InformacionTutor from './card/informaciongeneral/InformacionTutor.vue'
 import HistorialTerapias from './card/informaciongeneral/HistorialTerapias.vue'
 import InformacionBasica from './card/informaciongeneral/InformacionBasica.vue'
+import InteresesPrincipales from './card/informaciongeneral/InteresesPrincipales.vue'
 
-// Tarjetas existentes
 import ContactoEmergencia from './card/informaciongeneral/ContactoEmergencia.vue'
 import RegistroDiagnostico from './card/informaciongeneral/RegistroDiagnostico.vue'
 import HistorialMedico from './card/informaciongeneral/HistorialMedico.vue'
 
-// Componentes de otras pestañas
 import SesionesTerapia from './card/sesionesterapia/SesionesTerapia.vue'
 import ProgresoMetricas from './card/progresometricas/ProgresoMetricas.vue'
 import DocumentosArchivos from './documentos/DocumentosArchivos.vue'
 import ReporteCompleto from './reportes/ReporteCompleto.vue'
 import ReportesRapido from './card/ReportesRapido.vue'
 
-// ========================================
-// PROPS
-// ========================================
 const props = defineProps<{
   activeTab: string
-  profileData?: any  // 🔥 CAMBIO: Recibir profileData completo
+  profileData?: any
   loading: boolean
   contactos: any[]
   diagnosticos: any[]
@@ -188,24 +155,16 @@ const props = defineProps<{
   loadingDocumentos: boolean
   documentos: any[]
   statsDocumentos: any
+  childId?: string | number
+  interestUpdateKey?: number
 }>()
 
-// ========================================
-// DEBUG: Observar cambios en profileData
-// ========================================
 watch(() => props.profileData, (newVal) => {
   console.log('📦 [TabContent] profileData actualizado:', newVal)
-  console.log('📦 [TabContent] cards disponibles:', newVal?.cards)
-  if (newVal?.cards) {
-    console.log('📍 [TabContent] location:', newVal.cards.location)
-    console.log('👤 [TabContent] personal:', newVal.cards.personal)
-    console.log('🏥 [TabContent] medical:', newVal.cards.medical)
-  }
+  console.log('🆔 [TabContent] childId recibido:', props.childId)
+  console.log('🔑 [TabContent] interestUpdateKey:', props.interestUpdateKey)
 }, { immediate: true, deep: true })
 
-// ========================================
-// EMITS
-// ========================================
 defineEmits<{
   gestionarContactos: []
   verHistorialCompleto: []
@@ -230,6 +189,8 @@ defineEmits<{
   generarReporteProgreso: []
   generarReporteComportamiento: []
   generarReporteMedico: []
+  'add-diagnosis': []
+  'gestionarIntereses': []
 }>()
 </script>
 
@@ -255,7 +216,7 @@ defineEmits<{
   .tab-pane {
     padding: 1rem;
   }
-  
+
   .info-grid {
     grid-template-columns: 1fr;
     gap: 1rem;

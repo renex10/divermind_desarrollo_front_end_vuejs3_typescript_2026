@@ -116,7 +116,7 @@
 
 <script lang="ts" setup>
 import { useAuth } from '@/composables/useAuth'
-import logoHorizontal from '../../assets/img/logo-horizontal.png'
+import logoHorizontal from '../../assets/img/principal_divermind.svg'
 
 const { login } = useAuth()
 
