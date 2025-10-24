@@ -128,7 +128,7 @@ const verPerfilNino = () => {
   
   // Navegar a la vista de perfil usando Vue Router
   router.push({ 
-    name: 'perfil-nino', 
+    name: 'perfil-nino-resumen', // <-- ✅ ESTE ES EL NOMBRE CORRECTO
     params: { id: props.nna.id.toString() }
   })
   

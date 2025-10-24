@@ -107,7 +107,7 @@ const isMobile = ref(false)
 // ✅ NAVEGACIÓN CORREGIDA - Mantener 'sessiones' con doble 's'
 const navigation = [
   { name: 'Dashboard', to: { name: 'dashboard' }, icon: 'HomeIcon' },
-  { name: 'Ingreso NNA', to: { name: 'ingreso-nna' }, icon: 'UserPlusIcon' },
+  { name: 'Gestión NNA', to: { name: 'lista-nna' }, icon: 'UserGroupIcon' }, // O usa 'UserPlusIcon'
   { name: 'Histos', to: { name: 'histos' }, icon: 'DocumentTextIcon' },
   // ✅ CORREGIDO: El nombre de la ruta ahora es 'sesiones' (con una 's')
   { name: 'Sesiones', to: { name: 'sesiones' }, icon: 'ChatBubbleLeftRightIcon' },
