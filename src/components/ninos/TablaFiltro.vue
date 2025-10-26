@@ -1,10 +1,12 @@
 <template>
   <div class="tabla-filtro-container">
     <!-- Sección de Búsqueda -->
-    <BusquedaFiltros
-      v-model:search-query="searchQuery"
-      @clear-filters="() => (searchQuery = '')"
-    />
+<BusquedaFiltros
+  v-model:search-query="searchQuery"
+  v-model:filter-status="filterStatus"    
+  v-model:filter-grade="filterGrade"
+  @clear-filters="clearAllFilters"        
+/>
 
     <!-- Información de resultados -->
     <div class="results-info">
@@ -149,7 +151,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import TablaDesktopRow from './SubComponentes/TablaDesktopRow.vue'
-/* import TablaMobileCard from './SubComponentes/TablaMobileCard.vue' */
+import TablaMobileCard from './SubComponentes/TablaMobileCard.vue' 
 import BusquedaFiltros from './SubComponentes/BusquedaFiltros.vue'
 
 // ============================================
@@ -206,6 +208,8 @@ const emit = defineEmits<{
 // ESTADO LOCAL
 // ============================================
 const searchQuery = ref('')
+const filterStatus = ref('')  // 👈 AGREGAR ESTA LÍNEA
+const filterGrade = ref('')   // 👈 AGREGAR ESTA LÍNEA
 const sortColumn = ref<keyof NnaData | ''>('')
 const sortDirection = ref<'asc' | 'desc'>('asc')
 const showDebug = ref(false)
@@ -312,6 +316,18 @@ const calculateAge = (birthDate: string): number => {
   }
   return age
 }
+
+
+// 👇 AGREGAR ESTA FUNCIÓN AQUÍ
+/**
+ * Limpia todos los filtros aplicados
+ */
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  filterStatus.value = ''
+  filterGrade.value = ''
+}
+
 
 /**
  * Manejadores de eventos que propagan las acciones al padre

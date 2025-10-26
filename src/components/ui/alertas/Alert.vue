@@ -85,8 +85,8 @@ import {
 
 const alert = useAlertStore()
 const progressWidth = ref(100)
-let progressInterval: number | null = null
-let autoCloseTimeout: number | null = null
+let progressInterval: ReturnType<typeof setTimeout> | null = null
+let autoCloseTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Componente de icono según el tipo
 const iconComponent = computed(() => {

@@ -7,7 +7,7 @@
           Historial de Hitos
         </h3>
         <p class="mt-1 text-sm text-gray-600 ml-9">
-          Registro cronológico de {{ milestones.length }} {{ milestones.length === 1 ? 'logro' : 'logros' }}
+          Registro cronológico de {{ milestones?.length || 0 }} {{ milestones?.length === 1 ? 'logro' : 'logros' }}
         </p>
       </div>
       <button
