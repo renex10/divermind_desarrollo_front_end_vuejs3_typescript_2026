@@ -3,15 +3,9 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PerfilNinoLayout from '@/views/dashboard/perfil_nino/PerfilNinoLayout.vue'
 import { useNinoActivoStore } from '@/store/ninoActivoStore'
 
-/**
- * Componente "cáscara" abstracto.
- * Simplemente renderiza la ruta hija que corresponda.
- * Lo usamos para agrupar la lista de NNA y el perfil de NNA bajo una misma ruta padre.
- */
 const RouteShell = { template: '<router-view />' }
 
 const routes = [
-  // Ruta de login sin layout adicional
   {
     path: '/login',
     name: 'login',
@@ -19,7 +13,6 @@ const routes = [
     component: () => import('@/views/auth/LoginView.vue')
   },
 
-  // Rutas protegidas dentro del dashboard
   {
     path: '/',
     component: DashboardLayout,
@@ -33,46 +26,43 @@ const routes = [
       },
 
       // ===================================================================
-      // INICIO DE LA REESTRUCTURACIÓN DE GESTIÓN NNA
+      // GESTIÓN NNA - ESTRUCTURA CORREGIDA
       // ===================================================================
       {
-        // 1. RUTA PADRE (la que está en el sidebar)
-        // Mantenemos el path 'ingreso-nna' para no romper enlaces
         path: 'ingreso-nna', 
-        name: 'gestion-nna-parent', // Nombre lógico para el grupo
-        component: RouteShell, // Usa la cáscara para renderizar hijos
-        meta: { breadcrumb: 'Gestión NNA' }, // Breadcrumb padre
+        name: 'gestion-nna-parent',
+        component: RouteShell,
+        meta: { breadcrumb: 'Gestión NNA' },
         children: [
           {
-            // 2. RUTA HIJA (default): La lista de NNA
-            path: '', // Se carga por defecto en /ingreso-nna
-            name: 'lista-nna', // Este es el nombre que debe usar tu Sidebar
+            // Lista de NNA
+            path: '', 
+            name: 'lista-nna',
             component: () => import('@/views/dashboard/IngresoNneDashboard.vue')
-            // No necesita meta.breadcrumb, usará el del padre
           },
           {
-            // 3. RUTA HIJA: El perfil individual del niño
-            path: ':id', // Se cargará en /ingreso-nna/:id
-            name: 'perfil-nino-layout', // El nombre del layout se mantiene
+            // Perfil individual - NOMBRE CAMBIADO A "perfil-nino"
+            path: ':id',
+            name: 'perfil-nino', // ← CAMBIADO de "perfil-nino-layout" a "perfil-nino"
             component: PerfilNinoLayout,
             props: true,
             meta: { 
-              // Breadcrumb dinámico (ahora es hijo de 'Gestión NNA')
               breadcrumb: () => {
                 const ninoStore = useNinoActivoStore()
-                // Usamos un nombre más corto para que quepa en el breadcrumb
                 return ninoStore.hasData 
                   ? ninoStore.nombreNino
                   : 'Perfil del Niño'
               }
             },
-            // 4. PESTAÑAS (Hijas del perfil)
-            // Estas rutas se mantienen idénticas, ahora están anidadas un nivel más profundo
             children: [
               {
-                // Pestaña 1: Resumen
-                path: 'resumen', // Cambiado de '' a 'resumen' para ser más explícito
-                name: 'perfil-nino-resumen', // TU COMPONENTE TablaDesktopRow YA APUNTA A ESTE NOMBRE, ASÍ QUE SEGUIRÁ FUNCIONANDO
+                // Redirect automático a resumen cuando se accede al perfil
+                path: '',
+                redirect: { name: 'perfil-nino-resumen' }
+              },
+              {
+                path: 'resumen',
+                name: 'perfil-nino-resumen',
                 component: () => import('@/views/dashboard/PerfilSeguimientoPersonal.vue'),
                 props: true,
                 meta: { breadcrumb: 'Resumen' }
@@ -158,20 +148,14 @@ const routes = [
           }
         ]
       },
-      // ===================================================================
-      // FIN DE LA REESTRUCTURACIÓN
-      // ===================================================================
 
       { 
         path: 'histos', 
         name: 'histos', 
         meta: { breadcrumb: 'Histos' },
         component: () => import('@/views/dashboard/HistosView.vue') 
-        // NOTA: Esta ruta 'histos' podría ser redundante ahora que 'ingreso-nna'
-        // contiene la lista. Puedes decidir si mantenerla o eliminarla.
       },
 
-      // RUTA PARA LA LISTA GENERAL DE TODAS LAS SESIONES
       { 
         path: 'sesiones',
         name: 'sesiones',
@@ -179,7 +163,6 @@ const routes = [
         component: () => import('@/views/dashboard/SessionesView.vue') 
       },
       
-      // RUTA PARA DOCUMENTAR UNA SESIÓN ESPECÍFICA
       {
         path: 'ninos/:childId/sesiones/:sessionId/documentar',
         name: 'documentar-sesion',
@@ -188,7 +171,6 @@ const routes = [
         meta: { breadcrumb: 'Documentar Sesión' }
       },
       
-      // OTRAS RUTAS PRINCIPALES
       { 
         path: 'reportes', 
         name: 'reportes', 
@@ -210,7 +192,6 @@ const routes = [
     ]
   },
 
-  // Ruta para páginas no encontradas
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
@@ -223,7 +204,6 @@ const router = createRouter({
   routes
 })
 
-// Guard global para proteger rutas (Sin cambios)
 router.beforeEach((to, from, next) => {
   const isAuthenticated = !!localStorage.getItem('access')
 

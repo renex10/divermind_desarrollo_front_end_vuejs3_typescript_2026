@@ -83,6 +83,7 @@
  * Se usa dentro de un v-for en TablaFiltro.vue
  * 
  * 🆕 NUEVA FUNCIONALIDAD: Click en nombre o botón view navega al perfil del niño
+ * ✅ CORREGIDO: Usa 'perfil-nino' en lugar de 'perfil-nino-resumen'
  */
 
 import { useRouter } from 'vue-router'
@@ -122,13 +123,13 @@ const emit = defineEmits<{
   toggle: [nna: NnaData, newStatus: 'active' | 'suspended']
 }>()
 
-// 🆕 FUNCIÓN PARA NAVEGAR AL PERFIL DEL NIÑO
+// ✅ FUNCIÓN CORREGIDA PARA NAVEGAR AL PERFIL DEL NIÑO
 const verPerfilNino = () => {
   console.log(`🔄 Navegando al perfil del niño ID: ${props.nna.id}`)
   
-  // Navegar a la vista de perfil usando Vue Router
+  // ✅ CORREGIDO: Usa 'perfil-nino' en lugar de 'perfil-nino-resumen'
   router.push({ 
-    name: 'perfil-nino-resumen', // <-- ✅ ESTE ES EL NOMBRE CORRECTO
+    name: 'perfil-nino', // ✅ Nombre correcto de la ruta
     params: { id: props.nna.id.toString() }
   })
   
@@ -183,7 +184,7 @@ const handleToggleStatus = () => {
   emit('toggle', props.nna, newStatus)
 }
 
-// 🆕 ACTUALIZADO: Ahora usa la misma función que el nombre clickable
+// ✅ ACTUALIZADO: Ahora usa la misma función que el nombre clickable
 const handleView = () => {
   verPerfilNino()
 }

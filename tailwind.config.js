@@ -1,3 +1,4 @@
+/* tailwind.config.js */
 import formkitTheme from '@formkit/themes/tailwindcss'
 import forms from '@tailwindcss/forms'
 

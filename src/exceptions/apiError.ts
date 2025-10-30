@@ -1,5 +1,11 @@
 // src/exceptions/apiError.ts
 
+declare global {
+  interface ErrorConstructor {
+    captureStackTrace(targetObject: object, constructorOpt?: Function): void;
+  }
+}
+
 /**
  * Tipos de errores de la API
  */

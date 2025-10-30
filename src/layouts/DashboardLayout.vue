@@ -23,6 +23,7 @@
       :onKeepAlive="keepSessionAlive"
     />
   </div>
+    <ToastContainer />
 </template>
 
 <script setup lang="ts">
@@ -30,6 +31,7 @@ import { ref } from 'vue'
 import Sidebar from '../components/dashboard/Sidebar.vue'
 import TopNavbar from '../components/dashboard/TopNavbar.vue'
 import SessionWarningModal from '@/components/modal/SessionWarningModal.vue'
+import ToastContainer from '@/components/toastglobal/ToastContainer.vue'
 
 // ===================================================================
 // INICIO DE LA MODIFICACIÓN: IMPORTAR BREADCRUMBS
