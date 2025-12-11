@@ -1,8 +1,22 @@
+<!-- src/components/ninos/SubComponentes/TablaDesktopRow.vue -->
 <template>
   <tr class="data-row">
     <td class="name-cell">
       <div class="name-wrapper">
-        <div class="avatar">{{ getInitials(nna.first_name, nna.last_name) }}</div>
+        <!-- Avatar con imagen o fallback a iniciales -->
+        <div class="avatar" :key="avatarKey">
+          <img
+            v-if="photoUrl"
+            :src="photoUrl"
+            :alt="`Foto de ${nna.first_name} ${nna.last_name}`"
+            class="avatar-image"
+            @error="handleImageError"
+            @load="handleImageLoad"
+          />
+          <span v-else class="avatar-initials">
+            {{ getInitials(nna.first_name, nna.last_name) }}
+          </span>
+        </div>
         <div class="name-details">
           <!-- 🆕 NOMBRE CLICKABLE PARA NAVEGAR AL PERFIL -->
           <span 
@@ -76,20 +90,28 @@
 
 <script setup lang="ts">
 /**
- * TablaDesktopRow.vue
+ * TablaDesktopRow.vue - ACTUALIZADO CON SOPORTE PARA IMAGEN
+ * 
  * Componente que representa UNA FILA de la tabla desktop.
+ * ✨ NUEVA: Ahora muestra foto del NNA si está disponible
  * 
  * IMPORTANTE: Este componente ya es un <tr>, no lo envuelvas en otro <tr>
  * Se usa dentro de un v-for en TablaFiltro.vue
  * 
- * 🆕 NUEVA FUNCIONALIDAD: Click en nombre o botón view navega al perfil del niño
- * ✅ CORREGIDO: Usa 'perfil-nino' en lugar de 'perfil-nino-resumen'
+ * 🆕 NUEVA FUNCIONALIDAD: 
+ * - Click en nombre o botón view navega al perfil del niño
+ * - Avatar muestra foto si está disponible (con fallback a iniciales)
  */
 
 import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
 
 // Inicializar router
 const router = useRouter()
+
+// ============================================================================
+// INTERFACE
+// ============================================================================
 
 interface NnaData {
   id: number | string
@@ -111,7 +133,13 @@ interface NnaData {
   attended_where_name?: string
   usuarios_count?: number
   autism_level_value?: string
+  photo_url?: string  // ✨ NUEVO: URL de la foto
+  has_photo?: boolean // ✨ NUEVO: Indicador de foto
 }
+
+// ============================================================================
+// PROPS & EMITS
+// ============================================================================
 
 const props = defineProps<{
   nna: NnaData
@@ -123,25 +151,100 @@ const emit = defineEmits<{
   toggle: [nna: NnaData, newStatus: 'active' | 'suspended']
 }>()
 
-// ✅ FUNCIÓN CORREGIDA PARA NAVEGAR AL PERFIL DEL NIÑO
+// ============================================================================
+// STATE
+// ============================================================================
+
+const avatarKey = ref(0)
+const imageLoaded = ref(false)
+
+// ============================================================================
+// COMPUTED
+// ============================================================================
+
+/**
+ * Construir URL de la foto con timestamp para evitar caché
+ * - Si no hay photo_url, devuelve null
+ * - Si es URL relativa, la convierte a absoluta
+ * - Agrega timestamp para forzar actualización
+ */
+const photoUrl = computed(() => {
+  if (!props.nna?.photo_url) {
+    return null
+  }
+
+  try {
+    let fullUrl = props.nna.photo_url
+
+    // Convertir URL relativa a absoluta
+    if (!fullUrl.startsWith('http')) {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+      fullUrl = `${baseURL.replace('/api', '')}${fullUrl}`
+    }
+
+    // Agregar timestamp para evitar caché
+    const timestamp = Date.now()
+    const finalUrl = `${fullUrl}?t=${timestamp}`
+
+    console.log('[TablaDesktopRow] 📷 URL de foto construida:', {
+      nnaId: props.nna.id,
+      original: props.nna.photo_url,
+      final: finalUrl
+    })
+
+    return finalUrl
+  } catch (error) {
+    console.error('[TablaDesktopRow] ❌ Error construyendo URL:', error)
+    return null
+  }
+})
+
+// ============================================================================
+// METHODS
+// ============================================================================
+
+/**
+ * Navegar al perfil del niño
+ */
 const verPerfilNino = () => {
-  console.log(`🔄 Navegando al perfil del niño ID: ${props.nna.id}`)
+  console.log(`[TablaDesktopRow] 🔄 Navegando al perfil del niño ID: ${props.nna.id}`)
   
-  // ✅ CORREGIDO: Usa 'perfil-nino' en lugar de 'perfil-nino-resumen'
+  // Usar la ruta 'perfil-nino'
   router.push({ 
-    name: 'perfil-nino', // ✅ Nombre correcto de la ruta
+    name: 'perfil-nino',
     params: { id: props.nna.id.toString() }
   })
   
-  // También emitimos el evento view por compatibilidad con el componente padre
+  // También emitimos el evento view por compatibilidad
   emit('view', props.nna)
 }
 
-// Funciones auxiliares existentes
+/**
+ * Manejar error al cargar la imagen
+ */
+const handleImageError = (event: Event) => {
+  console.error('[TablaDesktopRow] ❌ Error cargando imagen para NNA:', props.nna?.id, event)
+  imageLoaded.value = false
+}
+
+/**
+ * Manejar carga exitosa de imagen
+ */
+const handleImageLoad = () => {
+  console.log('[TablaDesktopRow] ✅ Imagen cargada exitosamente para NNA:', props.nna?.id)
+  imageLoaded.value = true
+}
+
+/**
+ * Obtener iniciales del nombre
+ */
 const getInitials = (firstName: string, lastName: string) => {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 }
 
+/**
+ * Calcular edad a partir de fecha de nacimiento
+ */
 const calculateAge = (birthDate: string): number => {
   if (!birthDate) return 0
   
@@ -157,6 +260,9 @@ const calculateAge = (birthDate: string): number => {
   return age
 }
 
+/**
+ * Formatear fecha de última sesión
+ */
 const formatLastSession = (date: string): string => {
   if (!date) return 'Nunca'
   
@@ -178,23 +284,52 @@ const formatLastSession = (date: string): string => {
   }
 }
 
-// Manejadores de eventos
+/**
+ * Manejadores de eventos
+ */
 const handleToggleStatus = () => {
   const newStatus = props.nna.status === 'active' ? 'suspended' : 'active'
   emit('toggle', props.nna, newStatus)
 }
 
-// ✅ ACTUALIZADO: Ahora usa la misma función que el nombre clickable
-const handleView = () => {
-  verPerfilNino()
-}
-
 const handleEdit = () => {
   emit('edit', props.nna)
 }
+
+// ============================================================================
+// WATCHERS
+// ============================================================================
+
+// Detectar cambios en la foto
+watch(
+  () => props.nna?.photo_url,
+  (newUrl, oldUrl) => {
+    if (newUrl !== oldUrl) {
+      console.log('[TablaDesktopRow] 🔄 Foto cambió:', { old: oldUrl, new: newUrl })
+      avatarKey.value++
+      imageLoaded.value = false
+    }
+  }
+)
+
+// Detectar cambios en el NNA
+watch(
+  () => props.nna?.id,
+  (newId, oldId) => {
+    if (newId !== oldId) {
+      console.log('[TablaDesktopRow] 🔄 NNA cambió:', { old: oldId, new: newId })
+      avatarKey.value++
+      imageLoaded.value = false
+    }
+  }
+)
 </script>
 
 <style scoped>
+/* ========================================================================== */
+/* LAYOUT PRINCIPAL                                                          */
+/* ========================================================================== */
+
 .data-row {
   transition: background 0.2s;
 }
@@ -213,6 +348,10 @@ const handleEdit = () => {
   gap: 0.75rem;
 }
 
+/* ========================================================================== */
+/* AVATAR CON IMAGEN                                                         */
+/* ========================================================================== */
+
 .avatar {
   width: 36px;
   height: 36px;
@@ -225,7 +364,34 @@ const handleEdit = () => {
   font-size: 0.75rem;
   font-weight: 600;
   flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
+
+.avatar:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* ========================================================================== */
+/* DETALLES DEL NOMBRE                                                       */
+/* ========================================================================== */
 
 .name-details {
   display: flex;
@@ -233,7 +399,6 @@ const handleEdit = () => {
   gap: 0.25rem;
 }
 
-/* 🆕 ESTILOS PARA NOMBRE CLICKABLE */
 .name {
   font-weight: 500;
   color: #1f2937;
@@ -263,6 +428,10 @@ const handleEdit = () => {
   color: #6b7280;
 }
 
+/* ========================================================================== */
+/* INFORMACIÓN ADICIONAL                                                     */
+/* ========================================================================== */
+
 .commune-info {
   display: flex;
   flex-direction: column;
@@ -289,7 +458,10 @@ const handleEdit = () => {
   font-weight: 500;
 }
 
-/* Toggle Switch */
+/* ========================================================================== */
+/* TOGGLE SWITCH                                                             */
+/* ========================================================================== */
+
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -359,10 +531,18 @@ const handleEdit = () => {
   color: #6b7280;
 }
 
+/* ========================================================================== */
+/* SESIÓN                                                                    */
+/* ========================================================================== */
+
 .session-date {
   font-size: 0.875rem;
   color: #6b7280;
 }
+
+/* ========================================================================== */
+/* ACCIONES                                                                  */
+/* ========================================================================== */
 
 .actions-cell {
   text-align: center;
@@ -409,14 +589,20 @@ const handleEdit = () => {
   box-shadow: 0 2px 4px rgba(217, 119, 6, 0.3);
 }
 
-/* 🆕 EFECTO DE FOCUS PARA ACCESIBILIDAD */
+/* ========================================================================== */
+/* ACCESIBILIDAD                                                             */
+/* ========================================================================== */
+
 .clickable-name:focus-visible,
 .action-btn:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
-/* Responsive adjustments */
+/* ========================================================================== */
+/* RESPONSIVE                                                                */
+/* ========================================================================== */
+
 @media (max-width: 768px) {
   .clickable-name {
     padding: 0.25rem 0.5rem;

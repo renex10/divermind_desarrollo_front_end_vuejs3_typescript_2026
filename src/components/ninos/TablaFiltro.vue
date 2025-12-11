@@ -210,7 +210,7 @@ const emit = defineEmits<{
 const searchQuery = ref('')
 const filterStatus = ref('')  // 👈 AGREGAR ESTA LÍNEA
 const filterGrade = ref('')   // 👈 AGREGAR ESTA LÍNEA
-const sortColumn = ref<keyof NnaData | ''>('')
+const sortColumn = ref<keyof NnaData | 'age' | ''>('')
 const sortDirection = ref<'asc' | 'desc'>('asc')
 const showDebug = ref(false)
 
@@ -285,7 +285,7 @@ const filteredData = computed(() => {
  * Si ya está ordenando por esa columna, invierte la dirección
  * Si es una nueva columna, inicia con orden ascendente
  */
-const sortBy = (column: keyof NnaData) => {
+const sortBy = (column: keyof NnaData | 'age') => {
   if (sortColumn.value === column) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
   } else {

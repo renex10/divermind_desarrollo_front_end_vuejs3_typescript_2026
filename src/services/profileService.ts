@@ -31,6 +31,14 @@ export class ProfileService {
     return {
       // 🎯 DATOS PARA EL HEADER
       header: {
+        // ✅ --- INICIO DE LA CORRECCIÓN --- ✅
+        // Estos campos faltaban y son necesarios para
+        // que PerfilHeader.vue pueda mostrar y actualizar la foto.
+        id: apiData.id || 0,
+        photo_url: apiData.photo_url || null,
+        has_photo: apiData.has_photo || false,
+        // ✅ --- FIN DE LA CORRECCIÓN --- ✅
+        
         first_name: apiData.personal_profile?.first_name || '',
         last_name: apiData.personal_profile?.last_name || '',  
         rut: apiData.personal_profile?.rut || '',

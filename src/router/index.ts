@@ -1,11 +1,20 @@
-import { createRouter, createWebHistory } from 'vue-router'
+// src/router/index.ts
+import { createRouter, createWebHistory, type RouteLocationNormalized, type NavigationGuardNext, type RouteRecordRaw } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
-import PerfilNinoLayout from '@/views/dashboard/perfil_nino/PerfilNinoLayout.vue'
-import { useNinoActivoStore } from '@/store/ninoActivoStore'
+import ParentLayout from '@/layouts/ParentLayout.vue'
 
-const RouteShell = { template: '<router-view />' }
+import therapistRoutes from './therapist.routes'
+import parentRoutes from './parent.routes'
 
-const routes = [
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    role?: 'therapist' | 'parent' | 'admin'
+    breadcrumb?: string | (() => string)
+  }
+}
+
+const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'login',
@@ -13,185 +22,46 @@ const routes = [
     component: () => import('@/views/auth/LoginView.vue')
   },
 
+  // RUTAS TERAPEUTAS
   {
-    path: '/',
+    path: '/therapist',
     component: DashboardLayout,
-    meta: { requiresAuth: true },
-    children: [
-      { 
-        path: '', 
-        name: 'dashboard', 
-        meta: { breadcrumb: 'Inicio' },
-        component: () => import('@/views/dashboard/DashboardView.vue') 
-      },
-
-      // ===================================================================
-      // GESTIÓN NNA - ESTRUCTURA CORREGIDA
-      // ===================================================================
-      {
-        path: 'ingreso-nna', 
-        name: 'gestion-nna-parent',
-        component: RouteShell,
-        meta: { breadcrumb: 'Gestión NNA' },
-        children: [
-          {
-            // Lista de NNA
-            path: '', 
-            name: 'lista-nna',
-            component: () => import('@/views/dashboard/IngresoNneDashboard.vue')
-          },
-          {
-            // Perfil individual - NOMBRE CAMBIADO A "perfil-nino"
-            path: ':id',
-            name: 'perfil-nino', // ← CAMBIADO de "perfil-nino-layout" a "perfil-nino"
-            component: PerfilNinoLayout,
-            props: true,
-            meta: { 
-              breadcrumb: () => {
-                const ninoStore = useNinoActivoStore()
-                return ninoStore.hasData 
-                  ? ninoStore.nombreNino
-                  : 'Perfil del Niño'
-              }
-            },
-            children: [
-              {
-                // Redirect automático a resumen cuando se accede al perfil
-                path: '',
-                redirect: { name: 'perfil-nino-resumen' }
-              },
-              {
-                path: 'resumen',
-                name: 'perfil-nino-resumen',
-                component: () => import('@/views/dashboard/PerfilSeguimientoPersonal.vue'),
-                props: true,
-                meta: { breadcrumb: 'Resumen' }
-              },
-              {
-                path: 'hitos-logros',
-                name: 'perfil-nino-hitos',
-                component: () => import('@/views/dashboard/perfil_nino/HitosLogrosView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Hitos y Logros' }
-              },
-              {
-                path: 'rutinas',
-                name: 'perfil-nino-rutinas',
-                component: () => import('@/views/dashboard/perfil_nino/RutinasView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Rutinas' }
-              },
-              {
-                path: 'cognitivo',
-                name: 'perfil-nino-cognitivo',
-                component: () => import('@/views/dashboard/perfil_nino/CognitivoView.vue'),
-                props: true,
-                meta: { breadcrumb: 'P. Cognitivo' }
-              },
-              {
-                path: 'habilidades-sociales',
-                name: 'perfil-nino-habilidades',
-                component: () => import('@/views/dashboard/perfil_nino/HabilidadesSocialesView.vue'),
-                props: true,
-                meta: { breadcrumb: 'H. Sociales' }
-              },
-              {
-                path: 'sensorial',
-                name: 'perfil-nino-sensorial',
-                component: () => import('@/views/dashboard/perfil_nino/SensorialView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Sensorial' }
-              },
-              {
-                path: 'comunicacion',
-                name: 'perfil-nino-comunicacion',
-                component: () => import('@/views/dashboard/perfil_nino/ComunicacionView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Comunicación' }
-              },
-              {
-                path: 'autonomia',
-                name: 'perfil-nino-autonomia',
-                component: () => import('@/views/dashboard/perfil_nino/AutonomiaView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Autonomía' }
-              },
-              {
-                path: 'regulacion',
-                name: 'perfil-nino-regulacion',
-                component: () => import('@/views/dashboard/perfil_nino/RegulacionView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Regulación' }
-              },
-              {
-                path: 'detonantes-crisis',
-                name: 'perfil-nino-detonantes',
-                component: () => import('@/views/dashboard/perfil_nino/DetonantesCrisisView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Detonantes' }
-              },
-              {
-                path: 'tareas',
-                name: 'perfil-nino-tareas',
-                component: () => import('@/views/dashboard/perfil_nino/TareasView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Tareas' }
-              },
-              {
-                path: 'sesiones',
-                name: 'perfil-nino-sesiones',
-                component: () => import('@/views/dashboard/perfil_nino/SesionesNinoView.vue'),
-                props: true,
-                meta: { breadcrumb: 'Sesiones' }
-              }
-            ]
-          }
-        ]
-      },
-
-      { 
-        path: 'histos', 
-        name: 'histos', 
-        meta: { breadcrumb: 'Histos' },
-        component: () => import('@/views/dashboard/HistosView.vue') 
-      },
-
-      { 
-        path: 'sesiones',
-        name: 'sesiones',
-        meta: { breadcrumb: 'Sesiones (General)' },
-        component: () => import('@/views/dashboard/SessionesView.vue') 
-      },
-      
-      {
-        path: 'ninos/:childId/sesiones/:sessionId/documentar',
-        name: 'documentar-sesion',
-        component: () => import('@/views/dashboard/DocumentarSesionView.vue'),
-        props: true,
-        meta: { breadcrumb: 'Documentar Sesión' }
-      },
-      
-      { 
-        path: 'reportes', 
-        name: 'reportes', 
-        meta: { breadcrumb: 'Reportes' },
-        component: () => import('@/views/dashboard/ReportesView.vue') 
-      },
-      { 
-        path: 'configuracion', 
-        name: 'configuracion', 
-        meta: { breadcrumb: 'Configuración' },
-        component: () => import('@/views/dashboard/ConfiguracionView.vue') 
-      },
-      { 
-        path: 'establecimientos', 
-        name: 'establecimientos', 
-        meta: { breadcrumb: 'Establecimientos' },
-        component: () => import('@/views/dashboard/EstablecimientosView.vue') 
-      }
-    ]
+    meta: { 
+      requiresAuth: true,
+      role: 'therapist'
+    },
+    children: therapistRoutes
   },
 
+  // RUTAS PADRES
+  {
+    path: '/parent',
+    component: ParentLayout,
+    meta: { 
+      requiresAuth: true,
+      role: 'parent'
+    },
+    children: parentRoutes
+  },
+
+  // REDIRECCIÓN RAÍZ
+  {
+    path: '/',
+    redirect: () => {
+      const userRole = getUserRole()
+      console.log('[Router] Redirigiendo desde /, rol detectado:', userRole)
+      
+      if (userRole === 'parent') {
+        return '/parent'
+      } else if (userRole === 'therapist') {
+        return '/therapist'
+      }
+      
+      return '/login'
+    }
+  },
+
+  // 404
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
@@ -204,16 +74,107 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+// 🔥 NAVIGATION GUARD MEJORADO
+router.beforeEach((
+  to: RouteLocationNormalized, 
+  from: RouteLocationNormalized, 
+  next: NavigationGuardNext
+) => {
   const isAuthenticated = !!localStorage.getItem('access')
+  const userRole = getUserRole()
 
+  console.log('[Router Guard] Navegando:', {
+    from: from.path,
+    to: to.path,
+    isAuth: isAuthenticated,
+    userRole: userRole,
+    requiredRole: to.meta.role
+  })
+
+  // 1. Verificar autenticación
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next({ name: 'login' })
-  } else if (to.name === 'login' && isAuthenticated) {
-    next({ name: 'dashboard' })
-  } else {
-    next()
+    console.log('[Router Guard] ❌ No autenticado, redirigiendo a login')
+    return next({ name: 'login' })
   }
+
+  // 2. Si está en login y ya está autenticado
+  if (to.name === 'login' && isAuthenticated) {
+    console.log('[Router Guard] ✅ Ya autenticado, redirigiendo a dashboard')
+    
+    if (userRole === 'parent') {
+      return next('/parent')
+    } else if (userRole === 'therapist') {
+      return next('/therapist')
+    }
+    return next('/therapist')
+  }
+
+  // 3. Verificar permisos de rol
+  const requiredRole = to.meta.role
+  if (requiredRole && userRole && userRole !== requiredRole) {
+    console.warn(`[Router Guard] ⚠️ Rol incorrecto. Requerido: ${requiredRole}, Actual: ${userRole}`)
+    
+    // Redirigir a su dashboard correcto
+    if (userRole === 'parent') {
+      return next('/parent')
+    } else if (userRole === 'therapist') {
+      return next('/therapist')
+    }
+  }
+
+  console.log('[Router Guard] ✅ Permitiendo navegación')
+  next()
 })
+
+// 🔥 HELPER MEJORADO
+function getUserRole(): 'parent' | 'therapist' | 'admin' | null {
+  try {
+    // 🔥 OPCIÓN 1: Leer desde localStorage 'user'
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      const user = JSON.parse(userData)
+      
+      // ✅ Buscar en campo 'role' (singular)
+      if (user.role) {
+        console.log('[getUserRole] ✅ Rol encontrado en user.role:', user.role)
+        return user.role
+      }
+      
+      // ✅ Fallback: Buscar en 'roles' (array)
+      if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+        const firstRole = user.roles[0]
+        const mappedRole = firstRole.toLowerCase().includes('terapeuta') ? 'therapist' :
+                          firstRole.toLowerCase().includes('padres') ? 'parent' :
+                          firstRole.toLowerCase().includes('admin') ? 'admin' : null
+        
+        console.log('[getUserRole] ⚠️ Usando roles[0]:', firstRole, '→', mappedRole)
+        return mappedRole
+      }
+    }
+
+    console.warn('[getUserRole] ❌ No se encontró rol en localStorage')
+    return null
+  } catch (error) {
+    console.error('[getUserRole] Error:', error)
+    return null
+  }
+}
+
+function parseJWT(token: string): Record<string, any> | null {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch (error) {
+    console.error('[parseJWT] Error:', error)
+    return null
+  }
+}
 
 export default router

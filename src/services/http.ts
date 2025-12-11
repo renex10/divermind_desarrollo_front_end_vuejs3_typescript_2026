@@ -13,7 +13,7 @@ import { refreshTokenApi } from './authService'
 // Crear instancia de Axios con configuración base
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL, // URL definida en .env
-  timeout: 5000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

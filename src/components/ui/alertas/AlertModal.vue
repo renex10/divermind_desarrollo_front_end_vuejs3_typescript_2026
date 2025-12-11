@@ -197,7 +197,7 @@ const getButtonClasses = (variant: string = 'primary') => {
     return `${base} ${variants.danger}`
   }
 
-  const typeVariant = variants[variant as keyof typeof variants]
+  const typeVariant = variants[variant as keyof typeof variants] as Record<AlertModalType, string>
   return `${base} ${typeVariant[state.type]}`
 }
 </script>

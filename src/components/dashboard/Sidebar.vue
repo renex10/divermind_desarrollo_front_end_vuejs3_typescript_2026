@@ -13,7 +13,7 @@
       >
         <img v-if="isOpen" 
              :src="logo" 
-             alt="Logo" 
+             alt="divermind" 
              class="h-8 sidebar-logo transition-all duration-300" />
       </Transition>
       
@@ -91,7 +91,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Bars3CenterLeftIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import NavigationItem from './NavigationItem.vue'
-import logo from '@/assets/dashboard/logo-horizontal.png'
+import logo from '@/assets/dashboard/logo-horizontal-dashboard.png'
 
 // Importar el CSS mejorado
 import '@/assets/css/dashboard-enhanced.css'

@@ -30,6 +30,8 @@ export interface NnaFromApi {
   pie_status: 'active' | 'inactive'
   pie_status_display: string
   school_journey: 'morning' | 'afternoon'
+  photo_url?: string      // ✨ NUEVO: URL de la foto
+  has_photo?: boolean     // ✨ NUEVO: Indicador de foto
 }
 
 /**
@@ -113,7 +115,8 @@ export const getNnaListApi = async (params: SearchParams = {}): Promise<NnaListR
     console.log('✅ Lista de NNA obtenida exitosamente:', {
       count: response.data.pagination?.count,
       total_pages: response.data.pagination?.total_pages,
-      results_count: response.data.results?.length
+      results_count: response.data.results?.length,
+      con_fotos: response.data.results?.filter((n: any) => n.photo_url).length
     })
     
     return response.data
@@ -180,6 +183,7 @@ export const getCommunesByRegionApi = async (regionId?: number): Promise<Commune
 
 /**
  * Transforma los datos de la API al formato esperado por el componente TablaFiltro
+ * ✨ ACTUALIZADO: Ahora incluye photo_url y has_photo para mostrar fotos en tabla
  */
 export const transformNnaForTable = (nnaFromApi: NnaFromApi) => {
   return {
@@ -190,6 +194,7 @@ export const transformNnaForTable = (nnaFromApi: NnaFromApi) => {
     current_grade: nnaFromApi.current_grade,
     status: nnaFromApi.pie_status === 'active' ? 'active' : 'suspended',
     last_session: nnaFromApi.created_at, // Usamos created_at como última sesión por ahora
+    
     // Campos adicionales que podrían ser útiles
     rut: nnaFromApi.rut,
     full_name: nnaFromApi.full_name,
@@ -197,15 +202,43 @@ export const transformNnaForTable = (nnaFromApi: NnaFromApi) => {
     region_name: nnaFromApi.region_name,
     address: nnaFromApi.address,
     autism_level: nnaFromApi.autism_level_display,
-    school_journey: nnaFromApi.school_journey
+    school_journey: nnaFromApi.school_journey,
+    
+    // ✨ NUEVO: Campos para mostrar foto en tabla
+    photo_url: nnaFromApi.photo_url,      // URL de la foto subida por padre
+    has_photo: nnaFromApi.has_photo,      // Indicador de si tiene foto
+    pie_status_display: nnaFromApi.pie_status_display,  // Estado para mostrar
+    attended_where_name: nnaFromApi.attended_where_name,  // Institución
+    usuarios_count: nnaFromApi.usuarios_count,  // Contador de usuarios
+    autism_level_value: nnaFromApi.autism_level_value  // Valor numérico del nivel
   }
 }
 
 /**
  * Transforma una lista de NNA de la API al formato de tabla
+ * ✨ ACTUALIZADO: Ahora incluye photo_url para cada NNA
  */
 export const transformNnaListForTable = (nnaList: NnaFromApi[]) => {
-  return nnaList.map(transformNnaForTable)
+  console.log('[filtroService] 📷 Transformando', nnaList.length, 'NNA para tabla...')
+  
+  const transformedList = nnaList.map(nna => {
+    const transformed = transformNnaForTable(nna)
+    
+    // Log de debugging para primeros NNA
+    if (nnaList.indexOf(nna) < 3) {
+      console.log(`[filtroService] 📷 NNA transformado - ID: ${transformed.id}, foto: ${transformed.photo_url ? '✅' : '❌'}`)
+    }
+    
+    return transformed
+  })
+  
+  console.log('[filtroService] ✅ Transformación completada:', {
+    total: transformedList.length,
+    con_foto: transformedList.filter(n => n.photo_url).length,
+    sin_foto: transformedList.filter(n => !n.photo_url).length
+  })
+  
+  return transformedList
 }
 
 // =====================================================

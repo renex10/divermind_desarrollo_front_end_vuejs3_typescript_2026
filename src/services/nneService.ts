@@ -1,6 +1,6 @@
-// src/services/nneService.ts - VERSIÓN COMPLETAMENTE CORREGIDA
+/// src/services/nneService.ts - VERSIÓN COMPLETAMENTE CORREGIDA
 import http from './http'
-import type { ParentUser, ParentUserCreate, NneFormData } from '@/types'
+import type { ParentUser, ParentUserCreate, NneFormData } from '@/type/nne'
 import { parseApiError, ApiError, ApiErrorType, getUserFriendlyErrorMessage } from '@/exceptions/apiError'
 
 // =====================================================
@@ -88,16 +88,16 @@ const transformToBackendFormat = (frontendData: NneFormData): BackendNneData => 
     birth_date: frontendData.birth_date,
     gender: frontendData.gender,
     establishment: Number(frontendData.establishment) || 0,
-    region: Number(frontendData.region) || 0,
+    region: Number(frontendData.region) || 0, // ✅ CORRECCIÓN 1: 'region' ya existe en NneFormData
     commune: Number(frontendData.commune) || 0,
     street: frontendData.street,
     street_number: frontendData.street_number,
     current_grade: frontendData.current_grade,
     school_journey: frontendData.school_journey,
-    adaptation_notes: frontendData.adaptation_notes || '',
-    has_special_needs: frontendData.has_special_needs,
+    adaptation_notes: frontendData.school_adaptation_notes || '', // ✅ CORRECCIÓN 2: 'school_adaptation_notes'
+    has_special_needs: frontendData.special_needs, // ✅ CORRECCIÓN 3: 'special_needs'
     special_needs_type: frontendData.special_needs_type || 'none',
-    autism_level: frontendData.autism_level || 'none',
+    autism_level: frontendData.autism_level_value || 'none', // ✅ CORRECCIÓN 4: 'autism_level_value'
     pie_diagnosis: frontendData.pie_diagnosis || '',
     pie_entry_date: frontendData.pie_entry_date || null,
     pie_status: frontendData.pie_status || 'none',
@@ -108,12 +108,12 @@ const transformToBackendFormat = (frontendData: NneFormData): BackendNneData => 
     medical_notes: frontendData.medical_notes || '',
     
     // ✅ CORRECCIONES CRÍTICAS PARA PASO 7 - CONSENTIMIENTO:
-    guardian_consent: frontendData.guardian_consent === 'true', // ✅ Convertir string a boolean
+    guardian_consent: frontendData.guardian_consent, // ✅ CORRECCIÓN 5: Eliminado === 'true'
     consent_date: frontendData.consent_date || new Date().toISOString().split('T')[0],
     
     // ✅ CORRECCIONES CRÍTICAS PARA PASO 6 - TERAPIAS:
-    has_previous_therapies: frontendData.has_previous_therapies === 'true',
-    therapies_detail: frontendData.therapies_detail || '',
+    has_previous_therapies: frontendData.previous_therapies, // ✅ CORRECCIÓN 5/6: Eliminado === 'true' y nombre corregido
+    therapies_detail: frontendData.previous_therapies_detail || '', // ✅ CORRECCIÓN 8: 'previous_therapies_detail'
     referred_by: frontendData.referred_by || '',
     referred_by_detail: frontendData.referred_by_detail || '',
     attended_where: Number(frontendData.attended_where) || 0,
@@ -243,7 +243,8 @@ export const searchParentsApi = async (query: string): Promise<ParentUser[]> => 
       return []
     }
     
-    const mappedResults = resultsArray.map((parent: any) => ({
+    // ✅ CORRECCIÓN 7: 'mappedResults' ahora coincide con la interfaz ParentUser (que ya incluye 'role')
+    const mappedResults: ParentUser[] = resultsArray.map((parent: any) => ({
       id: parent.id,
       username: parent.username || parent.email?.split('@')[0] || `user_${parent.id}`,
       email: parent.email,
@@ -272,6 +273,8 @@ export const createParentApi = async (parentData: ParentUserCreate): Promise<Par
       role: 'Padres'
     })
     const responseData = response.data.data || response.data
+    
+    // ✅ CORRECCIÓN 7: El objeto de retorno ahora coincide con ParentUser (que ya incluye 'role')
     return {
       id: responseData.id,
       username: responseData.username,
@@ -299,6 +302,7 @@ export const getParentByIdApi = async (parentId: number): Promise<ParentUser> =>
       last_name: response.data.last_name,
       rut: response.data.rut,
       phone: response.data.phone || null
+      // 'role' es opcional en ParentUser, así que está bien no devolverlo aquí
     }
   } catch (error: any) {
     console.error(`❌ Error al obtener padre ID ${parentId}:`, error)
