@@ -1,3 +1,4 @@
+// src/services/socialSkillService.ts
 import http from '@/services/http';
 import type { SocialSkill } from '@/type/socialSkill';
 
@@ -19,13 +20,20 @@ class SocialSkillService {
     }
 
     /**
-     * Obtiene estadísticas rápidas (si tu backend tiene un endpoint para esto, 
-     * si no, lo calcularemos en el frontend por ahora)
+     * ✅ NUEVO: Actualiza un registro existente
+     * PUT/PATCH /api/seguimiento/ninos/{childId}/habilidades-sociales/{skillId}/
      */
-    async getStats(childId: number): Promise<any> {
-        // Asumiendo que podrías implementar un endpoint de metricas en el futuro
-        // Por ahora retornamos el listado para calcular localmente
-        return this.getHistory(childId);
+    async update(childId: number, skillId: number, data: Partial<SocialSkill>): Promise<SocialSkill> {
+        // Usamos PATCH para actualizar solo los campos que cambiaron (o todos los enviados)
+        const response = await http.patch(`/seguimiento/ninos/${childId}/habilidades-sociales/${skillId}/`, data);
+        return response.data;
+    }
+
+    /**
+     * ✅ NUEVO: Elimina un registro (Ya que estamos aquí, completemos el CRUD)
+     */
+    async delete(childId: number, skillId: number): Promise<void> {
+        await http.delete(`/seguimiento/ninos/${childId}/habilidades-sociales/${skillId}/`);
     }
 }
 
