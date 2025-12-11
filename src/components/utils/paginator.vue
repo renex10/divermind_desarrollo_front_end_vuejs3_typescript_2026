@@ -1,7 +1,5 @@
-<!-- src/components/utils/Paginator.vue -->
 <template>
   <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-white border-t border-gray-200">
-    <!-- Información de página -->
     <div class="flex items-center gap-2 text-sm text-gray-700">
       <span>Mostrando</span>
       <span class="font-medium">{{ paginationInfo.startIndex + 1 }}</span>
@@ -12,9 +10,7 @@
       <span>resultados</span>
     </div>
 
-    <!-- Controles de paginación -->
     <div class="flex items-center gap-2">
-      <!-- Selector de tamaño de página -->
       <div class="flex items-center gap-2 mr-4">
         <label for="pageSize" class="text-sm text-gray-700">Mostrar:</label>
         <select
@@ -23,41 +19,32 @@
           @change="handlePageSizeChange($event)"
           class="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
         >
-          <option value="10">10</option>
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
+          <option v-for="size in pageSizeOptions" :key="size" :value="size">
+            {{ size }}
+          </option>
         </select>
       </div>
 
-      <!-- Navegación -->
       <nav class="flex items-center gap-1">
-        <!-- Primera página -->
         <button
           @click="goToFirst"
           :disabled="paginationInfo.isFirstPage"
           class="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Primera página"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-          </svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
         </button>
 
-        <!-- Página anterior -->
         <button
           @click="goToPrevious"
           :disabled="!paginationInfo.hasPrevious"
           class="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Página anterior"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         </button>
 
-        <!-- Números de página -->
-        <div class="flex items-center gap-1">
+        <div class="hidden sm:flex items-center gap-1">
           <button
             v-for="(page, index) in pageRange"
             :key="index"
@@ -76,28 +63,22 @@
           </button>
         </div>
 
-        <!-- Página siguiente -->
         <button
           @click="goToNext"
           :disabled="!paginationInfo.hasNext"
           class="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Página siguiente"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
         </button>
 
-        <!-- Última página -->
         <button
           @click="goToLast"
           :disabled="paginationInfo.isLastPage"
           class="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Última página"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
         </button>
       </nav>
     </div>
@@ -112,12 +93,15 @@ interface Props {
   currentPage?: number
   pageSize?: number
   totalItems: number
+  // ✅ Nueva prop para opciones personalizadas (Default: [10, 25, 50, 100])
+  pageSizeOptions?: number[] 
   onPageChange?: (page: number) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   currentPage: 1,
-  pageSize: 10
+  pageSize: 10,
+  pageSizeOptions: () => [10, 25, 50, 100] // Valor por defecto estándar
 })
 
 const emit = defineEmits<{
@@ -125,7 +109,6 @@ const emit = defineEmits<{
   'page-size-change': [size: number]
 }>()
 
-// Usar el composable
 const {
   paginationInfo,
   pageRange,
@@ -153,20 +136,11 @@ const handlePageSizeChange = (event: Event) => {
   emit('page-size-change', newSize)
 }
 
-// Watch for prop changes
-watch(() => props.totalItems, (newTotal: number) => {
-  setTotalItems(newTotal)
-})
-
+watch(() => props.totalItems, (newTotal: number) => setTotalItems(newTotal))
 watch(() => props.currentPage, (newPage: number) => {
-  if (newPage !== paginationInfo.value.currentPage) {
-    goToPage(newPage)
-  }
+  if (newPage !== paginationInfo.value.currentPage) goToPage(newPage)
 })
-
 watch(() => props.pageSize, (newSize: number) => {
-  if (newSize !== paginationInfo.value.pageSize) {
-    setPageSize(newSize)
-  }
+  if (newSize !== paginationInfo.value.pageSize) setPageSize(newSize)
 })
 </script>
