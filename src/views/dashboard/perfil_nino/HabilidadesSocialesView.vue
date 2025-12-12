@@ -15,6 +15,10 @@
       </button>
     </div>
 
+    <div v-if="metricsHistory.length > 0" class="animate-fade-in-up">
+      <SocialSkillsMetrics :data="metricsHistory" />
+    </div>
+
     <SocialSkillsList 
       :skills="history"
       :loading="loading"
@@ -64,18 +68,20 @@ import socialSkillService from '@/services/socialSkillService';
 import SocialSkillModal from '@/components/dashboard/perfil_nino/modals/SocialSkillModal.vue'; 
 import SocialSkillsList from '@/components/dashboard/perfil_nino/habilidadessociales/SocialSkillsList.vue';
 import ConfirmModal from '@/components/ui/ConfirmModal.vue';
+import SocialSkillsMetrics from '@/components/dashboard/perfil_nino/habilidadessociales/SocialSkillsMetrics.vue';
 
 const route = useRoute();
-const alertModalStore = useAlertModalStore(); // Para modales grandes (errores graves)
-const alertStore = useAlertStore(); // Para notificaciones Toast (éxito rápido)
+const alertModalStore = useAlertModalStore(); // Modales grandes
+const alertStore = useAlertStore(); // Toasts rápidos
 const childId = Number(route.params.id);
 
 // --- ESTADO DE DATOS ---
 const loading = ref(true);
-const history = ref<SocialSkill[]>([]);
+const history = ref<SocialSkill[]>([]);       // Datos paginados (para la lista)
+const metricsHistory = ref<SocialSkill[]>([]); // Datos completos (para gráficos)
 const totalItems = ref(0);
 const currentPage = ref(1);
-const pageSize = ref(5); // Default 5 items por el ancho de las cards
+const pageSize = ref(5); // Default 5 items
 
 // --- ESTADO DE UI ---
 const showModal = ref(false);
@@ -85,24 +91,31 @@ const itemToDeleteId = ref<number | null>(null);
 
 // --- MÉTODOS ---
 
-// Cargar datos con paginación
+// Cargar datos
 const loadData = async () => {
   try {
     loading.value = true;
     
+    // 1. Cargar lista paginada (para la tabla)
     const response = await socialSkillService.getHistory(
       childId, 
       currentPage.value, 
       pageSize.value
     );
     
-    // Asignar datos de la respuesta paginada
+    // Asignar datos paginados
     history.value = response.results;
     totalItems.value = response.count;
+
+    // 2. Cargar datos para métricas (si es necesario)
+    // Lógica inteligente: Si hay más items en total que los que tengo en métricas, recargo todo
+    if (metricsHistory.value.length === 0 || totalItems.value !== metricsHistory.value.length) {
+        metricsHistory.value = await socialSkillService.getMetricsData(childId);
+    }
     
   } catch (error) {
-    console.error("Error cargando historial:", error);
-    alertStore.error('Error', 'No se pudo cargar el historial.');
+    console.error("Error cargando datos:", error);
+    alertStore.error('Error', 'No se pudieron cargar los datos del perfil.');
   } finally {
     loading.value = false;
   }
@@ -117,13 +130,13 @@ const handlePageChange = (page: number) => {
 
 const handlePageSizeChange = (size: number) => {
   pageSize.value = size;
-  currentPage.value = 1; // Volver a pág 1 al cambiar tamaño
+  currentPage.value = 1; 
   loadData();
 };
 
 // Acción al terminar Crear/Editar
 const handleSuccess = async () => {
-  await loadData(); 
+  await loadData(); // Recargar todo para actualizar lista y gráficos
   showModal.value = false; 
   selectedSkill.value = null; 
 };
@@ -142,19 +155,17 @@ const openEditModal = (skill: SocialSkill) => {
 
 // --- LÓGICA DE ELIMINACIÓN ---
 
-// 1. Trigger (Click en icono basura)
 const handleDeleteClick = (id: number | undefined) => {
   if (!id) return;
   itemToDeleteId.value = id;
   showDeleteModal.value = true;
 };
 
-// 2. Acción Confirmada
 const confirmDelete = async () => {
   if (!itemToDeleteId.value) return;
 
   try {
-    showDeleteModal.value = false; // Cerrar modal visualmente
+    showDeleteModal.value = false; 
     
     await socialSkillService.delete(childId, itemToDeleteId.value);
     
@@ -165,7 +176,7 @@ const confirmDelete = async () => {
         currentPage.value--;
     }
     
-    await loadData();
+    await loadData(); 
     
   } catch (error) {
     console.error("Error al eliminar:", error);

@@ -63,6 +63,26 @@ class SocialSkillService {
     async delete(childId: number, skillId: number): Promise<void> {
         await http.delete(`/seguimiento/ninos/${childId}/habilidades-sociales/${skillId}/`);
     }
+
+
+    /**
+     * Obtiene estadísticas pre-calculadas para los gráficos
+     * GET /api/seguimiento/ninos/{childId}/habilidades-sociales/stats/
+     */
+    async getStats(childId: number): Promise<any> {
+        const response = await http.get(`/seguimiento/ninos/${childId}/habilidades-sociales/stats/`);
+        return response.data;
+    }
+
+    /**
+     * Obtiene un conjunto más amplio de datos para generar métricas
+     * (Trae los últimos 100 registros para análisis)
+     */
+    async getMetricsData(childId: number): Promise<SocialSkill[]> {
+        // Pedimos una página grande para tener suficientes datos históricos
+        const response = await this.getHistory(childId, 1, 100);
+        return response.results;
+    }
 }
 
 export default new SocialSkillService();
