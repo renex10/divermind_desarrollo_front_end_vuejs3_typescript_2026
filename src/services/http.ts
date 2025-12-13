@@ -1,6 +1,10 @@
 // src/services/http.ts
 // -------------------------------------------------------------
 // Configuración global de Axios para toda la aplicación.
+// - Usa la URL base definida en .env (VITE_API_BASE_URL).
+// - Añade automáticamente el token de acceso en cada request.
+// - Maneja expiración de tokens con refresh automático.
+// - Si el refresh falla, limpia la sesión y redirige al login.
 // -------------------------------------------------------------
 
 import axios from 'axios'
@@ -8,7 +12,7 @@ import { refreshTokenApi } from './authService'
 
 // Crear instancia de Axios con configuración base
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, // Lee la URL base: http://24.199.106.135/api
+  baseURL: import.meta.env.VITE_API_BASE_URL, // URL definida en .env (Vercel)
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -16,7 +20,8 @@ const http = axios.create({
 })
 
 // -------------------------------------------------------------
-// Interceptor de REQUEST (Añade el token de acceso)
+// Interceptor de REQUEST
+// Se ejecuta antes de cada petición y añade el token de acceso
 // -------------------------------------------------------------
 http.interceptors.request.use(config => {
   const token = localStorage.getItem('access')
@@ -27,7 +32,8 @@ http.interceptors.request.use(config => {
 })
 
 // -------------------------------------------------------------
-// Interceptor de RESPONSE (Maneja errores y lógica de refresh)
+// Interceptor de RESPONSE
+// Maneja errores globales y lógica de refresh de token
 // -------------------------------------------------------------
 http.interceptors.response.use(
   response => response,
