@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { createParentApi } from '@/services/nneService'
 import { useAlertModalStore } from '@/store/alertModalStore'
 import type { ParentUser, ParentUserCreate } from '@/type/nne'
@@ -234,7 +234,7 @@ const {
   errorMessage: rutErrorMessage
 } = useRutValidation()
 
-const formData = reactive({
+const formData = ref({
   first_name: '',
   last_name: '',
   email: '',
@@ -248,14 +248,14 @@ const formData = reactive({
 
 const canSubmit = computed(() => {
   const allFieldsFilled = Boolean(
-    formData.first_name &&
-    formData.last_name &&
-    formData.email &&
-    formData.password &&
+    formData.value.first_name &&
+    formData.value.last_name &&
+    formData.value.email &&
+    formData.value.password &&
     rutValue.value &&
-    formData.username &&
-    formData.password_confirm &&
-    formData.password === formData.password_confirm
+    formData.value.username &&
+    formData.value.password_confirm &&
+    formData.value.password === formData.value.password_confirm
   )
 
   const rutValidAndAvailable = rutIsValid.value && isAvailable.value === true
@@ -287,10 +287,10 @@ const rutStatus = computed(() => {
   return 'idle'
 })
 
-watch(() => formData.email, (newEmail) => {
-  if (newEmail && !formData.username) {
+watch(() => formData.value.email, (newEmail) => {
+  if (newEmail && !formData.value.username) {
     const usernameFromEmail = newEmail.split('@')[0]
-    formData.username = usernameFromEmail.replace(/[^a-zA-Z0-9._-]/g, '')
+    formData.value.username = usernameFromEmail.replace(/[^a-zA-Z0-9._-]/g, '')
   }
 })
 
@@ -380,20 +380,20 @@ const formatearTelefono = (event: Event) => {
     if (soloNumeros.startsWith('569') && soloNumeros.length === 11) {
       const numeroFormateado = `+${soloNumeros}`
       input.value = numeroFormateado
-      formData.phone = numeroFormateado
+      formData.value.phone = numeroFormateado
     } else if (soloNumeros.startsWith('9') && soloNumeros.length === 9) {
       const numeroFormateado = `+56${soloNumeros}`
       input.value = numeroFormateado
-      formData.phone = numeroFormateado
+      formData.value.phone = numeroFormateado
     } else if (soloNumeros.length === 8) {
       const numeroFormateado = `+56${soloNumeros}`
       input.value = numeroFormateado
-      formData.phone = numeroFormateado
+      formData.value.phone = numeroFormateado
     } else if (isDevelopment.value && soloNumeros.length >= 8) {
       if (!telefono.startsWith('+')) {
         const numeroFormateado = `+${soloNumeros}`
         input.value = numeroFormateado
-        formData.phone = numeroFormateado
+        formData.value.phone = numeroFormateado
       }
     }
   } catch (error) {
@@ -458,13 +458,13 @@ const toggleCreateForm = () => {
 }
 
 const clearForm = () => {
-  formData.first_name = ''
-  formData.last_name = ''
-  formData.email = ''
-  formData.password = ''
-  formData.phone = ''
-  formData.username = ''
-  formData.password_confirm = ''
+  formData.value.first_name = ''
+  formData.value.last_name = ''
+  formData.value.email = ''
+  formData.value.password = ''
+  formData.value.phone = ''
+  formData.value.username = ''
+  formData.value.password_confirm = ''
   setRutValue('')
   
   // Limpiar timeout si existe
@@ -497,13 +497,13 @@ const createNewParent = async () => {
     const rutNormalizado = rutValidation.value?.rutNormalized!
 
     const payload: ParentUserCreate = {
-      first_name: formData.first_name.trim(),
-      last_name: formData.last_name.trim(),
-      email: formData.email.trim(),
-      password: formData.password,
+      first_name: formData.value.first_name.trim(),
+      last_name: formData.value.last_name.trim(),
+      email: formData.value.email.trim(),
+      password: formData.value.password,
       rut: rutNormalizado,
-      phone: formData.phone ? formData.phone.trim() : undefined,
-      username: formData.username.trim()
+      phone: formData.value.phone ? formData.value.phone.trim() : undefined,
+      username: formData.value.username.trim()
     }
 
     console.log('📤 Enviando datos para crear padre...')
@@ -511,9 +511,8 @@ const createNewParent = async () => {
     
     console.log('✅ Respuesta del servidor:', response)
     
-    // Extraer el padre creado de la respuesta
-    // La API puede devolver: response.data o response directamente
-    const newParent = response.data || response
+    // El servicio `createParentApi` ya normaliza y retorna un `ParentUser`
+    const newParent = response
     
     // Emitir evento con el padre creado
     emit('parent-created', newParent)

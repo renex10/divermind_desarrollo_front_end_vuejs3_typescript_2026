@@ -250,6 +250,7 @@ interface NneFormData {
   has_special_needs: boolean
   special_needs_type: string
   autism_level: string
+  autism_level_value: string
   pie_diagnosis: string
   pie_entry_date: string
   pie_status: string
@@ -333,6 +334,7 @@ const formData = reactive<NneFormData>({
   has_special_needs: false, 
   special_needs_type: '', 
   autism_level: 'no_review',
+  autism_level_value: '',
   pie_diagnosis: '', 
   pie_entry_date: '', 
   pie_status: '',
@@ -354,11 +356,6 @@ const {
   currentStep: draftStep,
   hasUnsavedChanges,
   isRecovering,
-  lastSaveTime,
-  hasExistingDrafts,
-  canRecover,
-  saveDraft,
-  recoverDraft,
   clearAllDrafts,
   forceSave
 } = useFormDraft({
@@ -519,6 +516,7 @@ const updatePaso5Data = (data: any) => {
     has_special_needs: data.has_special_needs,
     special_needs_type: data.special_needs_type,
     autism_level: data.autism_level,
+    autism_level_value: data.autism_level_value,
     pie_diagnosis: data.pie_diagnosis,
     pie_entry_date: data.pie_entry_date,
     pie_status: data.pie_status
@@ -579,23 +577,25 @@ const paso4Data = computed(() => ({
 
 const paso5Data = computed(() => ({
   has_special_needs: formData.has_special_needs,
+  special_needs: formData.has_special_needs,
   special_needs_type: formData.special_needs_type,
   autism_level: formData.autism_level,
+  autism_level_value: formData.autism_level_value,
   pie_diagnosis: formData.pie_diagnosis,
   pie_entry_date: formData.pie_entry_date,
   pie_status: formData.pie_status
 }))
 
 const paso6Data = computed(() => ({
-  has_previous_therapies: formData.has_previous_therapies,
+  has_previous_therapies: String(formData.has_previous_therapies),
   therapies_detail: formData.therapies_detail,
   referred_by: formData.referred_by,
   referred_by_detail: formData.referred_by_detail,
-  attended_where: formData.attended_where
+  attended_where: formData.attended_where ? String(formData.attended_where) : ''
 }))
 
 const paso7Data = computed(() => ({
-  guardian_consent: formData.guardian_consent,
+  guardian_consent: String(formData.guardian_consent),
   consent_date: formData.consent_date
 }))
 

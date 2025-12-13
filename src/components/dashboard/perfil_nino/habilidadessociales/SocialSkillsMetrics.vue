@@ -67,9 +67,6 @@ const hasData = computed(() => props.data.length > 0);
 
 // --- 1. DATOS AUTONOMÍA (Iniciativa vs Ayuda) ---
 const autonomyData = computed(() => {
-  const initiated = props.data.filter(i => i.initiated_by_child).length;
-  const prompted = props.data.filter(i => i.needed_prompting).length;
-  
   // Nota: Un registro puede ser ambos o ninguno, aquí simplificamos para visualización
   const independent = props.data.filter(i => i.initiated_by_child && !i.needed_prompting).length;
   const dependent = props.data.length - independent;

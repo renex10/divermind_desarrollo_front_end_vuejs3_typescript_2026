@@ -178,7 +178,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/vue/24/outline'
 import { validarRutProgresivo, formatearRut } from '@/utils/rutValidator'
-import { checkRutAvailabilityApi, validateChildRutApi } from '@/services/nneService'
+import { validateChildRutApi } from '@/services/nneService'
 
 // Props y Emits
 interface Props {

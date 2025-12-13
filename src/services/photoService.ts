@@ -364,7 +364,7 @@ export const photoService = {
       
       // return await imageCompression.default(file, options)
 
-      console.warn('[photoService] ⚠️ Compresión no implementada. Instalar: npm install browser-image-compression')
+      console.warn(`[photoService] ⚠️ Compresión no implementada (target: ${maxSizeMB}MB). Instalar: npm install browser-image-compression`)
       return file
 
     } catch (error) {

@@ -2,7 +2,7 @@
 // Servicio para gestión de filtros y listado de NNA
 
 import http from './http'
-import { parseApiError, ApiError, getUserFriendlyErrorMessage } from '@/exceptions/apiError'
+import { parseApiError, getUserFriendlyErrorMessage } from '@/exceptions/apiError'
 
 // =====================================================
 // INTERFACES Y TIPOS

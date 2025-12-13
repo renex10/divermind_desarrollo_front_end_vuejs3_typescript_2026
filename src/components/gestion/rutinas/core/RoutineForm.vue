@@ -5,7 +5,7 @@
     :form-class="formClass"
     :actions="false"
     @submit="handleSubmit"
-    #default="{ value, state: { valid } }"
+    #default="{ state: { valid } }"
   >
     <div class="space-y-6">
       <FormKit

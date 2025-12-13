@@ -2,7 +2,7 @@
 
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useFormDraftStore } from '@/store/formDraftStore'
-import { FormDraft, FormDraftConfig } from '@/types/formDraft'
+import { FormDraft } from '@/types/formDraft'
 
 interface UseFormDraftOptions {
   formId: string
@@ -18,9 +18,7 @@ export function useFormDraft(options: UseFormDraftOptions) {
     formId,
     autoSave = true,
     autoSaveDelay = 2000,
-    maxDrafts = 5,
-    draftExpiryDays = 7,
-    storage = 'localStorage'
+    draftExpiryDays = 7
   } = options
 
   const store = useFormDraftStore()
@@ -32,16 +30,6 @@ export function useFormDraft(options: UseFormDraftOptions) {
   
   let autoSaveTimer: number | null = null
   let isInitialized = false
-
-  // Configuración
-  const config: FormDraftConfig = {
-    formId,
-    storage,
-    autoSave,
-    autoSaveDelay,
-    maxDrafts,
-    draftExpiryDays
-  }
 
   // ✅ CORREGIDO: Computed con tipos explícitos
   const drafts = computed(() => store.getDraftsByFormId(formId))

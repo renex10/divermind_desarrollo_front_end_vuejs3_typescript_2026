@@ -45,7 +45,7 @@ interface Props {
 }
 
 // DEFINIMOS LAS PROPS CON VALORES POR DEFECTO
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   size: 'md'                // Si no se especifica, el modal será tamaño medio
 })
 

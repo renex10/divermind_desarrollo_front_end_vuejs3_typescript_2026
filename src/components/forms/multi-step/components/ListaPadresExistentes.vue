@@ -86,10 +86,10 @@
                 <span class="label">Username:</span>
                 <span class="value">{{ parent.username }}</span>
               </div>
-              <div class="detail-item" v-if="parent.estado">
+              <div class="detail-item" v-if="(parent as any).estado">
                 <span class="label">Estado:</span>
-                <span class="value status-badge" :class="parent.estado">
-                  {{ parent.estado }}
+                <span class="value status-badge" :class="(parent as any).estado">
+                  {{ (parent as any).estado }}
                 </span>
               </div>
             </div>
@@ -175,9 +175,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getParentsListApi } from '@/services/nneService' // ✅ Usar la nueva función
-import type { ParentUser } from '@/types'
+import type { ParentUser } from '@/type/nne'
 import { useAlertModalStore } from '@/store/alertModalStore'
 
 interface Props {

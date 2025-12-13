@@ -160,21 +160,4 @@ function getUserRole(): 'parent' | 'therapist' | 'admin' | null {
   }
 }
 
-function parseJWT(token: string): Record<string, any> | null {
-  try {
-    const base64Url = token.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    )
-    return JSON.parse(jsonPayload)
-  } catch (error) {
-    console.error('[parseJWT] Error:', error)
-    return null
-  }
-}
-
 export default router

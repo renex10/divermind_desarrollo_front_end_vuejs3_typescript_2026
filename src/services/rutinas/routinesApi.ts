@@ -29,7 +29,6 @@ import type {
   RoutineSchedule,
   RoutineStep,
   RoutineStrategy,
-  WizardBasicInfo,
   WizardSchedule,
   WizardStep,
   WizardStrategies,

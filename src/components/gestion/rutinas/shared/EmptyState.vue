@@ -54,7 +54,7 @@ const iconComponent = computed<Component | null>(() => {
     // Carga asíncrona para no importar todos los iconos innecesariamente
     // aunque en este caso ya están importados arriba, pero es buena práctica
     return defineAsyncComponent(() => 
-      Promise.resolve(HeroIconsOutline[props.icon])
+      Promise.resolve(HeroIconsOutline[props.icon!])
     )
   }
   return null // No renderiza icono si no se especifica o no se encuentra

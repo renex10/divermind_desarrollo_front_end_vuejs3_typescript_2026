@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { PropType } from 'vue'
+
 // Importamos la interfaz que define la estructura esperada
 import type { DailyRoutineDetail } from '@/type/rutinas/rutinas' 
 
@@ -89,13 +89,10 @@ const routineData = ref<DailyRoutineDetail>({
   date_ended: null,
   child: 4,
   child_name: "Matías González",
-  created_by: 1,
   created_by_name: "Dr. Ana Torres",
   total_steps: 8,
-  days_active: 56, // Campo calculado por el serializer
   completion_rate_7days: 85.7, // Campo calculado por el serializer
   created_at: "2025-08-25T10:30:00Z",
-  updated_at: "2025-10-20T15:00:00Z",
   // Relaciones anidadas (no usadas directamente en este panel, pero parte del tipo)
   schedules: [], 
   steps: [],

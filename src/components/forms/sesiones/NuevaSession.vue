@@ -18,7 +18,6 @@
         v-model="formData"
         @submit="handleSubmit"
         :actions="false"
-        #default="{ value }"
       >
         <div class="form-grid">
           <!-- Fecha Programada -->

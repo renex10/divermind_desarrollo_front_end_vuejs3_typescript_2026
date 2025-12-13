@@ -1,10 +1,9 @@
 // src/composables/useCropper.ts
 
-import { ref, computed } from 'vue'
-import type { Ref } from 'vue'
-import type { CropperResult, CropperSettings } from '@/type/cropper.types'
+import { ref } from 'vue'
+import type { CropperResult } from '@/type/cropper.types'
 
-export function useCropper(settings?: CropperSettings) {
+export function useCropper() {
   const cropperRef = ref<any>(null)
   const zoom = ref(0)
   const rotation = ref(0)

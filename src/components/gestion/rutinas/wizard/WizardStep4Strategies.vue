@@ -164,7 +164,7 @@
         <div class="p-6">
           <FormKit
             type="form"
-            #default="{ value, state: { valid } }"
+            #default="{ state: { valid } }"
             v-model="newStrategyData"
             :actions="false"
             form-class="space-y-6"

@@ -1,4 +1,5 @@
 <template>
+ <!--  src\views\dashboard\perfil_nino\rutinas\RutinasListView.vue -->
   <div class="rutinas-list-view">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
       <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -273,7 +274,7 @@
       tag="div"
       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
     >
-      <RoutineCard
+      <RoutineCard 
         v-for="routine in sortedRoutines"
         :key="routine.id"
         :routine="routine"
@@ -328,14 +329,14 @@
                     {{ routine.name }}
                   </div>
                   <div class="text-sm text-gray-500">
-                    {{ routine.description || 'Sin descripción' }}
+                    Sin descripción
                   </div>
                 </div>
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-100 text-primary-800">
-                {{ getTypeLabel(routine.routine_type) }}
+                {{ routine.routine_type_display || getTypeLabel(routine.routine_type) }}
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
@@ -345,7 +346,7 @@
               {{ routine.total_steps || 0 }} pasos
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ formatDate(routine.updated_at) }}
+              {{ formatDate(routine.created_at) }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <Menu as="div" class="relative inline-block text-left">
@@ -499,28 +500,18 @@
     <RoutineCopyDialog
       v-if="copyingRoutineId"
       :routine-id="copyingRoutineId"
-      :child-id="childId"
-      @close="copyingRoutineId = null"
-      @copied="handleRoutineCopied"
+      :child-id="numericChildId"
+      :original-routine-name="getRoutineName(copyingRoutineId)"
+      @update:open="handleCopyDialogClose"
+      @cloned="handleRoutineCopied"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-interface DailyRoutine {
-  id: number | string;
-  name: string;
-  description?: string;
-  routine_type: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  total_steps?: number;
-}
-
-import { ref, computed, onMounted, watch } from 'vue'
-// (El 'store' no se usa aquí, los datos vienen por props)
-// import { useRoutinesStore } from '@/stores/routinesStore'
+import { ref, computed, watch } from 'vue'
+// Importar el tipo correcto desde el archivo de tipos
+import type { DailyRoutineList } from '@/type/rutinas/rutinas'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -555,14 +546,11 @@ import {
 } from '@heroicons/vue/24/outline'
 
 // Componentes
-import RoutineCard from '../../../../components/gestion/rutinas/core/RoutineCard.vue'
+import RoutineCard from '@/components/gestion/rutinas/core/RoutineCard.vue'
 import RoutineStatusBadge from '@/components/gestion/rutinas/core/RoutineStatusBadge.vue'
-// Asumimos que RoutineDetailView es una sub-vista de la pestaña
-import RoutineDetailView from '@/views/dashboard/perfil_nino/rutinas/RoutineDetailView.vue' 
+import RoutineDetailView from '@/views/dashboard/perfil_nino/rutinas/RoutineDetailView.vue'
 import RoutineCopyDialog from '@/components/gestion/rutinas/core/RoutineCopyDialog.vue'
 import EmptyState from '@/components/gestion/rutinas/shared/EmptyState.vue'
-
-
 
 // ========================================
 // PROPS & EMITS
@@ -570,7 +558,7 @@ import EmptyState from '@/components/gestion/rutinas/shared/EmptyState.vue'
 
 // Este componente recibe la lista de rutinas desde su padre (RutinasView.vue)
 const props = defineProps<{
-  routines: DailyRoutine[]
+  routines: DailyRoutineList[]
   loading: boolean
   childId: number | string
   listRefreshKey: number // Prop para forzar recarga
@@ -578,18 +566,13 @@ const props = defineProps<{
 
 // Emite eventos al padre (RutinasView.vue) para que este maneje la lógica
 const emit = defineEmits<{
-  (e: 'select-routine', routine: DailyRoutine): void
-  (e: 'edit-routine', routine: DailyRoutine): void
+  (e: 'select-routine', routine: DailyRoutineList): void
+  (e: 'edit-routine', routine: DailyRoutineList): void
   (e: 'delete-routine', id: number | string): void
-  (e: 'toggle-status', routine: DailyRoutine): void
+  (e: 'toggle-status', routine: DailyRoutineList): void
   (e: 'create-routine'): void
   (e: 'refresh-list'): void
 }>()
-
-// ========================================
-// STORE
-// ========================================
-// No se usa un store local, se depende de las props para los datos
 
 // ========================================
 // STATE (Estado Local)
@@ -613,7 +596,6 @@ const routineTypes = [
   { value: 'school_prep', label: 'Preparación escuela', icon: '🎒' },
   { value: 'therapy_session', label: 'Terapia', icon: '🧠' },
   { value: 'other', label: 'Otra', icon: '📋' }
-  // (Añadir más si es necesario)
 ]
 
 const sortOptions = [
@@ -652,8 +634,9 @@ const filteredRoutines = computed(() => {
       const searchTerm = search.value.toLowerCase()
       const nameMatch = routine.name?.toLowerCase().includes(searchTerm)
       const typeMatch = routine.routine_type.toLowerCase().includes(searchTerm)
-      const descMatch = routine.description?.toLowerCase().includes(searchTerm)
-      return nameMatch || typeMatch || descMatch
+      // Nota: DailyRoutineList no tiene description, por eso se elimina esta línea
+      // const descMatch = routine.description?.toLowerCase().includes(searchTerm)
+      return nameMatch || typeMatch
     }
 
     // Si pasa todos los filtros, se incluye
@@ -674,7 +657,7 @@ const sortedRoutines = computed(() => {
       return routines.sort((a, b) => a.routine_type.localeCompare(b.routine_type))
     case 'updated_at': // Por defecto
     default:
-      return routines.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      return routines.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }
 })
 
@@ -684,10 +667,10 @@ const sortedRoutines = computed(() => {
 // Observa la prop 'listRefreshKey'. Si el padre la incrementa,
 // significa que se creó/editó algo y debemos recargar.
 watch(() => props.listRefreshKey, () => {
-  console.log("RutinaList: 'listRefreshKey' cambió, emitiendo 'refresh-list'");
+  console.log("RutinaList: 'listRefreshKey' cambió, emitiendo 'refresh-list'")
   // Emite el evento refresh-list que el padre (RutinasView) debe escuchar
   // para llamar a su propia función `loadRoutines`
-  emit('refresh-list'); 
+  emit('refresh-list')
 })
 
 // ========================================
@@ -695,32 +678,32 @@ watch(() => props.listRefreshKey, () => {
 // ========================================
 
 // --- Acciones del Template ---
-function openDetailDrawer(routine: DailyRoutine) {
-  console.log('Abriendo detalle para:', routine.id);
+function openDetailDrawer(routine: DailyRoutineList) {
+  console.log('Abriendo detalle para:', routine.id)
   selectedRoutineId.value = routine.id
   // ⛔️ NO emitimos, este componente maneja su propio drawer de detalle
 }
 
-function openEditModal(routine: DailyRoutine) {
-  console.log('Solicitando edición para:', routine.id);
+function openEditModal(routine: DailyRoutineList) {
+  console.log('Solicitando edición para:', routine.id)
   // ✅ EMITIMOS al padre (RutinasView) para que él abra el Wizard/Editor
-  emit('edit-routine', routine) 
+  emit('edit-routine', routine)
 }
 
-function openCopyDialog(routine: DailyRoutine) {
-  console.log('Abriendo diálogo de clonar para:', routine.id);
+function openCopyDialog(routine: DailyRoutineList) {
+  console.log('Abriendo diálogo de clonar para:', routine.id)
   copyingRoutineId.value = typeof routine.id === 'string' ? parseInt(routine.id, 10) : routine.id
   // ⛔️ NO emitimos, este componente maneja su propio modal de clonar
 }
 
-function handleToggleStatus(routine: DailyRoutine) {
-  console.log('Solicitando cambio de estado para:', routine.id);
+function handleToggleStatus(routine: DailyRoutineList) {
+  console.log('Solicitando cambio de estado para:', routine.id)
   // ✅ EMITIMOS al padre para que maneje la lógica API
   emit('toggle-status', routine)
 }
 
 function handleDelete(routineId: number | string) {
-  console.log('Solicitando borrado para:', routineId);
+  console.log('Solicitando borrado para:', routineId)
   // ✅ EMITIMOS al padre para que muestre ConfirmModal
   emit('delete-routine', routineId)
 }
@@ -733,25 +716,24 @@ function clearFilters() {
 
 // --- Callbacks de Modales Locales ---
 function handleRoutineUpdated() {
-  console.log('Rutina actualizada (recibido desde DetailView)');
+  console.log('Rutina actualizada (recibido desde DetailView)')
   selectedRoutineId.value = null // Cierra el drawer
   emit('refresh-list') // Emite al padre para recargar la lista
 }
 
 function handleRoutineCopied() {
-  console.log('Rutina clonada exitosamente');
+  console.log('Rutina clonada exitosamente')
   copyingRoutineId.value = null // Cierra el modal
   emit('refresh-list') // Emite al padre para recargar la lista
 }
 
-function openEditModalFromDetail(routine: DailyRoutine) {
-    selectedRoutineId.value = null // Cierra el drawer de detalle
-    // Espera un poco para que la animación del drawer termine
-    setTimeout(() => {
-        emit('edit-routine', routine) // Emite al padre para abrir el editor
-    }, 300)
+function openEditModalFromDetail(routine: DailyRoutineList) {
+  selectedRoutineId.value = null // Cierra el drawer de detalle
+  // Espera un poco para que la animación del drawer termine
+  setTimeout(() => {
+    emit('edit-routine', routine) // Emite al padre para abrir el editor
+  }, 300)
 }
-
 
 // --- Helpers de Template ---
 function getFilterLabel(status: string) {
@@ -778,30 +760,39 @@ function getRoutineIcon(type: string) {
 }
 
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return 'Nunca';
+  if (!dateString) return 'Nunca'
   try {
     // Muestra "hace X tiempo" para fechas recientes, o fecha normal para antiguas
-    const date = parseISO(dateString);
-    const now = new Date();
+    const date = parseISO(dateString)
+    const now = new Date()
     if (now.getTime() - date.getTime() < 7 * 24 * 60 * 60 * 1000) { // 7 días
-      return formatDistanceToNow(date, { addSuffix: true, locale: es });
+      return formatDistanceToNow(date, { addSuffix: true, locale: es })
     }
-    return format(date, 'dd MMM yyyy', { locale: es });
+    return format(date, 'dd MMM yyyy', { locale: es })
   } catch (e) {
-    console.error("Error formateando fecha:", dateString, e);
-    return 'Fecha inválida';
+    console.error("Error formateando fecha:", dateString, e)
+    return 'Fecha inválida'
   }
 }
 
-function formatDateShort(dateString: string | null | undefined): string {
-  if (!dateString) return 'N/A';
-   try {
-        return new Date(dateString).toLocaleDateString('es-CL', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
-    } catch (e) {
-        return dateString;
-    }
+const numericChildId = computed<number>(() => {
+  // Asegura que siempre pasamos un número al componente hijo (RoutineDetailView)
+  return typeof props.childId === 'string' ? Number(props.childId) : props.childId
+})
+
+function getRoutineName(routineId: number | null): string {
+  if (!routineId) return ''
+  const routine = props.routines.find(r => {
+    const id = typeof r.id === 'string' ? parseInt(r.id, 10) : r.id
+    return id === routineId
+  })
+  return routine?.name || 'Rutina'
+}
+
+function handleCopyDialogClose(open: boolean) {
+  if (!open) {
+    copyingRoutineId.value = null
+  }
 }
 </script>
 

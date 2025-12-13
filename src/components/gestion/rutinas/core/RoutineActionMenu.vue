@@ -145,7 +145,20 @@ const toggleStatusText = computed(() => {
  * Función genérica para emitir el evento correspondiente a la acción.
  */
 function emitAction(actionName: 'edit' | 'clone' | 'toggle-status' | 'archive') {
-  emit(actionName)
+  switch (actionName) {
+    case 'edit':
+      emit('edit')
+      break
+    case 'clone':
+      emit('clone')
+      break
+    case 'toggle-status':
+      emit('toggle-status')
+      break
+    case 'archive':
+      emit('archive')
+      break
+  }
 }
 
 </script>

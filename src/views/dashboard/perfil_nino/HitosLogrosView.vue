@@ -191,7 +191,7 @@
      <ConfirmModal
         v-if="showConfirmDeleteModal"
         :show="showConfirmDeleteModal"
-        @update:show="(value) => { if (!value) cancelDelete() }"
+        @update:show="(value: boolean) => { if (!value) cancelDelete() }"
         title="Confirmar Eliminación"
         message="¿Estás seguro de que deseas eliminar este hito? Esta acción no se puede deshacer."
         confirm-text="Sí, Eliminar"
@@ -205,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useNinoActivoStore } from '@/store/ninoActivoStore';
 import { useAlertModalStore } from '@/store/alertModalStore'; // Store para notificaciones (éxito/error)
 import MilestoneHistoryList from '@/components/gestion/hitosLogros/MilestoneHistoryList.vue';
@@ -474,28 +474,7 @@ function cancelEdit() {
 
 // --- Funciones Auxiliares (Helpers) ---
 
-function getProficiencyColor(level: string): string {
-  const colors: Record<string, string> = {
-    emerging: 'bg-yellow-100 text-yellow-800',
-    developing: 'bg-blue-100 text-blue-800',
-    proficient: 'bg-green-100 text-green-800',
-    mastered: 'bg-purple-100 text-purple-800'
-  };
-  return colors[level] || 'bg-gray-100 text-gray-800';
-}
 
-function formatDate(dateString: string | null | undefined): string {
-    if (!dateString) return 'Fecha desconocida';
-    try {
-        return new Date(dateString).toLocaleString('es-CL', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    } catch (e) {
-        console.error("Error formateando fecha:", dateString, e);
-        return dateString;
-    }
-}
 
 </script>
 

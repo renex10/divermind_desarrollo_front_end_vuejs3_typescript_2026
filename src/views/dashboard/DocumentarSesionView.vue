@@ -28,7 +28,7 @@
         v-model="sessionData"
         @submit="handleGuardarInforme"
         :actions="false"
-        #default="{ value }"
+        
       >
         <!-- Layout de 2 Columnas -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">

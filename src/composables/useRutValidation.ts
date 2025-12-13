@@ -2,7 +2,7 @@
 
 import { ref, computed, watch } from 'vue';
 import { validarRut, validarRutProgresivo, formatearRut, type RutValidationResult } from '@/utils/rutValidator';
-import { checkRutAvailabilityApi, validateChildRutApi } from '@/services/nneService';
+import { validateChildRutApi } from '@/services/nneService';
 
 /**
  * Composable para validación reactiva de RUT - VERSIÓN MEJORADA

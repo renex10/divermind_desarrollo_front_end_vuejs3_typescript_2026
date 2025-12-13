@@ -206,12 +206,11 @@ interface Props {
   isLoading?: boolean;
 }
 
-// Define props with defaults
-const props = withDefaults(defineProps<Props>(), {
-    milestones: () => [], // Default to empty array
-    isLoading: false,
+// Define props with defaults (sin asignar a variable)
+withDefaults(defineProps<Props>(), {
+  milestones: () => [], // Default to empty array
+  isLoading: false,
 });
-
 
 defineEmits<{
   (e: 'refresh'): void

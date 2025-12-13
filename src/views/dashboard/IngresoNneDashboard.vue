@@ -247,13 +247,6 @@ const closeSuccessModal = () => {
 }
 
 // Agregar otro NNA después del éxito
-const addAnotherNna = () => {
-  showSuccessModal.value = false
-  createdChildInfo.value = null
-  setTimeout(() => {
-    openNnaModal()
-  }, 100)
-}
 
 // Manejadores para la tabla
 const manejarView = (nna: any) => {

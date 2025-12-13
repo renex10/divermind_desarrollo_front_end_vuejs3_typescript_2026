@@ -91,11 +91,10 @@ import { ref, watch, onMounted } from 'vue'
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 
 // Importar los componentes de analítica (se crearán a continuación)
-import ProgressAnalysisPanel from '@/components/gestion/rutinas/analytics/ProgressAnalysisPanel.vue'
-import RecommendationsPanel from '@/components/gestion/rutinas/analytics/RecommendationsPanel.vue'
-import CompletionRateChart from '@/components/gestion/rutinas/analytics/CompletionRateChart.vue'
-import IndependenceTrendChart from '@/components/gestion/rutinas/analytics/IndependenceTrendChart.vue'
-import EmotionalStateChart from '@/components/gestion/rutinas/analytics/EmotionalStateChart.vue'
+
+
+
+
 
 // (Descomentar cuando los stores estén listos)
 // import { useAnalyticsStore } from '@/stores/analyticsStore'

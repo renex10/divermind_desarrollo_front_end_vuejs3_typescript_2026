@@ -237,7 +237,21 @@ function onViewDetail() {
 
 function handleAction(actionName: 'edit' | 'clone' | 'toggle-status' | 'archive') {
   console.log(`🔄 Routine action: ${actionName}`, props.routine.id)
-  emit(actionName, props.routine.id)
+  
+  switch (actionName) {
+    case 'edit':
+      emit('edit', props.routine.id)
+      break
+    case 'clone':
+      emit('clone', props.routine.id)
+      break
+    case 'toggle-status':
+      emit('toggle-status', props.routine.id)
+      break
+    case 'archive':
+      emit('archive', props.routine.id)
+      break
+  }
 }
 </script>
 

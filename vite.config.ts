@@ -1,3 +1,4 @@
+/* vite.config.ts */
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
@@ -8,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@/types': resolve(__dirname, 'src/type'),  // ← AGREGADO: Alias para types
       'vue': 'vue/dist/vue.esm-bundler.js'
     }
   },

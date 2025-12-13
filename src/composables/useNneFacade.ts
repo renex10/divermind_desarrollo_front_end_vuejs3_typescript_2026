@@ -21,7 +21,7 @@ import {
   createParentApi,
   searchParentsApi
 } from '../services/nneService.ts'
-import type { NneFormData, ParentUser } from '../type/nne.ts'
+import type { NneFormData, ParentUser, ParentUserCreate } from '../type/nne.ts'
 
 export function useNneFacade() {
   // Estado reactivo para manejar resultados y loading
@@ -45,7 +45,7 @@ export function useNneFacade() {
   // -----------------------------------------------------------
   // Crear un nuevo padre/tutor
   // -----------------------------------------------------------
-  const createParent = async (parent: Omit<ParentUser, 'id'>) => {
+  const createParent = async (parent: ParentUserCreate) => {
     isLoading.value = true
     try {
       const newParent = await createParentApi(parent)

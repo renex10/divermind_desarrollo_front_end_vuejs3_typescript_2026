@@ -464,50 +464,50 @@ const getCommuneName = (id: any) => {
 }
 
 // ✅ VALIDACIONES CORREGIDAS - ALINEADAS CON BACKEND
-const isPersonalDataValid = computed(() => {
-  return props.formData.first_name?.trim() && 
+const isPersonalDataValid = computed((): boolean => {
+  return !!(props.formData.first_name?.trim() && 
          props.formData.last_name?.trim() && 
-         props.formData.birth_date
+         props.formData.birth_date)
 })
 
-const isLocationDataValid = computed(() => {
-  return props.formData.establishment && 
+const isLocationDataValid = computed((): boolean => {
+  return !!(props.formData.establishment && 
          props.formData.region && 
          props.formData.commune && 
          props.formData.street?.trim() && 
-         props.formData.street_number?.trim()
+         props.formData.street_number?.trim())
 })
 
-const isSchoolDataValid = computed(() => {
-  return props.formData.current_grade?.trim()
+const isSchoolDataValid = computed((): boolean => {
+  return !!props.formData.current_grade?.trim()
 })
 
-const isMedicalDataValid = computed(() => {
-  return props.formData.emergency_contact?.trim() && 
-         props.formData.emergency_phone?.trim()
+const isMedicalDataValid = computed((): boolean => {
+  return !!(props.formData.emergency_contact?.trim() && 
+         props.formData.emergency_phone?.trim())
 })
 
-const isSpecialNeedsDataValid = computed(() => {
+const isSpecialNeedsDataValid = computed((): boolean => {
   const hasNeeds = toBoolean(props.formData.has_special_needs)
   if (hasNeeds) {
-    return props.formData.special_needs_type && 
-           props.formData.special_needs_type !== 'none'
+    return !!(props.formData.special_needs_type && 
+             props.formData.special_needs_type !== 'none')
   }
   return true // Si no tiene NEE, es válido
 })
 
-const isTherapyDataValid = computed(() => {
+const isTherapyDataValid = computed((): boolean => {
   const hasTherapies = toBoolean(props.formData.has_previous_therapies)
   if (hasTherapies) {
-    return props.formData.therapies_detail?.trim()
+    return !!(props.formData.therapies_detail?.trim())
   }
   return true // Si no tiene terapias previas, es válido
 })
 
-const isGuardianDataValid = computed(() => {
+const isGuardianDataValid = computed((): boolean => {
   const hasConsent = toBoolean(props.formData.guardian_consent)
   if (hasConsent) {
-    return props.formData.consent_date
+    return !!props.formData.consent_date
   }
   return true // Si no hay consentimiento, es válido (pero revisar requisitos legales)
 })

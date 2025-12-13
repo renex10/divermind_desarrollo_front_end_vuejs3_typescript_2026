@@ -11,7 +11,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import MetricCard from './MetricCard.vue';
 
 interface Props {
@@ -21,7 +20,7 @@ interface Props {
   tendencia?: 'positiva' | 'negativa' | 'neutral';
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   loading: false,
   tendencia: 'neutral'
 });

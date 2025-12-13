@@ -22,7 +22,7 @@
       <div class="p-6 sm:p-8">
         <FormKit
           type="form"
-          v-model="basicInfo"
+          v-model="wizardStore.basicInfo"
           id="wizard-step-1-form"
           :actions="false"
           form-class="space-y-8"
@@ -91,8 +91,8 @@
                 length: 'La descripción no puede exceder los 500 caracteres.',
               }"
             />
-            <div class="mt-2 text-right text-xs text-gray-500" v-if="basicInfo.description">
-              {{ basicInfo.description?.length || 0 }} / 500 caracteres
+            <div class="mt-2 text-right text-xs text-gray-500" v-if="wizardStore.basicInfo.description">
+              {{ wizardStore.basicInfo.description?.length || 0 }} / 500 caracteres
             </div>
           </div>
 
@@ -135,11 +135,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoutineWizardStore } from '@/store/rutinas/routineWizardStore'
-import { storeToRefs } from 'pinia'
-// No necesitamos FormKitNode aquí
-// import type { FormKitNode } from '@formkit/core'
 
 // === EMITS ===
 const emit = defineEmits<{
@@ -148,7 +145,6 @@ const emit = defineEmits<{
 
 // === STORE ===
 const wizardStore = useRoutineWizardStore()
-const { basicInfo } = storeToRefs(wizardStore)
 
 // === DATOS ===
 const routineTypeOptions = ref([
@@ -193,29 +189,145 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Tu CSS personalizado se mantiene igual */
-@keyframes fadeIn { /* ... */ }
-@keyframes slideIn { /* ... */ }
-@keyframes bounceSoft { /* ... */ }
-.animate-fade-in { /* ... */ }
-.animate-slide-in { /* ... */ }
-.animate-bounce-soft { /* ... */ }
-.form-group { /* ... */ }
-:deep(.form-input-enhanced) { /* ... */ }
-:deep(.form-select-enhanced) { /* ... */ }
-:deep(.form-textarea-enhanced) { /* ... */ }
-:deep(.form-label-enhanced) { /* ... */ }
-:deep(.form-help-text) { /* ... */ }
-:deep(.form-field-wrapper) { /* ... */ }
-:deep(.formkit-prefix) { /* ... */ }
-:deep(.formkit-messages) { /* ... */ }
-:deep(.formkit-message) { /* ... */ }
-:deep(.formkit-message)::before { /* ... */ }
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounceSoft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-bounce-soft {
+  animation: bounceSoft 2s ease-in-out infinite;
+}
+
+/* Estilos del formulario */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+:deep(.form-input-enhanced),
+:deep(.form-select-enhanced),
+:deep(.form-textarea-enhanced) {
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+
+:deep(.form-input-enhanced):focus,
+:deep(.form-select-enhanced):focus,
+:deep(.form-textarea-enhanced):focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+:deep(.form-label-enhanced) {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+  display: block;
+}
+
+:deep(.form-help-text) {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+:deep(.form-field-wrapper) {
+  margin-bottom: 0;
+}
+
+:deep(.formkit-prefix) {
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  pointer-events: none;
+}
+
+:deep(.formkit-messages) {
+  margin-top: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+
+:deep(.formkit-message) {
+  color: #ef4444;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  animation: slideIn 0.2s ease-out;
+}
+
+:deep(.formkit-message)::before {
+  content: "⚠️";
+  font-size: 0.875rem;
+}
+
 :deep(.formkit-outer[data-invalid]) .form-input-enhanced,
 :deep(.formkit-outer[data-invalid]) .form-select-enhanced,
-:deep(.formkit-outer[data-invalid]) .form-textarea-enhanced { /* ... */ }
-@keyframes shake { /* ... */ }
+:deep(.formkit-outer[data-invalid]) .form-textarea-enhanced {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
 :deep(.formkit-outer[data-complete]) .form-input-enhanced,
-:deep(.formkit-outer[data-complete]) .form-select-enhanced { /* ... */ }
-@media (max-width: 640px) { /* ... */ }
+:deep(.formkit-outer[data-complete]) .form-select-enhanced {
+  border-color: #10b981;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  :deep(.form-input-enhanced),
+  :deep(.form-select-enhanced),
+  :deep(.form-textarea-enhanced) {
+    font-size: 16px; /* Evita zoom en iOS */
+  }
+}
 </style>

@@ -3,10 +3,10 @@
     type="select"
     :label="label"
     :placeholder="placeholder"
-    :value="modelValue"
-    @input="emit('update:modelValue', $event)"
+    :value="modelValue ?? undefined"
+    @input="handleInput($event)"
     :options="routineTypeOptions"
-    :validation="validation"
+    :validation="formattedValidation"
     :validation-messages="validationMessages"
     :help="help"
     :disabled="disabled"
@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 // === PROPS ===
 // Defines the properties the component accepts for customization
@@ -63,6 +63,25 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string | null): void
 }>()
 
+// === COMPUTED ===
+// Convert validation to the correct type expected by FormKit
+const formattedValidation = computed(() => {
+  if (typeof props.validation === 'string') {
+    return props.validation
+  }
+  
+  if (Array.isArray(props.validation)) {
+    return props.validation.map(rule => {
+      if (typeof rule === 'string') {
+        return [rule] // Convert string rules to array format
+      }
+      return rule // Already in array format
+    }) as [string, ...any[]][] // Type assertion to match FormKit's expected type
+  }
+  
+  return undefined
+})
+
 // === OPTIONS ===
 // Defines the available routine types. 
 // These correspond to the keys ('morning', 'evening', etc.) expected by the backend.
@@ -79,4 +98,9 @@ const routineTypeOptions = ref([
   { value: 'other', label: 'Otro' },
 ])
 
+// === METHODS ===
+function handleInput(value: string | undefined) {
+  // Convert undefined back to null for the parent component
+  emit('update:modelValue', value ?? null)
+}
 </script>

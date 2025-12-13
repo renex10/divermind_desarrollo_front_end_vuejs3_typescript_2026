@@ -57,7 +57,7 @@ import {
   MapIcon,
   GlobeAmericasIcon
 } from '@heroicons/vue/24/outline'
-import { computed } from 'vue'
+
 
 const props = defineProps<{
   locationData?: any

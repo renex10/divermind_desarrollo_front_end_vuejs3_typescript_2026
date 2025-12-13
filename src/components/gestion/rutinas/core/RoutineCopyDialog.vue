@@ -12,10 +12,10 @@
 
     <FormKit
       type="form"
-      id="cloneRoutineForm" {# ID único para el formulario #}
+      id="cloneRoutineForm" 
       v-model="formData"
       @submit="submitClone"
-      :actions="false" {# Los botones estarán en el footer del modal #}
+      :actions="false" 
       form-class="space-y-4"
     >
       <FormKit
@@ -62,8 +62,8 @@
           Cancelar
         </button>
         <button
-          type="submit" {# Este botón activará el @submit del FormKit de arriba #}
-          form="cloneRoutineForm" {# Asocia este botón al formulario por su ID #}
+          type="submit" 
+          form="cloneRoutineForm" 
           :disabled="isLoading"
           class="inline-flex items-center justify-center rounded-lg border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
         >
@@ -81,13 +81,13 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { PropType } from 'vue'
+
 // Importamos el modal base
 import BaseModal from '@/components/modal/BaseModal.vue' 
 // Icono para el título (opcional, si quieres añadirlo junto al texto)
 // import { DocumentDuplicateIcon } from '@heroicons/vue/24/outline' 
-import { useRoutinesStore } from '@/stores/routinesStore'
-import type { DailyRoutineList } from '@/type/rutinas'
+import { useRoutinesStore } from '@/store/rutinas/routinesStore'
+import type { DailyRoutineList } from '@/type/rutinas/rutinas'
 
 // === PROPS === (Sin cambios respecto a la versión anterior)
 const props = defineProps({
@@ -141,9 +141,7 @@ async function submitClone() {
     const clonedRoutine = await routinesStore.cloneRoutine(
       props.childId, 
       props.routineId, 
-      formData.value.newName,
-      formData.value.copySteps,
-      formData.value.copyStrategies
+      formData.value.newName
     )
     emit('cloned', clonedRoutine) 
     closeDialog()
