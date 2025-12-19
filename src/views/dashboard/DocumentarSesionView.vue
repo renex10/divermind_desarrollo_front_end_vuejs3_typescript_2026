@@ -106,7 +106,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { FormKitNode } from '@formkit/core'
 import { getTherapySessionById, updateTherapySession, type TherapySessionDetail } from '@/services/sessionService'
 import { useAlertModalStore } from '@/store/alertModalStore'
 import { useAlertStore } from '@/store/alertStore'

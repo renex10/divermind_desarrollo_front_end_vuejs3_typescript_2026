@@ -104,7 +104,7 @@ import {
 import { Doughnut, Pie, Line } from 'vue-chartjs';
 import InsightBox from './InsightBox.vue';
 import type { Milestone } from '@/type/hitoServiceInterface'; 
-import { format } from 'date-fns'; // Necesitarás date-fns o similar para el manejo de fechas
+
 
 // 1. REGISTRAR COMPONENTES DE CHART.JS
 ChartJS.register(
@@ -137,13 +137,6 @@ const SUPPORT_MAP = {
     'visual_cue': 3,
     'physical_prompt': 2,
     'full_assistance': 1,
-};
-const SUPPORT_LEVEL_NAMES = {
-    'independent': 'Independiente',
-    'verbal_cue': 'Verbal',
-    'visual_cue': 'Visual',
-    'physical_prompt': 'Física',
-    'full_assistance': 'Total',
 };
 const CONTEXT_NAMES = {
     'therapy': 'Terapia',
