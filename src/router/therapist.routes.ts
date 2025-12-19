@@ -146,12 +146,22 @@ export default [
     component: () => import('@/views/dashboard/HistosView.vue') 
   },
 
-  // Sesiones
+  // Sesiones (General)
   { 
     path: 'sesiones',
     name: 'sesiones',
     meta: { breadcrumb: 'Sesiones (General)' },
     component: () => import('@/views/dashboard/SessionesView.vue') 
+  },
+  
+  // ✅ RUTA ACTUALIZADA: Detalle de sesión específica
+  // Se cambia el nombre para que coincida con lo que el componente llama: "detalle-sesion-especifica"
+  {
+    path: 'ninos/:childId/sesiones/:sessionId', 
+    name: 'detalle-sesion-especifica', 
+    component: () => import('@/views/dashboard/perfil_nino/SessionId.vue'),
+    props: true,
+    meta: { breadcrumb: 'Detalle de Sesión' }
   },
   
   // Documentar sesión

@@ -2,24 +2,12 @@
   <div class="milestone-history-list">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
       <div>
-        <h3 class="text-2xl font-bold text-gray-900 flex items-center">
-          <ClockIcon class="w-7 h-7 text-primary-500 mr-2" />
-          Historial de Hitos
-        </h3>
+
         <p class="mt-1 text-sm text-gray-600 ml-9">
           Registro cronológico de {{ milestones?.length || 0 }} {{ milestones?.length === 1 ? 'logro' : 'logros' }}
         </p>
       </div>
-      <button
-        @click="$emit('refresh')"
-        :disabled="isLoading"
-        class="inline-flex items-center px-4 py-2.5 text-sm font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow"
-      >
-        <ArrowPathIcon
-          :class="['w-4 h-4 mr-2', { 'animate-spin': isLoading }]"
-        />
-        {{ isLoading ? 'Cargando...' : 'Refrescar' }}
-      </button>
+
     </div>
 
     <div v-if="isLoading" class="flex items-center justify-center py-20 bg-white rounded-xl border border-gray-200 shadow-sm">

@@ -1,3 +1,5 @@
+// src/services/sessionService.ts
+
 import http from './http'
 
 // --- INTERFACES PARA SESIONES ---
@@ -48,6 +50,11 @@ export interface TherapySession {
   created_at: string
   updated_at: string
   child_name?: string // Necesario para la vista de lista general
+  // Campos display opcionales según respuesta del Serializer
+  therapist_name?: string
+  session_type_display?: string
+  modality_display?: string
+  attendance_status_display?: string
 }
 
 /**
@@ -220,6 +227,12 @@ export async function getTherapySessionsForChild(childId: number): Promise<Thera
  * Llama al endpoint: GET /seguimiento/ninos/{childId}/sesiones-terapia/{sessionId}/
  */
 export async function getTherapySessionById(childId: number, sessionId: number): Promise<TherapySessionDetail> {
+  // Validación de seguridad para evitar peticiones con IDs inválidos (NaN)
+  if (!childId || isNaN(Number(childId))) {
+    console.error("❌ Error: childId es inválido para la petición:", childId);
+    throw new Error("ID de niño no válido");
+  }
+
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/${sessionId}/`
   const { data } = await http.get(endpoint)
   return data
@@ -322,12 +335,6 @@ export async function createDiagnosisForChild(childId: number, diagnosisData: Cr
   return data;
 }
 
-// Puedes añadir aquí funciones para updateDiagnosis y deleteDiagnosis si las necesitas
-
-
-
-// Puedes añadir aquí funciones para updateDiagnosis y deleteDiagnosis si las necesitas
-
 
 // ===============================================
 // FUNCIONES PARA GESTIONAR INTERESES (Interest) (NUEVO BLOQUE)
@@ -352,5 +359,3 @@ export async function createInterestForChild(childId: number, interestData: Crea
   const { data } = await http.post(endpoint, interestData);
   return data;
 }
-
-// Puedes añadir aquí funciones para updateInterest y deleteInterest si las necesitas

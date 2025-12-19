@@ -25,9 +25,9 @@
 
     <div v-else-if="ninoStore.hasData">
       
-      <h1 class="text-3xl font-bold text-gray-900 mb-4">
-        {{ ninoStore.nombreNino }}
-      </h1>
+   <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+  {{ ninoStore.nombreNino }}
+</h1>
 
       <nav class="flex flex-wrap space-x-2 sm:space-x-4 border-b border-gray-200 mb-6">
         <router-link

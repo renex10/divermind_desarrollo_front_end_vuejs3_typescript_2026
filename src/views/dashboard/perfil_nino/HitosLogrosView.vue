@@ -1,10 +1,41 @@
 <template>
   <div class="hitos-logros-view max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-8">
-      <h2 class="text-3xl font-bold text-gray-900">Registro de Hitos del Desarrollo</h2>
-      <p class="mt-2 text-sm text-gray-600">
-        Documenta los logros y avances del desarrollo del niño
-      </p>
+    
+    <div class="mb-8 flex justify-between items-end">
+      <div>
+        <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+          Registro de Hitos del Desarrollo
+        </h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Documenta los logros y avances del desarrollo del niño
+        </p>
+      </div>
+      <button
+        @click="toggleFormVisibility"
+        :disabled="isLoading || isSubmitting"
+        :class="[
+          'inline-flex items-center justify-center border border-transparent rounded-lg shadow-lg font-semibold text-white transition-all duration-300',
+          'px-3 py-2 text-sm sm:px-4 sm:py-2 sm:text-base md:px-6 md:py-3 md:text-lg',
+          editingMilestoneId 
+            ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500' 
+            : 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500',
+          (isLoading || isSubmitting) ? 'opacity-50 cursor-not-allowed' : ''
+        ]"
+      >
+        <svg v-if="editingMilestoneId" class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+        <svg v-else-if="showForm" class="w-4 h-4 sm:w-5 sm:h-5 mr-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M5 15l7-7 7 7" />
+        </svg>
+        <svg v-else class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 4v16m8-8H4" />
+        </svg>
+        {{ buttonToggleText }}
+      </button>
     </div>
 
     <div v-if="isLoading" class="flex justify-center items-center py-20">
@@ -20,186 +51,86 @@
       <p class="text-gray-600 font-medium">Cargando...</p>
     </div>
 
-    <FormKit
-      v-else
-      type="form"
-      id="hitoForm"
-      :actions="false"
-      @submit="handleSubmit"
-      v-model="formData" :incomplete-message="false"
-      #default="{ state: { valid } }"
-    >
-      <div class="bg-white rounded-xl shadow-soft border border-gray-200 overflow-hidden">
-        <section>
-          <div class="px-6 py-5 border-b border-gray-200 bg-gray-50">
-            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-              <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {{ editingMilestoneId ? 'Editar Hito' : 'Nuevo Hito: Información Básica' }}
-            </h3>
-          </div>
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          <div class="px-6 py-6 space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <FormKit
-                type="date"
-                name="date"
-                label="Fecha de Observación"
-                validation="required"
-                :validation-messages="{ required: 'La fecha es requerida' }"
-              />
-              <FormKit
-                type="select"
-                name="category"
-                label="Categoría"
-                placeholder="Seleccione una categoría..."
-                validation="required"
-                :validation-messages="{ required: 'La categoría es requerida' }"
-                :options="categoryOptions"
-              />
+      <div 
+        :class="[
+          'lg:col-span-2', // Tamaño por defecto en pantallas grandes
+          // Si el formulario NO está visible Y hay datos para graficar, ocupa 3/3
+          !showForm && milestones.length > 0 ? 'lg:col-span-2' : 
+          // Si el formulario NO está visible Y NO hay datos para graficar, ocupa 3/3
+          !showForm && milestones.length === 0 ? 'lg:col-span-3' : 
+          // Si el formulario SÍ está visible, ocupa 2/3
+          'col-span-1'
+        ]"
+      >
+        <transition
+          enter-active-class="transition ease-out duration-200"
+          enter-from-class="transform opacity-0 max-h-0"
+          enter-to-class="transform opacity-100 max-h-screen"
+          leave-active-class="transition ease-in duration-150"
+          leave-from-class="transform opacity-100 max-h-screen"
+          leave-to-class="transform opacity-0 max-h-0"
+        >
+          <MilestoneForm
+            v-if="showForm"
+            :initial-data="formData"
+            :editing-milestone-id="editingMilestoneId"
+            :is-submitting="isSubmitting"
+            @submitForm="handleSubmit"
+            @cancelEdit="cancelEdit"
+            class="mb-6 transition-all duration-300"
+          />
+        </transition>
+
+        <section :class="{'mt-4': showForm, 'mt-0': !showForm}">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h3 class="text-2xl font-bold text-gray-900">Historial de Hitos</h3>
+              <p class="mt-1 text-sm text-gray-600">Registro cronológico de logros y avances</p>
             </div>
-
-            <FormKit
-              type="textarea"
-              name="description"
-              label="Descripción del Hito/Habilidad"
-              validation="required|length:10"
-              :validation-messages="{
-                required: 'La descripción es requerida',
-                length: 'Debe tener al menos 10 caracteres'
-              }"
-              placeholder="Describe específicamente qué logró el niño..."
-              :rows="4"
-            />
-
-            <FormKit
-              type="textarea"
-              name="observations"
-              label="Observaciones Adicionales"
-              placeholder="Notas sobre el contexto, facilitadores, dificultades..."
-              :rows="3"
-            />
-          </div>
-        </section>
-
-        <section>
-          <div class="px-6 py-5 border-t border-b border-gray-200 bg-gray-50">
-            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-              <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Evaluación del Hito
-            </h3>
-          </div>
-
-          <div class="px-6 py-6 space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <FormKit
-                type="select"
-                name="proficiency_level"
-                label="Nivel de Dominio"
-                validation="required"
-                :validation-messages="{ required: 'Campo requerido' }"
-                :options="proficiencyOptions"
-              />
-              <FormKit
-                type="select"
-                name="context"
-                label="Contexto Observado"
-                validation="required"
-                :validation-messages="{ required: 'Campo requerido' }"
-                :options="contextOptions"
-              />
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <FormKit
-                type="select"
-                name="support_level"
-                label="Nivel de Apoyo Necesario"
-                validation="required"
-                 :validation-messages="{ required: 'Campo requerido' }"
-                :options="supportOptions"
-              />
-              <FormKit
-                type="text"
-                name="functional_impact"
-                label="Impacto Funcional"
-                placeholder="Ej: Le permite comer solo, participar en juegos..."
-              />
-            </div>
-          </div>
-        </section>
-
-        <div class="px-6 py-5 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-          <p class="text-sm text-gray-500">
-            <span class="text-red-500 font-medium">*</span> Campos requeridos
-          </p>
-          <div class="flex items-center space-x-3">
-            <button
-              v-if="editingMilestoneId"
-              type="button"
-              @click="cancelEdit"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-            >
-              Cancelar Edición
-            </button>
-            <button
-              type="submit"
-              :disabled="isSubmitting || !valid"
-              class="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-semibold text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              <svg v-if="isSubmitting" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <svg v-else class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              {{ buttonText }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </FormKit>
-
-    <section class="mt-12">
-      <div class="flex justify-between items-center mb-6">
-         <div>
-            <h3 class="text-2xl font-bold text-gray-900">Historial de Hitos</h3>
-            <p class="mt-1 text-sm text-gray-600">
-                Registro cronológico de logros y avances
-            </p>
-         </div>
-         <button @click="loadMilestones()" :disabled="isLoadingHistory" class="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <svg :class="['w-4 h-4 mr-2', { 'animate-spin': isLoadingHistory }]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button @click="loadMilestones()" :disabled="isLoadingHistory" class="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg :class="['w-4 h-4 mr-2', { 'animate-spin': isLoadingHistory }]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-           {{ isLoadingHistory ? 'Cargando...' : 'Refrescar' }}
-         </button>
+              </svg>
+              {{ isLoadingHistory ? 'Cargando...' : 'Refrescar' }}
+            </button>
+          </div>
+
+          <MilestoneHistoryList
+            :milestones="milestones"
+            :is-loading="isLoadingHistory"
+            @edit="handleEdit"
+            @delete="handleDeleteRequest"
+          />
+        </section>
       </div>
-
-      <MilestoneHistoryList
-        :milestones="milestones"
-        :is-loading="isLoadingHistory"
-        @edit="handleEdit"
-        @delete="handleDeleteRequest"
-      />
-    </section>
-
-     <ConfirmModal
-        v-if="showConfirmDeleteModal"
-        :show="showConfirmDeleteModal"
-        @update:show="(value: boolean) => { if (!value) cancelDelete() }"
-        title="Confirmar Eliminación"
-        message="¿Estás seguro de que deseas eliminar este hito? Esta acción no se puede deshacer."
-        confirm-text="Sí, Eliminar"
-        cancel-text="Cancelar"
-        type="warning"
-        @confirm="confirmDelete"
-        @close="cancelDelete"
-      />
+      
+      <div v-if="!isLoadingHistory && milestones.length > 0" class="lg:col-span-1">
+          <MilestonesMetrics 
+              :milestones="milestones" 
+              class="lg:sticky lg:top-8" 
+          />
+      </div>
+      <div v-else-if="!isLoadingHistory && milestones.length === 0" class="lg:col-span-3 p-8 bg-white rounded-xl border border-gray-100 shadow-sm mt-6">
+          <p class="text-center text-gray-500 italic font-medium">
+            ¡Comienza a registrar! No hay hitos para este niño. Usa el botón "Registrar Nuevo Hito" para empezar a generar las métricas de progreso.
+          </p>
+      </div>
+    </div>
+    
+    <ConfirmModal
+      v-if="showConfirmDeleteModal"
+      :show="showConfirmDeleteModal"
+      @update:show="(value: boolean) => { if (!value) cancelDelete() }"
+      title="Confirmar Eliminación"
+      message="¿Estás seguro de que deseas eliminar este hito? Esta acción no se puede deshacer."
+      confirm-text="Sí, Eliminar"
+      cancel-text="Cancelar"
+      type="warning"
+      @confirm="confirmDelete"
+      @close="cancelDelete"
+    />
 
   </div>
 </template>
@@ -207,33 +138,36 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useNinoActivoStore } from '@/store/ninoActivoStore';
-import { useAlertModalStore } from '@/store/alertModalStore'; // Store para notificaciones (éxito/error)
+import { useAlertModalStore } from '@/store/alertModalStore';
 import MilestoneHistoryList from '@/components/gestion/hitosLogros/MilestoneHistoryList.vue';
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'; // ✅ IMPORTAR ConfirmModal
-import { reset } from '@formkit/core'; // Importar función reset de FormKit
+import ConfirmModal from '@/components/ui/ConfirmModal.vue';
+import MilestoneForm from '@/components/gestion/hitosLogros/MilestoneForm.vue';
+import MilestonesMetrics from '@/components/gestion/hitosLogros/MilestonesMetrics.vue';
+import { reset } from '@formkit/core'; 
 
 // --- Importar Servicio e Interfaces ---
-import { hitosService } from '@/services/hitosService'; // ✅ Servicio API
-import type { Milestone, MilestoneFormData } from '@/type/hitoServiceInterface'; // ✅ Tipos
+import { hitosService } from '@/services/hitosService'; 
+import type { Milestone, MilestoneFormData } from '@/type/hitoServiceInterface';
 
 // --- Stores ---
 const ninoStore = useNinoActivoStore();
-const alertModal = useAlertModalStore(); // Para mensajes de éxito/error post-acción
+const alertModal = useAlertModalStore();
 
 // --- Estado del Componente ---
-const isLoading = ref(true); // Carga inicial
-const isSubmitting = ref(false); // Envío de formulario
-const isLoadingHistory = ref(false); // Carga de historial
-const milestones = ref<Milestone[]>([]); // Lista de hitos
-const editingMilestoneId = ref<number | string | null>(null); // ID del hito en edición
-// --- ✅ Estado para ConfirmModal ---
-const showConfirmDeleteModal = ref(false); // Controla visibilidad del modal ConfirmModal
-const milestoneToDeleteId = ref<number | string | null>(null); // Guarda ID a eliminar
+const isLoading = ref(true);
+const isSubmitting = ref(false);
+const isLoadingHistory = ref(false);
+const milestones = ref<Milestone[]>([]);
+const editingMilestoneId = ref<number | string | null>(null);
+const showConfirmDeleteModal = ref(false);
+const milestoneToDeleteId = ref<number | string | null>(null);
+const showForm = ref(false); 
+
 
 // --- Datos del Formulario ---
 const initialFormData: MilestoneFormData = {
   date: new Date().toISOString().split('T')[0],
-  category: '',
+  category: 'communication',
   description: '',
   observations: '',
   proficiency_level: 'emerging',
@@ -241,48 +175,17 @@ const initialFormData: MilestoneFormData = {
   support_level: 'verbal_cue',
   functional_impact: '',
 };
-// ✅ *** CAMBIO: formData ahora es un ref() para que v-model funcione correctamente ***
-// v-model en un <FormKit type="form"> funciona mejor con ref() para actualizaciones programáticas
 const formData = ref<MilestoneFormData>({ ...initialFormData });
 
-// --- Opciones para los Selects ---
-const categoryOptions = [
-  { label: '📢 Comunicación', value: 'communication' },
-  { label: '👥 Social', value: 'social' },
-  { label: '📚 Académico', value: 'academic' },
-  { label: '🏃 Motor', value: 'motor' },
-  { label: '🧠 Cognitivo', value: 'cognitive' },
-  { label: '💝 Emocional', value: 'emotional' },
-  { label: '⚕️ Terapéutico', value: 'therapeutic' }
-];
-const proficiencyOptions = [
-  { label: '🌱 Emergente - Con mucho apoyo', value: 'emerging' },
-  { label: '🌿 En desarrollo - Con apoyo moderado', value: 'developing' },
-  { label: '🌳 Competente - Mínimo apoyo', value: 'proficient' },
-  { label: '⭐ Dominado - Independiente', value: 'mastered' }
-];
-const contextOptions = [
-  { label: '🏥 En terapia', value: 'therapy' },
-  { label: '🏠 En casa', value: 'home' },
-  { label: '🏫 En escuela', value: 'school' },
-  { label: '🌍 En comunidad', value: 'community' },
-  { label: '🔄 Múltiples contextos', value: 'multiple' }
-];
-const supportOptions = [
-  { label: '✅ Independiente', value: 'independent' },
-  { label: '💬 Indicación verbal', value: 'verbal_cue' },
-  { label: '👁️ Apoyo visual', value: 'visual_cue' },
-  { label: '🤝 Ayuda física', value: 'physical_prompt' },
-  { label: '🆘 Asistencia total', value: 'full_assistance' }
-];
 
 // --- Propiedades Computadas ---
-const buttonText = computed(() => {
-  if (isSubmitting.value) {
-    return editingMilestoneId.value ? 'Actualizando...' : 'Guardando...';
+const buttonToggleText = computed(() => {
+  if (editingMilestoneId.value) {
+    return 'Modo Edición';
   }
-  return editingMilestoneId.value ? 'Actualizar Hito' : 'Guardar Hito';
+  return showForm.value ? 'Ocultar Formulario' : 'Registrar Nuevo Hito';
 });
+
 
 // --- Ciclo de Vida ---
 onMounted(async () => {
@@ -313,12 +216,9 @@ async function loadMilestones(childId: string | number | null = ninoStore.ninoId
     return;
   }
   isLoadingHistory.value = true;
-  console.log(`🔄 Cargando hitos para niño ${childId}...`);
   try {
-    milestones.value = await hitosService.getMilestones(childId);
-    console.log(`✅ ${milestones.value.length} hitos cargados.`);
+    milestones.value = await hitosService.getMilestones(childId); 
   } catch (error) {
-    console.error("Error cargando historial:", error);
     alertModal.error('Error de Carga', 'No se pudo cargar el historial de hitos.');
     milestones.value = [];
   } finally {
@@ -326,9 +226,8 @@ async function loadMilestones(childId: string | number | null = ninoStore.ninoId
   }
 }
 
-// Maneja el evento @submit del formulario FormKit
+// Maneja el evento @submitForm del componente hijo
 async function handleSubmit(submittedData: MilestoneFormData) {
-  // `submittedData` es el valor actual del formulario, que es el mismo que `formData.value`
   if (!ninoStore.ninoId) {
     alertModal.warning('Error', 'ID de niño no encontrado.');
     return;
@@ -342,31 +241,29 @@ async function handleSubmit(submittedData: MilestoneFormData) {
       observations: submittedData.observations?.trim() || null,
       functional_impact: submittedData.functional_impact?.trim() || null,
   };
-  console.log(`💾 Enviando hito (Editando ID: ${editingMilestoneId.value}):`, payload);
 
   try {
     let savedMilestone: Milestone;
     if (editingMilestoneId.value) { // --- ACTUALIZAR ---
-      console.log(`⬆️ Actualizando hito ID ${editingMilestoneId.value}`);
       savedMilestone = await hitosService.updateMilestone(childId, editingMilestoneId.value, payload);
       alertModal.success('Hito Actualizado', 'Cambios guardados correctamente.');
       const index = milestones.value.findIndex(m => m.id === editingMilestoneId.value);
       if (index !== -1) milestones.value[index] = savedMilestone;
       else await loadMilestones(childId);
-      milestones.value.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      console.log(`✅ Hito ${savedMilestone.id} actualizado.`);
+      
     } else { // --- CREAR ---
-      console.log(`➕ Creando nuevo hito...`);
       savedMilestone = await hitosService.createMilestone(childId, payload);
       alertModal.success('Hito Guardado', 'Nuevo hito registrado.');
       milestones.value.unshift(savedMilestone);
-      milestones.value.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      console.log(`✅ Nuevo hito ${savedMilestone.id} creado.`);
     }
+    
+    // Reordenar para que el nuevo/editado aparezca correctamente
+    milestones.value.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
     resetForm();
+    showForm.value = false; // Ocultar formulario al guardar uno nuevo
 
   } catch (error: any) { // --- MANEJO DE ERRORES ---
-    console.error("Error guardando hito:", error);
     let errorMessage = editingMilestoneId.value ? 'Error al actualizar.' : 'Error al guardar.';
     if (error.response?.data) {
         const errors = error.response.data;
@@ -374,7 +271,6 @@ async function handleSubmit(submittedData: MilestoneFormData) {
             .map(([field, messages]) => `${field}: ${(Array.isArray(messages) ? messages.join(', ') : messages)}`)
             .join('; ');
         if (fieldErrors) errorMessage = `Error de validación: ${fieldErrors}`;
-        else if (typeof errors === 'string') errorMessage = errors;
         else if (errors.detail) errorMessage = errors.detail;
     }
     alertModal.error('Error', errorMessage);
@@ -386,14 +282,12 @@ async function handleSubmit(submittedData: MilestoneFormData) {
 // --- Funciones para Borrado (usando ConfirmModal.vue) ---
 
 function handleDeleteRequest(milestoneId: number | string) {
-  console.log(`❓ Solicitud de borrado para hito ID: ${milestoneId}. Mostrando ConfirmModal.`);
   milestoneToDeleteId.value = milestoneId;
-  showConfirmDeleteModal.value = true; // ✅ Activa el modal
+  showConfirmDeleteModal.value = true;
 }
 
 async function confirmDelete() {
   if (!ninoStore.ninoId || milestoneToDeleteId.value === null) {
-      console.warn("confirmDelete: Faltan IDs necesarios.");
       showConfirmDeleteModal.value = false;
       milestoneToDeleteId.value = null;
       return;
@@ -402,23 +296,23 @@ async function confirmDelete() {
   const idToDelete = milestoneToDeleteId.value;
 
   showConfirmDeleteModal.value = false;
-  console.log(`🗑️ Ejecutando borrado para hito ${idToDelete} del niño ${childId}...`);
 
   try {
     await hitosService.deleteMilestone(childId, idToDelete);
     alertModal.success('Hito Eliminado', 'El hito se eliminó correctamente.');
     milestones.value = milestones.value.filter(m => m.id !== idToDelete);
-     console.log(`✅ Hito ${idToDelete} eliminado localmente.`);
   } catch (error) {
-    console.error("Error durante eliminación de hito:", error);
     alertModal.error('Error al Eliminar', 'No se pudo eliminar el hito.');
   } finally {
     milestoneToDeleteId.value = null;
+    if (editingMilestoneId.value === idToDelete) {
+        resetForm();
+        showForm.value = false;
+    }
   }
 }
 
 function cancelDelete() {
-  console.log("Borrado cancelado por el usuario.");
   showConfirmDeleteModal.value = false;
   milestoneToDeleteId.value = null;
 }
@@ -427,13 +321,9 @@ function cancelDelete() {
 // --- Funciones de UI y Formulario ---
 
 function handleEdit(milestoneToEdit: Milestone) {
-  console.log(`✏️ Solicitud de edición para hito ID: ${milestoneToEdit.id}`);
   const dataToEdit = milestones.value.find(m => m.id === milestoneToEdit.id);
   if (dataToEdit) {
-    console.log("Hito encontrado para editar:", dataToEdit);
-    
-    // ✅ *** CAMBIO: Poblar el ref() formData.value ***
-    // Esto actualizará los campos enlazados con v-model
+    // 1. Poblar el ref() formData.value con los datos
     formData.value = {
         date: dataToEdit.date.includes('T') ? dataToEdit.date.split('T')[0] : dataToEdit.date, // Asegurar YYYY-MM-DD
         category: dataToEdit.category,
@@ -446,11 +336,10 @@ function handleEdit(milestoneToEdit: Milestone) {
     };
 
     editingMilestoneId.value = dataToEdit.id;
-    console.log("Formulario poblado para edición:", { ...formData.value });
+    showForm.value = true; // Desplegar formulario
     window.scrollTo({ top: 0, behavior: 'smooth' });
     alertModal.info('Modo Edición', 'Modifica los campos necesarios y presione "Actualizar Hito".');
   } else {
-    console.error(`Hito con ID ${milestoneToEdit.id} no encontrado localmente.`);
     alertModal.error('Error', 'No se encontró el hito para editar.');
   }
 }
@@ -458,41 +347,40 @@ function handleEdit(milestoneToEdit: Milestone) {
 // Resetea el formulario y sale del modo edición
 function resetForm() {
   editingMilestoneId.value = null; // Salir modo edición
-  // ✅ *** CAMBIO: Usar reset() de FormKit para limpiar Y reasignar el ref() ***
-  // Reasignar el ref es crucial para que v-model funcione al resetear
   formData.value = { ...initialFormData };
-  // reset('hitoForm') limpia el estado *interno* de FormKit (errores, touched, etc.)
+  // reset('hitoForm') limpia el estado *interno* de FormKit
   reset('hitoForm'); 
-  console.log("Formulario reseteado.");
 }
 
-// Se llama al presionar "Cancelar Edición"
+// Se llama al presionar "Cancelar Edición" o después de guardar
 function cancelEdit() {
-    console.log("Edición cancelada.");
     resetForm();
+    showForm.value = false; // Ocultar formulario al cancelar
 }
 
-// --- Funciones Auxiliares (Helpers) ---
-
+// Alternar visibilidad
+function toggleFormVisibility() {
+    if (editingMilestoneId.value) {
+        // Si estamos editando, al presionar el botón cancelamos edición y lo ocultamos
+        cancelEdit(); 
+    } else {
+        // Si no estamos editando, simplemente alternamos visibilidad
+        showForm.value = !showForm.value;
+        // Si se abre para un nuevo registro, asegurarse de que el formulario esté limpio
+        if (showForm.value) {
+            resetForm(); 
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+}
 
 
 </script>
 
 <style scoped>
 /* Estilos específicos del componente */
-.input-style, .select-style, .textarea-style {
-  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
-}
-.select-style {
-  @apply bg-white;
-}
-.btn-primary {
-  @apply inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-semibold text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
-}
-.btn-secondary {
-   @apply px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors;
-}
 .shadow-soft {
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
+/* Asegúrate de que los estilos básicos de FormKit no se pierdan */
 </style>
