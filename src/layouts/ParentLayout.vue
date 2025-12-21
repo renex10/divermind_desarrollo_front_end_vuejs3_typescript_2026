@@ -45,7 +45,7 @@ import ParentSidebar from '@/components/dashboard/padres/ParentSidebar.vue'
 import ParentNavbar from '@/components/dashboard/padres/ParentNavbar.vue'
 
 // Componentes compartidos
-import Breadcrumbs from '@/components/layout/Breadcrumbs.vue'
+/* import Breadcrumbs from '@/components/layout/Breadcrumbs.vue' */
 import SessionWarningModal from '@/components/modal/SessionWarningModal.vue'
 import ToastContainer from '@/components/toastglobal/ToastContainer.vue'
 

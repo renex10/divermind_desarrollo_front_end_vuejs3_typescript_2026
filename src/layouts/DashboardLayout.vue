@@ -13,7 +13,7 @@
         
        
           <router-view />
-             <Breadcrumbs class="mb-4" />
+           <!--   <Breadcrumbs class="mb-4" /> -->
         </div>
       </main>
     </div>
@@ -39,7 +39,7 @@ import ToastContainer from '@/components/toastglobal/ToastContainer.vue'
 // Importamos el nuevo componente Breadcrumbs que creamos.
 // Asegúrate de que la ruta '@/components/layout/Breadcrumbs.vue' sea correcta.
 // ===================================================================
-import Breadcrumbs from '@/components/layout/Breadcrumbs.vue'
+
 // FIN DE LA MODIFICACIÓN
 
 // 👇 Importamos el composable de inactividad

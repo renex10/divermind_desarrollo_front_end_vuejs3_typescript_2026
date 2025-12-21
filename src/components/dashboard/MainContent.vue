@@ -21,6 +21,7 @@
           
           <!-- Contenedor responsive -->
           <div class="container mx-auto px-4 py-6 lg:px-6 xl:px-8">
+
             
             <!-- Header de página con animación -->
             <Transition

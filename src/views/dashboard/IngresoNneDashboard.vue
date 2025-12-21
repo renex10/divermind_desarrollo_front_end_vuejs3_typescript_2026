@@ -2,6 +2,7 @@
   <div class="p-6">
     <div class="header-section">
       <h1 class="text-2xl font-bold mb-6">Gestión de NNA</h1>
+ 
       
       <button
         @click="openNnaModal"
