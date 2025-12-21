@@ -1,4 +1,13 @@
 <!-- src/components/forms/multi-step/pasos/Paso2Location.vue -->
+<!-- 
+  ✅ VERSIÓN FINAL CORREGIDA
+  
+  CORRECCIONES:
+  1. ✅ Evento 'validated' → 'validate' (para match con padre)
+  2. ✅ Importar Establishment desde @/type/nne
+  3. ✅ Usar Establishment en lugar de EstablishmentSearchResult
+  4. ✅ Validación inmediata al seleccionar/crear
+-->
 <template>
   <div class="step-location">
     <!-- Header del Paso -->
@@ -6,745 +15,404 @@
       <div class="step-number">2</div>
       <div class="step-title">
         <h2 class="text-2xl font-bold text-gray-900">Ubicación y Establecimiento</h2>
-        <p class="text-gray-600 mt-1">Información de ubicación geográfica y establecimiento educacional</p>
+        <p class="text-gray-600 mt-1">
+          {{ isCreatingNew ? 'Registra un nuevo establecimiento educacional' : 'Busca el establecimiento educacional' }}
+        </p>
       </div>
     </div>
 
-    <!-- Formulario -->
-    <FormKit
-      type="form"
-      id="location-form"
-      :actions="false"
-      v-model="formDataRaw"
-      @input="handleFormInput"
-    >
-      <!-- Grid de Campos -->
-      <div class="form-grid">
-        <!-- Región -->
-        <div class="form-group">
-          <FormKit
-            type="select"
-            name="region"
-            label="Región"
-            placeholder="Selecciona una región"
-            :options="regionOptions"
-            validation="required"
-            :validation-messages="{
-              required: 'La región es obligatoria'
-            }"
-            @input="handleRegionChange"
-            :disabled="loading.regions"
-          />
-          <div v-if="loading.regions" class="text-xs text-blue-500 mt-1">
-            ⏳ Cargando regiones desde el servidor...
-          </div>
-          <div v-if="errors.regions" class="text-xs text-red-500 mt-1">
-            ❌ {{ errors.regions }}
-          </div>
-        </div>
-
-        <!-- Comuna -->
-        <div class="form-group">
-          <FormKit
-            type="select"
-            name="commune"
-            label="Comuna"
-            placeholder="Selecciona una comuna"
-            :options="communeOptions"
-            validation="required"
-            :validation-messages="{
-              required: 'La comuna es obligatoria'
-            }"
-            :disabled="!formDataLocal.region || loading.communes"
-          />
-          <div v-if="!formDataLocal.region" class="text-xs text-gray-500 mt-1">
-            Primero selecciona una región
-          </div>
-          <div v-if="loading.communes" class="text-xs text-blue-500 mt-1">
-            ⏳ Cargando comunas desde el servidor...
-          </div>
-          <div v-if="errors.communes" class="text-xs text-red-500 mt-1">
-            ❌ {{ errors.communes }}
-          </div>
-        </div>
-
-        <!-- Establecimiento Educacional - BÚSQUEDA SIMPLIFICADA -->
-        <div class="form-group">
-          <FormKit
-            type="select"
-            name="establishment"
-            label="Establecimiento Educacional"
-            placeholder="Escribe para buscar establecimientos..."
-            :options="establishmentOptions"
-            validation="required"
-            :validation-messages="{
-              required: 'El establecimiento es obligatorio'
-            }"
-            :disabled="loading.establishments"
-            @focus="handleEstablishmentFocus"
-          />
-          <div class="search-instructions">
-            <div v-if="loading.establishments" class="text-xs text-blue-500 mt-1">
-              ⏳ Buscando establecimientos educativos...
-            </div>
-            <div v-if="errors.establishments" class="text-xs text-red-500 mt-1">
-              ❌ {{ errors.establishments }}
-            </div>
-            <div v-if="!loading.establishments && establishmentOptions.length > 1" class="text-xs text-green-600 mt-1">
-              ✅ {{ establishmentOptions.length - 1 }} establecimientos educativos encontrados
-            </div>
-            <div v-if="!loading.establishments && establishmentOptions.length === 1" class="text-xs text-yellow-600 mt-1">
-              💡 Escribe el nombre o RBD del establecimiento para buscar
-            </div>
-          </div>
-        </div>
-
-        <!-- Calle -->
-        <div class="form-group">
-          <FormKit
+    <!-- ============================================ -->
+    <!-- MODO BÚSQUEDA: Buscador Inteligente         -->
+    <!-- ============================================ -->
+    <div v-if="!isCreatingNew">
+      <!-- Campo de Búsqueda -->
+      <div class="form-group">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Buscar Establecimiento
+          <span class="text-red-500">*</span>
+        </label>
+        
+        <div class="relative">
+          <input
             type="text"
-            name="street"
-            label="Calle"
-            placeholder="Ingresa el nombre de la calle"
-            validation="required|length:2,255"
-            :validation-messages="{
-              required: 'La calle es obligatoria',
-              length: 'La calle debe tener entre 2 y 255 caracteres'
-            }"
+            v-model="searchQuery"
+            @input="handleSearchInput"
+            placeholder="Escribe el nombre o RBD del establecimiento..."
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            :disabled="loading.search"
           />
-        </div>
-
-        <!-- Número -->
-        <div class="form-group">
-          <FormKit
-            type="text"
-            name="street_number"
-            label="Número"
-            placeholder="Ej: 123, 456-A, S/N"
-            validation="required|length:1,20"
-            :validation-messages="{
-              required: 'El número es obligatorio',
-              length: 'El número debe tener entre 1 y 20 caracteres'
-            }"
-          />
-        </div>
-
-        <!-- Dirección Completa (Preview) -->
-        <div class="form-group col-span-full" v-if="fullAddress">
-          <label class="formkit-label">Dirección Completa</label>
-          <div class="address-preview">
-            <MapPinIcon class="h-5 w-5 text-blue-500" />
-            <span class="address-text">{{ fullAddress }}</span>
+          
+          <!-- Icono de búsqueda -->
+          <div class="absolute right-3 top-3">
+            <svg v-if="loading.search" class="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
           </div>
-          <p class="text-xs text-gray-500 mt-2">
-            Vista previa de la dirección generada automáticamente
+        </div>
+
+        <!-- Mensajes de estado -->
+        <div class="mt-2 text-sm">
+          <p v-if="loading.search" class="text-blue-600">
+            🔍 Buscando establecimientos...
+          </p>
+          <p v-else-if="searchQuery && searchResults.length === 0" class="text-yellow-600">
+            ⚠️ No se encontraron establecimientos con ese nombre o RBD
+          </p>
+          <p v-else-if="searchQuery && searchResults.length > 0" class="text-green-600">
+            ✅ {{ searchResults.length }} establecimiento(s) encontrado(s)
+          </p>
+          <p v-else class="text-gray-500">
+            💡 Escribe al menos 3 caracteres para buscar
           </p>
         </div>
+      </div>
 
-        <!-- Información del Establecimiento Seleccionado -->
-        <div class="form-group col-span-full" v-if="selectedEstablishmentInfo">
-          <label class="formkit-label">Información del Establecimiento</label>
-          <div class="establishment-info">
-            <BuildingLibraryIcon class="h-5 w-5 text-green-500" />
-            <div class="establishment-details">
-              <strong>{{ selectedEstablishmentInfo.name }}</strong>
-              <div class="establishment-meta">
-                <span v-if="selectedEstablishmentInfo.rbd">RBD: {{ selectedEstablishmentInfo.rbd }}</span>
-                <span v-if="selectedEstablishmentInfo.commune">• {{ selectedEstablishmentInfo.commune }}</span>
-                <span v-if="selectedEstablishmentInfo.region">• {{ selectedEstablishmentInfo.region }}</span>
-              </div>
+      <!-- Resultados de Búsqueda -->
+      <div v-if="searchResults.length > 0" class="mt-4 space-y-2">
+        <div
+          v-for="establishment in searchResults"
+          :key="establishment.id"
+          @click="selectEstablishment(establishment)"
+          class="establishment-card clickable"
+          :class="{ 'selected': selectedEstablishmentId === establishment.id }"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h4 class="font-semibold text-gray-900">{{ establishment.name }}</h4>
+              <p class="text-sm text-gray-600 mt-1">
+                <span v-if="establishment.rbd">RBD: {{ establishment.rbd }} • </span>
+                {{ establishment.establishment_type_detail?.name || 'Tipo no especificado' }}
+              </p>
+              <p class="text-sm text-gray-500 mt-1">
+                📍 {{ establishment.address }}{{ establishment.street_number ? ' ' + establishment.street_number : '' }}, {{ establishment.commune_detail?.name }}, {{ establishment.region_detail?.name }}
+              </p>
+            </div>
+            
+            <!-- Checkmark si está seleccionado -->
+            <div v-if="selectedEstablishmentId === establishment.id" class="ml-4">
+              <svg class="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Información de Validación -->
-      <div class="validation-info" :class="{ 'is-valid': isStepValid }">
-        <div class="validation-icon">
-          <CheckCircleIcon v-if="isStepValid" class="h-5 w-5" />
-          <ExclamationCircleIcon v-else class="h-5 w-5" />
-        </div>
-        <div class="validation-text">
-          <span v-if="isStepValid">✓ Todos los campos de ubicación están completos</span>
-          <span v-else>⚠ Complete todos los campos obligatorios</span>
-        </div>
+      <!-- Botón para activar Modo Creación -->
+      <div v-if="searchQuery && searchResults.length === 0 && !loading.search" class="mt-6">
+        <button
+          type="button"
+          @click="enableCreationMode"
+          class="w-full px-4 py-3 bg-blue-50 border-2 border-blue-300 border-dashed rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          <div class="flex items-center justify-center space-x-2">
+            <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span class="text-blue-600 font-medium">¿No aparece en la lista? Registrar nuevo establecimiento</span>
+          </div>
+        </button>
       </div>
 
-      <!-- Panel de Debug (solo desarrollo) -->
-      <div v-if="showDebug" class="debug-panel mt-4 p-4 bg-gray-100 rounded-lg">
-        <h4 class="font-bold mb-2">🐛 Debug Info:</h4>
-        <p><strong>Región seleccionada:</strong> {{ formDataLocal.region }}</p>
-        <p><strong>Comuna seleccionada:</strong> {{ formDataLocal.commune }}</p>
-        <p><strong>Establecimiento:</strong> {{ formDataLocal.establishment }}</p>
-        <p><strong>Regiones cargadas:</strong> {{ regionOptions.length }}</p>
-        <p><strong>Comunas cargadas:</strong> {{ communeOptions.length }}</p>
-        <p><strong>Establecimientos cargados:</strong> {{ establishmentOptions.length - 1 }}</p>
-        <p><strong>Calle:</strong> {{ formDataLocal.street }}</p>
-        <p><strong>Número:</strong> {{ formDataLocal.street_number }}</p>
+      <!-- Información del establecimiento seleccionado -->
+      <div class="mt-6" v-if="selectedEstablishmentInfo">
+        <div class="establishment-info-card">
+          <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0">
+              <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-gray-900">{{ selectedEstablishmentInfo.name }}</h3>
+              <p class="text-sm text-gray-600 mt-1">
+                {{ selectedEstablishmentInfo.address }}
+              </p>
+              <p v-if="selectedEstablishmentInfo.rbd" class="text-sm text-gray-500 mt-1">
+                RBD: {{ selectedEstablishmentInfo.rbd }}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    </FormKit>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODO CREACIÓN: Componente Separado          -->
+    <!-- ============================================ -->
+    <CrearEstablecimiento
+      v-if="isCreatingNew"
+      @created="handleEstablishmentCreated"
+      @cancel="disableCreationMode"
+    />
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { CheckCircleIcon, ExclamationCircleIcon, MapPinIcon, BuildingLibraryIcon } from '@heroicons/vue/24/outline'
-import nneService from '@/services/nneService'
+import { ref, watch, onMounted } from 'vue'
+import { debounce } from 'lodash-es'
+import * as nneService from '@/services/nneService'
+import type { Establishment } from '@/type/nne'
+import CrearEstablecimiento from '../components/CrearEstablecimiento.vue'
 
-// Interfaces
-interface LocationData {
-  establishment: number | null
-  region: number | null
-  commune: number | null
-  street: string
-  street_number: string
+// ============================================================================
+// INTERFACES
+// ============================================================================
+
+interface FormData {
+  establishment?: number
 }
 
-interface EstablishmentInfo {
-  name: string
-  rbd: string | null
-  commune: string | null
-  region: string | null
-}
+// ============================================================================
+// PROPS & EMITS
+// ============================================================================
 
 interface Props {
-  formData: LocationData
+  formData: FormData
 }
 
 interface Emits {
-  (e: 'update:formData', data: LocationData): void
-  (e: 'validate', isValid: boolean): void
+  (e: 'update:formData', value: FormData): void
+  (e: 'validate', isValid: boolean): void  // ✅ CAMBIADO: 'validated' → 'validate'
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Estado local del formulario
-const formDataLocal = ref<LocationData>({
-  establishment: null,
-  region: null,
-  commune: null,
-  street: '',
-  street_number: ''
-})
+// ============================================================================
+// REACTIVE STATE
+// ============================================================================
 
-const formDataRaw = ref<any>({})
-const showDebug = ref(import.meta.env.DEV) // Solo mostrar debug en desarrollo
+const formDataRaw = ref<FormData>({ ...props.formData })
 
-// ✅ OPCIONES DINÁMICAS DESDE EL BACKEND
-const regionOptions = ref<Array<{value: number | string, label: string, attrs?: any}>>([
-  { value: '', label: 'Cargando regiones...', attrs: { disabled: true } }
-])
+// Modo de operación
+const isCreatingNew = ref(false)
 
-const communeOptions = ref<Array<{value: number | string, label: string, attrs?: any}>>([
-  { value: '', label: 'Primero selecciona una región', attrs: { disabled: true } }
-])
+// Búsqueda
+const searchQuery = ref('')
+const searchResults = ref<Establishment[]>([])
 
-const establishmentOptions = ref<Array<{value: number | string, label: string, attrs?: any}>>([
-  { value: '', label: 'Escribe para buscar establecimientos educativos...', attrs: { disabled: true } }
-])
-
-// Información del establecimiento seleccionado
-const selectedEstablishmentInfo = ref<EstablishmentInfo | null>(null)
-
-// Estados de carga y errores
+// Loading states
 const loading = ref({
-  regions: false,
-  communes: false,
-  establishments: false
+  search: false
 })
 
+// Errors
 const errors = ref({
-  regions: '',
-  communes: '',
-  establishments: ''
+  search: ''
 })
 
-// Dirección completa calculada
-const fullAddress = computed(() => {
-  const { street, street_number, commune } = formDataLocal.value
-  if (!street || !street_number || !commune) return ''
-  
-  const communeOption = communeOptions.value.find(c => c.value === commune)
-  const communeName = communeOption?.label || 'Comuna seleccionada'
-  
-  return `${street} #${street_number}, ${communeName}`
-})
+// Establecimiento seleccionado
+const selectedEstablishmentId = ref<number | undefined>(formDataRaw.value.establishment)
+const selectedEstablishmentInfo = ref<{
+  name: string
+  address: string
+  rbd?: string
+} | null>(null)
 
-// Validación del paso
-const isStepValid = computed(() => {
-  const { establishment, region, commune, street, street_number } = formDataLocal.value
+// ============================================================================
+// METHODS
+// ============================================================================
+
+/**
+ * Búsqueda de establecimientos con debounce
+ */
+const handleSearchInput = debounce(async () => {
+  const query = searchQuery.value.trim()
   
-  const isValid = Boolean(
-    establishment &&
-    region && 
-    commune &&
-    street && street.trim().length >= 2 &&
-    street_number && street_number.trim().length >= 1
-  )
+  // No buscar si el query es muy corto
+  if (query.length < 3) {
+    searchResults.value = []
+    return
+  }
+
+  loading.value.search = true
+  errors.value.search = ''
+
+  try {
+    console.log('[Paso2Location] 🔍 Buscando establecimientos:', query)
+    
+    const results = await nneService.searchEstablishmentsFullApi(query)
+    searchResults.value = results
+    
+    console.log('[Paso2Location] ✅ Resultados:', results.length)
+  } catch (error) {
+    console.error('[Paso2Location] ❌ Error en búsqueda:', error)
+    errors.value.search = 'Error al buscar establecimientos'
+  } finally {
+    loading.value.search = false
+  }
+}, 500)
+
+/**
+ * Seleccionar un establecimiento de los resultados
+ */
+const selectEstablishment = (establishment: Establishment) => {
+  console.log('[Paso2Location] ✅ Establecimiento seleccionado:', establishment)
   
-  console.log('🔍 Validación Paso 2 - Ubicación:', {
-    establishment,
-    region,
-    commune,
-    street: street?.length,
-    street_number: street_number?.length,
-    isValid
+  selectedEstablishmentId.value = establishment.id
+  formDataRaw.value.establishment = establishment.id
+  
+  // Guardar info para mostrar
+  selectedEstablishmentInfo.value = {
+    name: establishment.name,
+    address: `${establishment.address}${establishment.street_number ? ' ' + establishment.street_number : ''}, ${establishment.commune_detail?.name}, ${establishment.region_detail?.name}`,
+    rbd: establishment.rbd || undefined
+  }
+  
+  emitFormData()
+  validateForm()  // ✅ IMPORTANTE: Validar inmediatamente
+}
+
+/**
+ * Activar modo creación
+ */
+const enableCreationMode = () => {
+  console.log('[Paso2Location] 🆕 Activando modo creación')
+  isCreatingNew.value = true
+  
+  // Limpiar selección anterior
+  selectedEstablishmentId.value = undefined
+  formDataRaw.value.establishment = undefined
+  selectedEstablishmentInfo.value = null
+  
+  // ✅ Invalidar paso al entrar en modo creación
+  validateForm()
+}
+
+/**
+ * Desactivar modo creación
+ */
+const disableCreationMode = () => {
+  console.log('[Paso2Location] 🔙 Volviendo a modo búsqueda')
+  isCreatingNew.value = false
+}
+
+/**
+ * Manejar establecimiento creado desde el componente hijo
+ */
+const handleEstablishmentCreated = (establishment: Establishment) => {
+  console.log('[Paso2Location] 🎉 Establecimiento creado:', establishment)
+  
+  // Auto-seleccionar el establecimiento recién creado
+  selectedEstablishmentId.value = establishment.id
+  formDataRaw.value.establishment = establishment.id
+  
+  // Guardar info para mostrar
+  selectedEstablishmentInfo.value = {
+    name: establishment.name,
+    address: establishment.full_address || `${establishment.address}${establishment.street_number ? ' ' + establishment.street_number : ''}, ${establishment.commune_detail?.name}`,
+    rbd: establishment.rbd || undefined
+  }
+  
+  // Salir del modo creación
+  isCreatingNew.value = false
+  
+  // Emitir cambios
+  emitFormData()
+  validateForm()  // ✅ IMPORTANTE: Validar inmediatamente
+}
+
+/**
+ * Emitir datos del formulario
+ */
+const emitFormData = () => {
+  emit('update:formData', { ...formDataRaw.value })
+}
+
+/**
+ * ✅ CORREGIDO: Validar formulario y emitir evento 'validate'
+ */
+const validateForm = () => {
+  const isValid = !!formDataRaw.value.establishment
+  
+  console.log('[Paso2Location] 🔍 Validación:', { 
+    isValid, 
+    establishmentId: formDataRaw.value.establishment 
   })
   
-  return isValid
-})
-
-// ✅ CARGAR DATOS DESDE EL BACKEND
-const loadRegions = async () => {
-  try {
-    loading.value.regions = true
-    errors.value.regions = ''
-    
-    console.log('🔄 Iniciando carga de regiones...')
-    const regions = await nneService.getRegionsApi()
-    
-    regionOptions.value = [
-      { value: '', label: 'Selecciona una región', attrs: { disabled: true } },
-      ...regions
-    ]
-    
-    console.log('✅ Regiones cargadas desde backend:', regions.length)
-    
-  } catch (error: any) {
-    console.error('❌ Error cargando regiones:', error)
-    errors.value.regions = error.message || 'Error al cargar regiones'
-    regionOptions.value = [
-      { value: '', label: 'Error al cargar regiones', attrs: { disabled: true } }
-    ]
-  } finally {
-    loading.value.regions = false
-  }
+  // ✅ CAMBIADO: 'validated' → 'validate'
+  emit('validate', isValid)
 }
 
-const loadCommunesByRegion = async (regionId: number) => {
+/**
+ * Cargar información del establecimiento seleccionado
+ */
+const loadEstablishmentInfo = async (establishmentId: number) => {
   try {
-    loading.value.communes = true
-    errors.value.communes = ''
-    
-    console.log(`🔄 Cargando comunas para región ${regionId}...`)
-    const communes = await nneService.getCommunesByRegionApi(regionId)
-    
-    communeOptions.value = [
-      { value: '', label: 'Selecciona una comuna', attrs: { disabled: true } },
-      ...communes
-    ]
-    
-    console.log(`✅ ${communes.length} comunas cargadas para región ${regionId}`)
-    
-  } catch (error: any) {
-    console.error(`❌ Error cargando comunas para región ${regionId}:`, error)
-    errors.value.communes = error.message || 'Error al cargar comunas'
-    communeOptions.value = [
-      { value: '', label: 'Error al cargar comunas', attrs: { disabled: true } }
-    ]
-  } finally {
-    loading.value.communes = false
-  }
-}
-
-// ✅ NUEVA FUNCIÓN SIMPLIFICADA: Buscar establecimientos educativos
-const searchEducationalEstablishments = async (query: string = '') => {
-  try {
-    loading.value.establishments = true
-    errors.value.establishments = ''
-    
-    console.log(`🔍 Buscando establecimientos educativos: "${query}"`)
-    
-    if (!query || query.trim().length < 2) {
-      // Si la búsqueda es muy corta, cargar todos los establecimientos educativos
-      const allEstablishments = await nneService.getAllEducationalEstablishmentsApi()
-      
-      if (allEstablishments.length === 0) {
-        establishmentOptions.value = [
-          { value: '', label: 'No se encontraron establecimientos educativos', attrs: { disabled: true } }
-        ]
-      } else {
-        establishmentOptions.value = [
-          { value: '', label: 'Selecciona un establecimiento educativo', attrs: { disabled: true } },
-          ...allEstablishments
-        ]
-      }
-      
-      console.log(`✅ ${allEstablishments.length} establecimientos educativos cargados`)
-    } else {
-      // Búsqueda por nombre o RBD
-      const establishments = await nneService.searchEducationalEstablishmentsApi(query)
-      
-      if (establishments.length === 0) {
-        establishmentOptions.value = [
-          { value: '', label: 'No se encontraron establecimientos con esa búsqueda', attrs: { disabled: true } }
-        ]
-      } else {
-        establishmentOptions.value = [
-          { value: '', label: `Resultados para "${query}"`, attrs: { disabled: true } },
-          ...establishments
-        ]
-      }
-      
-      console.log(`✅ ${establishments.length} establecimientos encontrados para "${query}"`)
-    }
-    
-  } catch (error: any) {
-    console.error('❌ Error buscando establecimientos:', error)
-    errors.value.establishments = error.message || 'Error al buscar establecimientos'
-    establishmentOptions.value = [
-      { value: '', label: 'Error al buscar establecimientos', attrs: { disabled: true } }
-    ]
-  } finally {
-    loading.value.establishments = false
-  }
-}
-
-// ✅ Cargar detalle del establecimiento seleccionado
-const loadEstablishmentDetail = async (establishmentId: number) => {
-  try {
-    console.log(`📋 Cargando detalle del establecimiento ${establishmentId}...`)
     const establishment = await nneService.getEstablishmentDetailApi(establishmentId)
     
     selectedEstablishmentInfo.value = {
       name: establishment.name,
-      rbd: establishment.rbd,
-      commune: establishment.commune_detail?.name || null,
-      region: establishment.region_detail?.name || null
+      address: establishment.full_address || `${establishment.address}${establishment.street_number ? ' ' + establishment.street_number : ''}, ${establishment.commune_detail?.name}`,
+      rbd: establishment.rbd || undefined
     }
-    
-    console.log('✅ Detalle del establecimiento cargado:', selectedEstablishmentInfo.value)
   } catch (error) {
-    console.error(`❌ Error cargando detalle del establecimiento ${establishmentId}:`, error)
-    selectedEstablishmentInfo.value = null
+    console.error('[Paso2Location] Error cargando info del establecimiento:', error)
   }
 }
 
-// ✅ MANEJO DE CAMBIO DE REGIÓN
-const handleRegionChange = async (value: any) => {
-  console.log('🌎 Región seleccionada:', value, 'Tipo:', typeof value)
-  
-  // Convertir a número y actualizar
-  const regionId = value ? Number(value) : null
-  formDataLocal.value.region = regionId
-  
-  // Reset comuna cuando cambia región
-  formDataLocal.value.commune = null
-  
-  // Reset opciones de comuna
-  communeOptions.value = [
-    { value: '', label: 'Cargando comunas...', attrs: { disabled: true } }
-  ]
-  
-  // Cargar comunas de la región seleccionada
-  if (regionId) {
-    await loadCommunesByRegion(regionId)
-  } else {
-    communeOptions.value = [
-      { value: '', label: 'Primero selecciona una región', attrs: { disabled: true } }
-    ]
-  }
-  
-  // Emitir validación actualizada
-  const isValid = isStepValid.value
-  emit('validate', isValid)
-}
+// ============================================================================
+// WATCHERS
+// ============================================================================
 
-// ✅ MANEJO DE FOCO EN ESTABLECIMIENTO
-const handleEstablishmentFocus = async () => {
-  console.log('🎯 Foco en campo de establecimiento')
-  
-  // Si no hay establecimientos cargados, cargarlos todos
-  if (establishmentOptions.value.length <= 1) {
-    await searchEducationalEstablishments('')
-  }
-}
-
-// ✅ MANEJO DE INPUT DEL FORMULARIO
-const handleFormInput = async (rawData: any) => {
-  console.log('📝 Input del formulario (raw):', rawData)
-  
-  // Conversión crítica: asegurar que los IDs sean números
-  const processedData: LocationData = {
-    establishment: rawData.establishment ? Number(rawData.establishment) : null,
-    region: rawData.region ? Number(rawData.region) : null,
-    commune: rawData.commune ? Number(rawData.commune) : null,
-    street: rawData.street || '',
-    street_number: rawData.street_number || ''
-  }
-  
-  console.log('🔄 Datos procesados (con números):', processedData)
-  
-  // Actualizar datos locales
-  formDataLocal.value = processedData
-  
-  // Si se seleccionó un establecimiento, cargar su detalle
-  if (processedData.establishment && processedData.establishment !== formDataLocal.value.establishment) {
-    await loadEstablishmentDetail(processedData.establishment)
-  } else if (!processedData.establishment) {
-    selectedEstablishmentInfo.value = null
-  }
-  
-  // Emitir cambios al padre con tipos correctos
-  emit('update:formData', processedData)
-  
-  // Emitir validación
-  const isValid = isStepValid.value
-  emit('validate', isValid)
-}
-
-// Método de validación para exponer
-const validate = () => {
-  const isValid = isStepValid.value
-  console.log('🔍 Validación forzada Paso 2:', isValid)
-  emit('validate', isValid)
-  return isValid
-}
-
-// ✅ INICIALIZACIÓN MEJORADA
-onMounted(async () => {
-  console.log('🚀 Paso 2 - Ubicación montado con datos iniciales:', props.formData)
-  
-  // Cargar regiones asincrónicamente
-  await loadRegions()
-  
-  // Cargar datos iniciales del formulario
-  if (props.formData) {
-    formDataLocal.value = {
-      establishment: props.formData.establishment,
-      region: props.formData.region,
-      commune: props.formData.commune,
-      street: props.formData.street || '',
-      street_number: props.formData.street_number || ''
-    }
-    
-    // Sincronizar datos crudos para FormKit
-    formDataRaw.value = {
-      establishment: props.formData.establishment,
-      region: props.formData.region,
-      commune: props.formData.commune,
-      street: props.formData.street || '',
-      street_number: props.formData.street_number || ''
-    }
-    
-    // Si hay región, cargar sus comunas
-    if (props.formData.region) {
-      await loadCommunesByRegion(props.formData.region)
-    }
-    
-    // Si hay establecimiento, cargar su detalle
-    if (props.formData.establishment) {
-      await loadEstablishmentDetail(props.formData.establishment)
-    }
-  }
-  
-  // Emitir validación inicial después de un pequeño delay
-  setTimeout(() => {
-    const isValid = isStepValid.value
-    console.log('📢 Validación inicial Paso 2:', isValid)
-    emit('validate', isValid)
-  }, 500)
-})
-
-// Watch para cambios desde el padre
-watch(() => props.formData, async (newData) => {
-  if (newData) {
-    const currentStr = JSON.stringify(formDataLocal.value)
-    const newStr = JSON.stringify(newData)
-    
-    if (currentStr !== newStr) {
-      console.log('📥 Actualización desde padre:', newData)
-      
-      // Actualizar con tipos correctos
-      formDataLocal.value = {
-        establishment: newData.establishment,
-        region: newData.region,
-        commune: newData.commune,
-        street: newData.street || '',
-        street_number: newData.street_number || ''
-      }
-      
-      // Sincronizar datos crudos para FormKit
-      formDataRaw.value = {
-        establishment: newData.establishment,
-        region: newData.region,
-        commune: newData.commune,
-        street: newData.street || '',
-        street_number: newData.street_number || ''
-      }
-      
-      // Si hay región, actualizar comunas
-      if (newData.region) {
-        await loadCommunesByRegion(newData.region)
-      }
-      
-      // Si hay establecimiento, actualizar su detalle
-      if (newData.establishment) {
-        await loadEstablishmentDetail(newData.establishment)
-      }
-    }
-  }
+watch(() => props.formData, (newVal) => {
+  formDataRaw.value = { ...newVal }
+  selectedEstablishmentId.value = newVal.establishment
 }, { deep: true })
 
-// Exponer método validate
-defineExpose({
-  validate
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
+
+onMounted(() => {
+  console.log('[Paso2Location] 🚀 Componente montado')
+  
+  // Si ya hay un establecimiento seleccionado, cargar su info
+  if (formDataRaw.value.establishment) {
+    loadEstablishmentInfo(formDataRaw.value.establishment)
+  }
+  
+  // ✅ IMPORTANTE: Validar estado inicial
+  validateForm()
 })
 </script>
 
 <style scoped>
 .step-location {
-  @apply space-y-6;
+  @apply max-w-4xl mx-auto;
 }
 
 .step-header {
-  @apply flex items-start space-x-4 mb-8 pb-6 border-b border-gray-200;
+  @apply flex items-start space-x-4 mb-8;
 }
 
 .step-number {
-  @apply flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold;
-}
-
-.step-title h2 {
-  @apply text-2xl font-bold text-gray-900;
-}
-
-.step-title p {
-  @apply text-gray-600 mt-1;
-}
-
-.form-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
-}
-
-.col-span-full {
-  @apply md:col-span-2;
+  @apply flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold shadow-lg;
 }
 
 .form-group {
-  @apply space-y-2;
+  @apply mb-6;
 }
 
-.search-instructions {
-  @apply space-y-1;
+.establishment-card {
+  @apply p-4 border border-gray-200 rounded-lg transition-all;
 }
 
-.address-preview {
-  @apply p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center space-x-3;
+.establishment-card.clickable {
+  @apply cursor-pointer hover:border-blue-400 hover:bg-blue-50;
 }
 
-.address-text {
-  @apply text-blue-900 font-medium;
+.establishment-card.selected {
+  @apply border-green-500 bg-green-50;
 }
 
-.establishment-info {
-  @apply p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3;
-}
-
-.establishment-details {
-  @apply flex-1;
-}
-
-.establishment-details strong {
-  @apply text-green-900 font-medium block mb-1;
-}
-
-.establishment-meta {
-  @apply text-sm text-green-700 space-x-2;
-}
-
-.validation-info {
-  @apply mt-8 p-4 rounded-lg border flex items-center space-x-3 transition-colors duration-200;
-}
-
-.validation-info:not(.is-valid) {
-  @apply bg-yellow-50 border-yellow-200 text-yellow-800;
-}
-
-.validation-info.is-valid {
-  @apply bg-green-50 border-green-200 text-green-800;
-}
-
-.validation-icon {
-  @apply flex-shrink-0;
-}
-
-.validation-text {
-  @apply text-sm font-medium;
-}
-
-.debug-panel {
-  @apply text-xs font-mono;
-}
-
-.debug-panel h4 {
-  @apply text-sm font-bold text-gray-700;
-}
-
-.debug-panel p {
-  @apply mb-1;
-}
-</style>
-
-<style>
-/* Estilos globales para FormKit */
-#location-form .formkit-outer {
-  @apply mb-0;
-}
-
-#location-form .formkit-label {
-  @apply block text-sm font-medium text-gray-700 mb-2;
-}
-
-#location-form .formkit-input {
-  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-200 bg-white;
-}
-
-#location-form .formkit-input:focus {
-  @apply ring-2 ring-blue-500 ring-opacity-20;
-}
-
-#location-form .formkit-message {
-  @apply mt-1 text-sm text-red-600;
-}
-
-#location-form .formkit-help {
-  @apply mt-1 text-sm text-gray-500;
-}
-
-#location-form select.formkit-input {
-  @apply pr-10 appearance-none bg-white cursor-pointer;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.5rem center;
-  background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
-}
-
-#location-form .formkit-input:disabled {
-  @apply bg-gray-50 text-gray-500 cursor-not-allowed opacity-60;
-}
-
-#location-form .formkit-input[data-invalid="true"] {
-  @apply border-red-300 focus:border-red-500 focus:ring-red-500;
-}
-
-#location-form .formkit-input[data-valid="true"] {
-  @apply border-green-300 focus:border-green-500 focus:ring-green-500;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .form-grid {
-    @apply grid-cols-1 gap-4;
-  }
-  
-  .step-header {
-    @apply flex-col space-x-0 space-y-4;
-  }
-  
-  .step-number {
-    @apply w-8 h-8 text-base;
-  }
+.establishment-info-card {
+  @apply p-6 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-lg;
 }
 </style>

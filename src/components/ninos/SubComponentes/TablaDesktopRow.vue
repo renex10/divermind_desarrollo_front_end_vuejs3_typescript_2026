@@ -1,4 +1,5 @@
 <!-- src/components/ninos/SubComponentes/TablaDesktopRow.vue -->
+<!-- ✅ VERSIÓN CORREGIDA - Mantiene diseño original + validaciones defensivas -->
 <template>
   <tr class="data-row">
     <td class="name-cell">
@@ -8,7 +9,7 @@
           <img
             v-if="photoUrl"
             :src="photoUrl"
-            :alt="`Foto de ${nna.first_name} ${nna.last_name}`"
+            :alt="`Foto de ${nna.first_name || 'niño'} ${nna.last_name || ''}`"
             class="avatar-image"
             @error="handleImageError"
             @load="handleImageLoad"
@@ -22,7 +23,7 @@
           <span 
             class="name clickable-name" 
             @click="verPerfilNino"
-            :title="`Ver perfil de ${nna.first_name} ${nna.last_name}`"
+            :title="`Ver perfil de ${nna.first_name || 'niño'} ${nna.last_name || ''}`"
           >
             {{ nna.first_name }} {{ nna.last_name }}
           </span>
@@ -67,7 +68,7 @@
         <button 
           @click="verPerfilNino" 
           class="action-btn view-btn"
-          :title="`Ver perfil completo de ${nna.first_name}`"
+          :title="`Ver perfil completo de ${nna.first_name || 'niño'}`"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -236,28 +237,50 @@ const handleImageLoad = () => {
 }
 
 /**
- * Obtener iniciales del nombre
+ * ✅ CORREGIDO: Obtener iniciales con validación defensiva
  */
-const getInitials = (firstName: string, lastName: string) => {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+const getInitials = (firstName: string | undefined, lastName: string | undefined): string => {
+  // Validar que existan los nombres
+  if (!firstName || !lastName) {
+    // Si no hay nombres, retornar "?"
+    if (!firstName && !lastName) return '?'
+    // Si solo hay first_name, retornar primera letra
+    if (firstName && !lastName) return firstName.charAt(0).toUpperCase()
+    // Si solo hay last_name, retornar primera letra
+    if (!firstName && lastName) return lastName.charAt(0).toUpperCase()
+  }
+  
+  // Si ambos existen, retornar iniciales
+  return `${firstName!.charAt(0)}${lastName!.charAt(0)}`.toUpperCase()
 }
 
 /**
- * Calcular edad a partir de fecha de nacimiento
+ * ✅ CORREGIDO: Calcular edad con validación
  */
-const calculateAge = (birthDate: string): number => {
+const calculateAge = (birthDate: string | undefined): number => {
   if (!birthDate) return 0
   
-  const today = new Date()
-  const birth = new Date(birthDate)
-  let age = today.getFullYear() - birth.getFullYear()
-  const monthDiff = today.getMonth() - birth.getMonth()
-  
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--
+  try {
+    const today = new Date()
+    const birth = new Date(birthDate)
+    
+    // Validar que la fecha sea válida
+    if (isNaN(birth.getTime())) {
+      return 0
+    }
+    
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDiff = today.getMonth() - birth.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--
+    }
+    
+    return age
+  } catch (error) {
+    console.error('[TablaDesktopRow] Error calculando edad:', error)
+    return 0
   }
-  
-  return age
 }
 
 /**
@@ -266,21 +289,26 @@ const calculateAge = (birthDate: string): number => {
 const formatLastSession = (date: string): string => {
   if (!date) return 'Nunca'
   
-  const sessionDate = new Date(date)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  
-  if (sessionDate.toDateString() === today.toDateString()) {
-    return 'Hoy'
-  } else if (sessionDate.toDateString() === yesterday.toDateString()) {
-    return 'Ayer'
-  } else {
-    return sessionDate.toLocaleDateString('es-CL', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    })
+  try {
+    const sessionDate = new Date(date)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    if (sessionDate.toDateString() === today.toDateString()) {
+      return 'Hoy'
+    } else if (sessionDate.toDateString() === yesterday.toDateString()) {
+      return 'Ayer'
+    } else {
+      return sessionDate.toLocaleDateString('es-CL', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      })
+    }
+  } catch (error) {
+    console.error('[TablaDesktopRow] Error formateando fecha:', error)
+    return 'Fecha inválida'
   }
 }
 

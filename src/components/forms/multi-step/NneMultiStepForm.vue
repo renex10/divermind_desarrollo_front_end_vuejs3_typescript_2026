@@ -648,21 +648,20 @@ const getCurrentStepRef = () => {
   }
 }
 
-const goToStep = async (step: number) => { 
-  if (step >= 1 && step <= totalSteps && step <= currentStep.value) {
-    currentStep.value = step
-    await nextTick()
-    setTimeout(() => forceValidation(), 200)
-  }
-}
-
+// ✅ MEJORA: Forzar guardado de metadata al cambiar de paso
 const nextStep = async () => { 
   if (currentStep.value < totalSteps) {
     await forceValidation()
+    // Pequeño delay para asegurar que la validación se procese
     await new Promise(resolve => setTimeout(resolve, 150))
     
     if (getStepValidity(currentStep.value)) {
       currentStep.value++
+      
+      // 🔥 CRÍTICO: Guardado forzado instantáneo para actualizar el número de paso en el borrador
+      await nextTick()
+      forceSave() 
+      
       setTimeout(() => forceValidation(), 300)
     } else {
       showDebug.value = true
@@ -670,10 +669,27 @@ const nextStep = async () => {
   }
 }
 
-const previousStep = () => { 
+const previousStep = async () => { 
   if (currentStep.value > 1) {
     currentStep.value--
+    
+    // 🔥 CRÍTICO: Guardar paso actual inmediatamente
+    await nextTick()
+    forceSave()
+    
     setTimeout(() => forceValidation(), 100)
+  }
+}
+
+const goToStep = async (step: number) => { 
+  if (step >= 1 && step <= totalSteps && step <= currentStep.value) {
+    currentStep.value = step
+    
+    // 🔥 CRÍTICO: Guardar paso actual inmediatamente
+    await nextTick()
+    forceSave()
+    
+    setTimeout(() => forceValidation(), 200)
   }
 }
 

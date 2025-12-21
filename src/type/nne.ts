@@ -1,79 +1,164 @@
-// src/types/nne.ts
+// src/type/nne.ts
 
 /**
- * Representa la estructura de datos que se envía al backend
- * cuando se crea un nuevo NEE (Niño, Niña o Estudiante).
- * * Está dividido en pasos (1 a 4) para reflejar el formulario multipasos.
+ * ✅ VERSIÓN FINAL CORREGIDA
+ * Tipos actualizados para evitar conflictos con {value, label}
+ * ✅ Agregado tipo Establishment completo
+ */
+
+/**
+ * Representa la estructura de datos que se maneja en el frontend
+ * para el formulario multipasos de NEE.
  */
 export interface NneFormData {
   // Paso 1: Datos básicos del niño
-  first_name: string              // Nombres del niño
-  last_name: string               // Apellidos del niño
-  rut: string                     // RUT en formato chileno (ej: 12.345.678-9)
-  birth_date: string              // Fecha de nacimiento (ISO string: YYYY-MM-DD)
-  gender: string                  // Género (ej: "male", "female", "other")
-  street: string                  // Calle de residencia
-  street_number: string           // Número de la calle
-  region: number | null           // ✅ CORRECCIÓN: Añadido para coincidir con nneService.ts
-  commune: number | null            // ID de la comuna (relación con tabla de comunas)
-  establishment: number | null    // ID del establecimiento (si aplica)
-  current_grade: string           // Curso actual (ej: "1° Básico")
-  school_journey: string          // Jornada escolar (ej: "morning", "afternoon")
-  school_adaptation_notes?: string // Notas de adaptación escolar (opcional)
+  first_name: string;
+  last_name: string;
+  rut: string;
+  birth_date: string;
+  gender: string;
+  
+  // ✅ Nota: Estos campos existen en el Formulario para compatibilidad, 
+  // pero el Service enviará solo el 'establishment' al backend normalizado.
+  street: string;
+  street_number: string;
+  region: number | null;
+  commune: number | null;
+  
+  establishment: number | null; // ID del establecimiento seleccionado
+  current_grade: string;
+  school_journey: string;
+  school_adaptation_notes?: string;
 
   // Paso 2: Información médica y diagnósticos
-  special_needs: boolean          // Indica si tiene necesidades especiales
-  special_needs_type?: string    // Tipo de necesidad especial (ej: "permanent", "temporary")
-  autism_level_value?: string    // Nivel de autismo (ej: "level_1", "level_2", "no_review")
-  pie_diagnosis?: string           // Diagnóstico PIE (opcional)
-  pie_entry_date?: string | null   // Fecha de ingreso al PIE (puede ser null)
-  pie_status?: string              // Estado en PIE (ej: "active", "inactive")
-  allergies?: string               // Alergias conocidas
-  current_medication?: string    // Medicación actual
-  emergency_contact?: string       // Nombre del contacto de emergencia
-  emergency_phone?: string         // Teléfono del contacto de emergencia
-  medical_notes?: string           // Notas médicas adicionales
+  special_needs: boolean;
+  special_needs_type?: string;
+  autism_level_value?: string;
+  pie_diagnosis?: string;
+  pie_entry_date?: string | null;
+  pie_status?: string;
+  allergies?: string;
+  current_medication?: string;
+  emergency_contact?: string;
+  emergency_phone?: string;
+  medical_notes?: string;
 
   // Paso 3: Padres/Tutores asociados
-  usuarios: number[]              // IDs de usuarios con rol "Padres" asociados al niño
+  usuarios: number[]; // IDs de padres
 
   // Paso 4: Consentimiento y antecedentes
-  guardian_consent: boolean       // Consentimiento del apoderado (true/false)
-  consent_date?: string | null     // Fecha del consentimiento (ISO string o null)
-  previous_therapies: boolean     // Indica si tuvo terapias previas
-  previous_therapies_detail?: string // Detalle de terapias previas (opcional)
-  referred_by?: string             // Quién refirió al niño (ej: "school", "doctor")
-  referred_by_detail?: string    // Detalle de la referencia (ej: "Orientadora escolar")
-  attended_where?: string          // Lugar donde asistió previamente
+  guardian_consent: boolean;
+  consent_date?: string | null;
+  previous_therapies: boolean;
+  previous_therapies_detail?: string;
+  referred_by?: string;
+  referred_by_detail?: string;
+  attended_where?: string | number | null;
+}
+
+/**
+ * ✅ Tipo para opciones de select (usado en servicios)
+ * Este es el formato que devuelven las APIs y que usan los componentes
+ */
+export interface SelectOption {
+  value: number;
+  label: string;
+}
+
+/**
+ * Interfaces adicionales necesarias para la coherencia del sistema
+ * (Regiones, Comunas y Establecimientos)
+ * 
+ * ⚠️ IMPORTANTE: Estos tipos son para los datos RAW del backend,
+ * NO para los selects del frontend (usa SelectOption para eso)
+ */
+export interface Region {
+  id: number;
+  name: string;
+  code?: string;
+}
+
+export interface Commune {
+  id: number;
+  name: string;
+  region_id: number;
+}
+
+/**
+ * ✅ NUEVO: Tipo completo para Establishment desde el backend
+ * Usado en searchEstablishmentsFullApi y getEstablishmentDetailApi
+ */
+export interface Establishment {
+  id: number;
+  name: string;
+  rbd: string | null;
+  address: string;
+  street_number: string | null;  // ✅ AGREGADO
+  commune: number;
+  region: number;
+  establishment_type: number;
+  establishment_type_detail?: { 
+    id: number; 
+    name: string; 
+    description?: string;
+  };
+  commune_detail?: { 
+    id: number; 
+    name: string;
+  };
+  region_detail?: { 
+    id: number; 
+    name: string;
+  };
+  phone?: string;
+  email?: string;
+  website?: string;
+  is_active?: boolean;
+  full_address?: string;  // ✅ Campo calculado del backend
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * ✅ DEPRECADO: Usar Establishment en su lugar
+ * Mantenido por compatibilidad temporal
+ */
+export interface EstablishmentSearchResult {
+  id: number;
+  name: string;
+  rbd: string | null;
+  address: string;
+  street_number: string | null;
+  commune: number;
+  region: number;
+  commune_detail?: { id: number; name: string };
+  region_detail?: { id: number; name: string };
+  establishment_type_detail?: { id: number; name: string; description?: string };
 }
 
 /**
  * Representa un usuario con rol "Padre".
- * Este tipo corresponde a lo que devuelve el backend
- * cuando se consulta o se asocia un padre existente.
  */
 export interface ParentUser {
-  id: number                      // ID único del padre en la base de datos
-  username: string                // Nombre de usuario (login)
-  email: string                   // Correo electrónico
-  first_name: string              // Nombres
-  last_name: string               // Apellidos
-  rut: string                     // RUT del padre
-  phone?: string                  // Teléfono de contacto (opcional)
-  role?: string                   // ✅ CORRECCIÓN: Añadido para coincidir con nneService.ts
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  rut: string;
+  phone?: string;
+  role?: string;
 }
 
 /**
- * Representa el payload necesario para crear un nuevo padre/tutor.
- * Se separa de `ParentUser` porque aquí sí se requiere `password`,
- * mientras que en la respuesta del backend nunca se expone.
+ * Payload para crear un nuevo padre/tutor.
  */
 export interface ParentUserCreate {
-  first_name: string              // Nombres
-  last_name: string               // Apellidos
-  rut: string                     // RUT
-  email: string                   // Correo electrónico
-  phone?: string                  // Teléfono (opcional)
-  username: string                // Nombre de usuario (login)
-  password: string                // Contraseña (requerida al crear)
+  first_name: string;
+  last_name: string;
+  rut: string;
+  email: string;
+  phone?: string;
+  username: string;
+  password: string;
 }

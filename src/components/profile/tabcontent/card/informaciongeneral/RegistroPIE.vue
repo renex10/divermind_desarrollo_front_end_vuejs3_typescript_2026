@@ -21,13 +21,12 @@
             <span>{{ pieData?.entry_date || 'No especificada' }}</span>
           </div>
         </div>
-        <div class="info-item">
-          <StatusOnlineIcon class="icon-sm" />
-          <div>
-            <label>Estado</label>
-            <span :class="statusClass">{{ pieData?.status || 'No especificado' }}</span>
-          </div>
-        </div>
+<CheckCircleIcon class="icon-sm" />
+<div>
+  <label>Estado</label>
+  <span :class="statusClass">{{ pieData?.status || 'No especificado' }}</span>
+</div>
+
       </div>
     </div>
   </div>
@@ -39,6 +38,9 @@ import {
   DocumentTextIcon,
   CalendarIcon,
 } from '@heroicons/vue/24/outline'
+
+import { CheckCircleIcon } from '@heroicons/vue/24/solid'   // 👈 este es el que faltaba
+
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -46,10 +48,10 @@ const props = defineProps<{
 }>()
 
 const statusClass = computed(() => {
-  const status = props.pieData?.status;
-  if (status === 'Activo') return 'text-green-600';
-  if (status === 'Inactivo') return 'text-red-600';
-  return 'text-gray-600';
+  const status = props.pieData?.status
+  if (status === 'Activo') return 'text-green-600'
+  if (status === 'Inactivo') return 'text-red-600'
+  return 'text-gray-600'
 })
 </script>
 

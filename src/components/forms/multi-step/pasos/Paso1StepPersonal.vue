@@ -1,7 +1,5 @@
-<!-- src\components\forms\multi-step\pasos\Paso1StepPersonal.vue -->
 <template>
   <div class="step-personal">
-    <!-- Header del Paso -->
     <div class="step-header">
       <div class="step-number">1</div>
       <div class="step-title">
@@ -10,7 +8,6 @@
       </div>
     </div>
 
-    <!-- Formulario -->
     <FormKit
       type="form"
       id="personal-form"
@@ -23,9 +20,7 @@
         }
       }"
     >
-      <!-- Grid de Campos -->
       <div class="form-grid">
-        <!-- Nombres -->
         <div class="form-group">
           <FormKit
             type="text"
@@ -47,7 +42,6 @@
           />
         </div>
 
-        <!-- Apellidos -->
         <div class="form-group">
           <FormKit
             type="text"
@@ -69,7 +63,6 @@
           />
         </div>
 
-        <!-- RUT -->
         <div class="form-group">
           <FormKit
             type="text"
@@ -106,7 +99,6 @@
           </div>
         </div>
 
-        <!-- Fecha de Nacimiento -->
         <div class="form-group">
           <FormKit
             type="date"
@@ -131,7 +123,6 @@
           </div>
         </div>
 
-        <!-- Género -->
         <div class="form-group">
           <FormKit
             type="select"
@@ -149,7 +140,6 @@
           />
         </div>
 
-        <!-- Información de Edad Calculada -->
         <div class="form-group" v-if="calculatedAge !== null">
           <label class="formkit-label">Edad Calculada</label>
           <div class="age-display">
@@ -159,7 +149,6 @@
         </div>
       </div>
 
-      <!-- Información de Validación -->
       <div class="validation-info" :class="{ 'is-valid': isStepValid }">
         <div class="validation-icon">
           <CheckCircleIcon v-if="isStepValid" class="h-5 w-5" />
@@ -207,6 +196,9 @@ const localData = ref({
   birth_date: '',
   gender: 'unspecified'
 })
+
+// Estado para evitar ciclos infinitos en el watcher
+const isInitialized = ref(false)
 
 // Estado de validación de RUT
 const rutValidationState = ref<'idle' | 'checking' | 'valid' | 'error'>('idle')
@@ -381,13 +373,7 @@ const debouncedEmit = () => {
   
   emitTimer = window.setTimeout(() => {
     const isValid = isStepValid.value
-    console.log('🔍 Paso 1 - Validación (debounced):', isValid, {
-      first_name: localData.value.first_name?.length >= 2,
-      last_name: localData.value.last_name?.length >= 2,
-      birth_date: localData.value.birth_date !== '',
-      rut: rutValidationState.value === 'valid',
-      dateError: dateError.value === ''
-    })
+    console.log('🔍 Paso 1 - Validación (debounced):', isValid)
     
     emit('update:formData', { ...localData.value })
     emit('validate', isValid)
@@ -396,18 +382,15 @@ const debouncedEmit = () => {
 
 // Maneja cambios en el formulario
 const handleFormChange = () => {
-  // Usar debounce para evitar sobrescritura mientras se escribe
   debouncedEmit()
 }
 
 // Método para validación externa
 const validate = async () => {
-  // Forzar validación de RUT si existe
   if (localData.value.rut) {
     await customRutValidation(localData.value.rut)
   }
   
-  // Validar fecha si existe
   if (localData.value.birth_date) {
     validateBirthDate(localData.value.birth_date)
   }
@@ -418,9 +401,28 @@ const validate = async () => {
   return isStepValid.value
 }
 
+// ✅ CORRECCIÓN: Watcher para sincronizar datos recuperados del borrador
+watch(() => props.formData, (newData) => {
+  if (newData && isInitialized.value) {
+    // Evitar bucles infinitos comparando valores básicos
+    if (newData.first_name !== localData.value.first_name || 
+        newData.rut !== localData.value.rut ||
+        newData.birth_date !== localData.value.birth_date) {
+      
+      console.log('🔄 Paso 1 - Sincronizando datos desde prop (Borrador recovered)');
+      localData.value = { ...newData };
+      
+      // Si hay un RUT del borrador, re-validarlo inmediatamente
+      if (localData.value.rut && localData.value.rut.length > 8) {
+        customRutValidation(localData.value.rut);
+      }
+    }
+  }
+}, { deep: true });
+
 // Inicializar con datos del prop
 onMounted(() => {
-  if (props.formData) {
+  if (props.formData && Object.keys(props.formData).length > 0) {
     localData.value = { ...props.formData }
     
     // Validar RUT inicial si existe
@@ -431,6 +433,8 @@ onMounted(() => {
       }, 500)
     }
   }
+  
+  isInitialized.value = true
   
   // Emitir validación inicial
   setTimeout(() => {
@@ -455,148 +459,46 @@ defineExpose({
 </script>
 
 <style scoped>
-.step-personal {
-  @apply space-y-6;
-}
-
-.step-header {
-  @apply flex items-start space-x-4 mb-8 pb-6 border-b border-gray-200;
-}
-
-.step-number {
-  @apply flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold;
-}
-
-.step-title h2 {
-  @apply text-2xl font-bold text-gray-900;
-}
-
-.step-title p {
-  @apply text-gray-600 mt-1;
-}
-
-.form-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
-}
-
-.form-group {
-  @apply space-y-2;
-}
-
-.rut-helpers {
-  @apply mt-1;
-}
-
-.rut-validation-status.valid {
-  @apply text-green-600;
-}
-
-.rut-validation-status.checking {
-  @apply text-blue-600;
-}
-
-.rut-validation-status.error {
-  @apply text-red-600;
-}
-
-.age-display {
-  @apply p-3 bg-blue-50 border border-blue-200 rounded-lg;
-}
-
-.age-value {
-  @apply block text-lg font-semibold text-blue-900;
-}
-
-.age-info {
-  @apply block text-sm text-blue-600;
-}
-
-.validation-info {
-  @apply mt-8 p-4 rounded-lg border flex items-center space-x-3 transition-colors duration-200;
-}
-
-.validation-info:not(.is-valid) {
-  @apply bg-yellow-50 border-yellow-200 text-yellow-800;
-}
-
-.validation-info.is-valid {
-  @apply bg-green-50 border-green-200 text-green-800;
-}
-
-.validation-icon {
-  @apply flex-shrink-0;
-}
-
-.validation-text {
-  @apply text-sm font-medium;
-}
+/* Estilos originales del componente */
+.step-personal { @apply space-y-6; }
+.step-header { @apply flex items-start space-x-4 mb-8 pb-6 border-b border-gray-200; }
+.step-number { @apply flex-shrink-0 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold; }
+.step-title h2 { @apply text-2xl font-bold text-gray-900; }
+.step-title p { @apply text-gray-600 mt-1; }
+.form-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-6; }
+.form-group { @apply space-y-2; }
+.rut-helpers { @apply mt-1; }
+.rut-validation-status.valid { @apply text-green-600; }
+.rut-validation-status.checking { @apply text-blue-600; }
+.rut-validation-status.error { @apply text-red-600; }
+.age-display { @apply p-3 bg-blue-50 border border-blue-200 rounded-lg; }
+.age-value { @apply block text-lg font-semibold text-blue-900; }
+.age-info { @apply block text-sm text-blue-600; }
+.validation-info { @apply mt-8 p-4 rounded-lg border flex items-center space-x-3 transition-colors duration-200; }
+.validation-info:not(.is-valid) { @apply bg-yellow-50 border-yellow-200 text-yellow-800; }
+.validation-info.is-valid { @apply bg-green-50 border-green-200 text-green-800; }
+.validation-icon { @apply flex-shrink-0; }
+.validation-text { @apply text-sm font-medium; }
 </style>
 
 <style>
-/* Estilos globales para FormKit en este componente */
-.personal-form-grid {
-  @apply space-y-6;
-}
-
-.formkit-outer {
-  @apply mb-0;
-}
-
-.formkit-label {
-  @apply block text-sm font-medium text-gray-700 mb-2;
-}
-
-.formkit-input {
-  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-200;
-}
-
-.formkit-input:focus {
-  @apply ring-2 ring-blue-500 ring-opacity-20;
-}
-
-.formkit-message {
-  @apply mt-1 text-sm text-red-600;
-}
-
-.formkit-help {
-  @apply mt-1 text-sm text-gray-500;
-}
-
-.formkit-input[type="date"] {
-  @apply pr-10;
-}
-
-.formkit-input[type="select"] {
-  @apply pr-10 bg-white;
-}
-
-.formkit-input[data-invalid="true"] {
-  @apply border-red-300 focus:border-red-500 focus:ring-red-500;
-}
-
-.formkit-input[data-valid="true"] {
-  @apply border-green-300 focus:border-green-500 focus:ring-green-500;
-}
-
-.formkit-input::placeholder {
-  @apply text-gray-400;
-}
-
-.formkit-input:disabled {
-  @apply bg-gray-50 text-gray-500 cursor-not-allowed;
-}
-
+/* Estilos globales para FormKit */
+.personal-form-grid { @apply space-y-6; }
+.formkit-outer { @apply mb-0; }
+.formkit-label { @apply block text-sm font-medium text-gray-700 mb-2; }
+.formkit-input { @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-200; }
+.formkit-input:focus { @apply ring-2 ring-blue-500 ring-opacity-20; }
+.formkit-message { @apply mt-1 text-sm text-red-600; }
+.formkit-help { @apply mt-1 text-sm text-gray-500; }
+.formkit-input[type="date"] { @apply pr-10; }
+.formkit-input[type="select"] { @apply pr-10 bg-white; }
+.formkit-input[data-invalid="true"] { @apply border-red-300 focus:border-red-500 focus:ring-red-500; }
+.formkit-input[data-valid="true"] { @apply border-green-300 focus:border-green-500 focus:ring-green-500; }
+.formkit-input::placeholder { @apply text-gray-400; }
+.formkit-input:disabled { @apply bg-gray-50 text-gray-500 cursor-not-allowed; }
 @media (max-width: 768px) {
-  .form-grid {
-    @apply grid-cols-1 gap-4;
-  }
-  
-  .step-header {
-    @apply flex-col space-x-0 space-y-4;
-  }
-  
-  .step-number {
-    @apply w-8 h-8 text-base;
-  }
+  .form-grid { @apply grid-cols-1 gap-4; }
+  .step-header { @apply flex-col space-x-0 space-y-4; }
+  .step-number { @apply w-8 h-8 text-base; }
 }
 </style>

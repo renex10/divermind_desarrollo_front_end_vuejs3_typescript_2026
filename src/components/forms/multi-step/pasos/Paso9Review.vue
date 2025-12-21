@@ -1,4 +1,13 @@
-<!-- src\components\forms\multi-step\pasos\Paso9Review.vue CORREGIDO -->
+<!-- src\components\forms\multi-step\pasos\Paso9Review.vue -->
+<!--
+  ✅ VERSIÓN CORREGIDA - Compatible con refactorización de Paso2
+  
+  CAMBIOS:
+  1. ✅ Validación simplificada: solo requiere establishment
+  2. ✅ Carga datos del establecimiento desde API
+  3. ✅ Eliminados campos obsoletos (region, commune, street, street_number del formData)
+  4. ✅ Muestra datos del establecimiento completo
+-->
 <template>
   <div class="step-review">
     <!-- Header del Paso -->
@@ -59,11 +68,44 @@
         @toggle="toggleSection('location')"
       >
         <div class="review-content">
-          <div class="data-grid">
-            <DataField label="Establecimiento" :value="getEstablishmentName(formData.establishment)" />
-            <DataField label="Región" :value="getRegionName(formData.region)" />
-            <DataField label="Comuna" :value="getCommuneName(formData.commune)" />
-            <DataField label="Dirección" :value="formatAddress(formData.street, formData.street_number)" />
+          <!-- ✅ Loading State -->
+          <div v-if="loadingEstablishment" class="text-center py-4">
+            <div class="inline-flex items-center space-x-2 text-gray-600">
+              <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Cargando datos del establecimiento...</span>
+            </div>
+          </div>
+          
+          <!-- ✅ Datos del Establecimiento -->
+          <div v-else class="data-grid">
+            <DataField 
+              label="Establecimiento" 
+              :value="establishmentData?.name || 'No especificado'" 
+            />
+            <DataField 
+              label="Tipo" 
+              :value="establishmentData?.establishment_type_detail?.name || 'No especificado'" 
+            />
+            <DataField 
+              label="RBD" 
+              :value="establishmentData?.rbd || 'No aplica'" 
+            />
+            <DataField 
+              label="Dirección Completa" 
+              :value="establishmentData?.full_address || formatEstablishmentAddress()" 
+              class="col-span-2"
+            />
+            <DataField 
+              label="Región" 
+              :value="establishmentData?.region_detail?.name || 'No especificado'" 
+            />
+            <DataField 
+              label="Comuna" 
+              :value="establishmentData?.commune_detail?.name || 'No especificado'" 
+            />
           </div>
         </div>
       </ReviewSection>
@@ -80,9 +122,9 @@
             <DataField label="Curso/Nivel Actual" :value="formData.current_grade" />
             <DataField label="Jornada Escolar" :value="formatSchoolJourney(formData.school_journey)" />
             <DataField 
-              label="Observaciones de Adaptación" 
-              :value="formData.adaptation_notes || 'No especificadas'" 
-              :isLong="true"
+              label="Notas de Adaptación" 
+              :value="formData.adaptation_notes || 'Sin observaciones'" 
+              class="col-span-2"
             />
           </div>
         </div>
@@ -90,98 +132,28 @@
 
       <!-- Perfil Médico -->
       <ReviewSection
-        title="Perfil Médico"
+        title="Perfil Médico y Diagnósticos"
         :isValid="isMedicalDataValid"
         :isOpen="openSection === 'medical'"
         @toggle="toggleSection('medical')"
       >
         <div class="review-content">
           <div class="data-grid">
-            <DataField label="Alergias" :value="formData.allergies || 'Ninguna registrada'" :isLong="true" />
-            <DataField label="Medicación Actual" :value="formData.current_medication || 'Ninguna registrada'" :isLong="true" />
-            <DataField label="Contacto de Emergencia" :value="formData.emergency_contact" />
-            <DataField label="Teléfono de Emergencia" :value="formatPhone(formData.emergency_phone)" />
-            <DataField label="Observaciones Médicas" :value="formData.medical_notes || 'No especificadas'" :isLong="true" />
-          </div>
-        </div>
-      </ReviewSection>
-
-      <!-- Necesidades Especiales -->
-      <ReviewSection
-        title="Necesidades Especiales"
-        :isValid="isSpecialNeedsDataValid"
-        :isOpen="openSection === 'special_needs'"
-        @toggle="toggleSection('special_needs')"
-      >
-        <div class="review-content">
-          <div class="data-grid">
+            <DataField label="Necesidades Especiales" :value="formData.has_special_needs ? 'Sí' : 'No'" />
             <DataField 
-              label="¿Presenta NEE?" 
-              :value="formatBoolean(formData.has_special_needs)" 
-            />
-            <DataField 
-              v-if="formData.has_special_needs"
-              label="Tipo de NEE" 
+              v-if="formData.has_special_needs" 
+              label="Tipo" 
               :value="formatSpecialNeedsType(formData.special_needs_type)" 
             />
+            <DataField label="Nivel de Autismo" :value="formatAutismLevel(formData.autism_level)" />
+            <DataField label="Alergias" :value="formData.allergies || 'Ninguna'" />
+            <DataField label="Medicación Actual" :value="formData.current_medication || 'Ninguna'" />
+            <DataField label="Contacto de Emergencia" :value="formData.emergency_contact" />
+            <DataField label="Teléfono de Emergencia" :value="formData.emergency_phone" />
             <DataField 
-              label="Nivel de Autismo" 
-              :value="formatAutismLevel(formData.autism_level)" 
-            />
-          </div>
-        </div>
-      </ReviewSection>
-
-      <!-- Historial de Terapias -->
-      <ReviewSection
-        title="Historial de Terapias"
-        :isValid="isTherapyDataValid"
-        :isOpen="openSection === 'therapy'"
-        @toggle="toggleSection('therapy')"
-      >
-        <div class="review-content">
-          <div class="data-grid">
-            <DataField 
-              label="¿Terapias Previas?" 
-              :value="formatBoolean(formData.has_previous_therapies)" 
-            />
-            <DataField 
-              v-if="formData.has_previous_therapies"
-              label="Detalle de Terapias" 
-              :value="formData.therapies_detail" 
-              :isLong="true"
-            />
-            <DataField label="¿Quién derivó?" :value="formatReferredBy(formData.referred_by)" />
-            <DataField 
-              v-if="formData.referred_by_detail"
-              label="Detalle de Derivación" 
-              :value="formData.referred_by_detail" 
-            />
-            <DataField 
-              label="Establecimiento Anterior" 
-              :value="getEstablishmentName(formData.attended_where) || 'No especificado'" 
-            />
-          </div>
-        </div>
-      </ReviewSection>
-
-      <!-- Consentimiento -->
-      <ReviewSection
-        title="Consentimiento del Apoderado"
-        :isValid="isGuardianDataValid"
-        :isOpen="openSection === 'guardian'"
-        @toggle="toggleSection('guardian')"
-      >
-        <div class="review-content">
-          <div class="data-grid">
-            <DataField 
-              label="Consentimiento Otorgado" 
-              :value="formatBoolean(formData.guardian_consent)" 
-            />
-            <DataField 
-              v-if="formData.guardian_consent"
-              label="Fecha de Consentimiento" 
-              :value="formatDate(formData.consent_date)" 
+              label="Notas Médicas" 
+              :value="formData.medical_notes || 'Sin observaciones'" 
+              class="col-span-2"
             />
           </div>
         </div>
@@ -195,177 +167,269 @@
         @toggle="toggleSection('parents')"
       >
         <div class="review-content">
-          <div class="parents-list">
-            <div 
-              v-for="parent in selectedParents" 
-              :key="parent.id"
-              class="parent-review-card"
-            >
-              <UserCircleIcon class="h-8 w-8 text-gray-400" />
+          <div v-if="formData.usuarios && formData.usuarios.length > 0" class="space-y-4">
+            <div v-for="(parentId, index) in formData.usuarios" :key="parentId" class="parent-card">
+              <div class="parent-header">
+                <UserCircleIcon class="h-5 w-5 text-blue-500" />
+                <span class="parent-label">Tutor {{ index + 1 }}</span>
+              </div>
               <div class="parent-info">
-                <span class="parent-name">{{ parent.fullName }}</span>
-                <span class="parent-details">{{ parent.rut }} • {{ parent.email }}</span>
-                <span v-if="parent.phone" class="parent-phone">{{ parent.phone }}</span>
+                <span class="text-gray-700">ID: {{ parentId }}</span>
               </div>
             </div>
-            <div v-if="selectedParents.length === 0" class="no-parents">
-              <ExclamationTriangleIcon class="h-5 w-5 text-yellow-500" />
-              <span>No se han seleccionado padres/tutores</span>
-            </div>
+          </div>
+          <div v-else class="text-center py-6 text-gray-500">
+            No se han agregado tutores
+          </div>
+        </div>
+      </ReviewSection>
+
+      <!-- Terapias Previas -->
+      <ReviewSection
+        title="Terapias y Antecedentes"
+        :isValid="true"
+        :isOpen="openSection === 'therapies'"
+        @toggle="toggleSection('therapies')"
+      >
+        <div class="review-content">
+          <div class="data-grid">
+            <DataField label="Terapias Previas" :value="formData.has_previous_therapies ? 'Sí' : 'No'" />
+            <DataField 
+              v-if="formData.has_previous_therapies" 
+              label="Detalle" 
+              :value="formData.therapies_detail || 'Sin detalles'" 
+              class="col-span-2"
+            />
+            <DataField label="Referido Por" :value="formData.referred_by || 'No especificado'" />
+            <DataField 
+              v-if="formData.referred_by" 
+              label="Detalle de Referencia" 
+              :value="formData.referred_by_detail || 'Sin detalles'" 
+            />
+            <DataField 
+              label="Atención Previa En" 
+              :value="formData.attended_where || 'No especificado'" 
+            />
+          </div>
+        </div>
+      </ReviewSection>
+
+      <!-- Consentimiento -->
+      <ReviewSection
+        title="Consentimiento y Autorización"
+        :isValid="isConsentDataValid"
+        :isOpen="openSection === 'consent'"
+        @toggle="toggleSection('consent')"
+      >
+        <div class="review-content">
+          <div class="data-grid">
+            <DataField 
+              label="Consentimiento del Tutor" 
+              :value="formData.guardian_consent ? '✓ Otorgado' : '✗ No otorgado'" 
+            />
+            <DataField 
+              label="Fecha de Consentimiento" 
+              :value="formatDate(formData.consent_date)" 
+            />
           </div>
         </div>
       </ReviewSection>
     </div>
 
-    <!-- Validación Final -->
-    <div class="final-validation" :class="validationStatus.class">
-      <div class="validation-header">
-        <component :is="validationStatus.icon" class="h-6 w-6" />
-        <h3 class="validation-title">{{ validationStatus.title }}</h3>
+    <!-- Advertencias y Errores -->
+    <div v-if="!isAllDataValid" class="validation-alert">
+      <div class="alert-header">
+        <ExclamationTriangleIcon class="h-6 w-6 text-red-500" />
+        <span class="alert-title">Revisión necesaria</span>
       </div>
-      <p class="validation-message">{{ validationStatus.message }}</p>
-      
-      <div v-if="!isAllDataValid" class="validation-issues">
-        <h4 class="issues-title">Problemas encontrados:</h4>
-        <ul class="issues-list">
-          <li v-if="!isPersonalDataValid">❌ Datos personales incompletos (nombre, apellido, fecha nacimiento)</li>
-          <li v-if="!isLocationDataValid">❌ Información de ubicación incompleta (establecimiento, dirección)</li>
-          <li v-if="!isSchoolDataValid">❌ Información escolar incompleta (curso/nivel actual)</li>
-          <li v-if="!isMedicalDataValid">❌ Perfil médico incompleto (contacto y teléfono de emergencia)</li>
-          <li v-if="!isSpecialNeedsDataValid">❌ Necesidades especiales incompletas (tipo de NEE requerido)</li>
-          <li v-if="!isTherapyDataValid">❌ Historial de terapias incompleto (detalle de terapias requerido)</li>
-          <li v-if="!isGuardianDataValid">❌ Consentimiento incompleto (fecha de consentimiento requerida)</li>
-          <li v-if="!isParentsDataValid">❌ Padres/tutores no asignados (mínimo 1 requerido)</li>
+      <p class="alert-message">Hay algunos problemas que deben ser corregidos antes de continuar.</p>
+      <div class="alert-details">
+        <p class="font-medium text-gray-700 mb-2">Problemas encontrados:</p>
+        <ul class="space-y-1 text-sm text-gray-600">
+          <li v-if="!isPersonalDataValid">❌ Datos personales incompletos</li>
+          <li v-if="!isLocationDataValid">❌ Información de ubicación incompleta (establecimiento)</li>
+          <li v-if="!isSchoolDataValid">❌ Información escolar incompleta</li>
+          <li v-if="!isMedicalDataValid">❌ Información médica incompleta</li>
+          <li v-if="!isParentsDataValid">❌ Debe agregar al menos un tutor</li>
+          <li v-if="!isConsentDataValid">❌ Falta consentimiento del tutor</li>
         </ul>
       </div>
+      <p class="alert-footer">⚠ Corrija los problemas antes de continuar</p>
     </div>
 
-    <!-- Información de Validación -->
-    <div class="validation-info" :class="{ 'is-valid': isStepValid }">
-      <div class="validation-icon">
-        <CheckCircleIcon v-if="isStepValid" class="h-5 w-5" />
-        <ExclamationCircleIcon v-else class="h-5 w-5" />
-      </div>
-      <div class="validation-text">
-        <span v-if="isStepValid">✓ Todo listo para registrar al niño/niña</span>
-        <span v-else>⚠ Corrija los problemas antes de continuar</span>
+    <!-- Confirmación -->
+    <div v-else class="validation-success">
+      <div class="success-content">
+        <CheckCircleIcon class="h-8 w-8 text-green-500" />
+        <div class="success-text">
+          <p class="success-title">Todo está correcto</p>
+          <p class="success-message">La información ha sido revisada y está completa</p>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { 
-  CheckCircleIcon, 
-  ExclamationCircleIcon,
-  DocumentCheckIcon,
-  UserCircleIcon,
-  ExclamationTriangleIcon,
-  ClipboardDocumentCheckIcon,
-  XCircleIcon
-} from '@heroicons/vue/24/outline'
-
-// Components
+import { ref, computed, watch, onMounted } from 'vue'
+import { DocumentCheckIcon, CheckCircleIcon, ExclamationTriangleIcon, UserCircleIcon } from '@heroicons/vue/24/outline'
 import ReviewSection from '../components/ReviewSection.vue'
 import DataField from '../components/DataField.vue'
+import * as nneService from '@/services/nneService'
+import type { Establishment } from '@/type/nne'
 
-// Props y Emits
-interface Parent {
-  id: number
-  fullName: string
+// ============================================================================
+// INTERFACES
+// ============================================================================
+
+interface FormDataProps {
+  first_name: string
+  last_name: string
   rut: string
-  email: string
-  phone?: string
+  birth_date: string
+  gender: string
+  establishment: number  // ✅ Solo ID, no region/commune/street separados
+  current_grade: string
+  school_journey: string
+  adaptation_notes: string
+  allergies: string
+  current_medication: string
+  emergency_contact: string
+  emergency_phone: string
+  medical_notes: string
+  has_special_needs: boolean
+  special_needs_type: string
+  autism_level: string
+  has_previous_therapies: boolean
+  therapies_detail: string
+  referred_by: string
+  referred_by_detail: string
+  attended_where: any
+  guardian_consent: boolean
+  consent_date: string
+  usuarios: number[]
+  pie_diagnosis?: string
+  pie_entry_date?: string | null
+  pie_status?: string
 }
 
 interface Props {
-  formData: {
-    first_name: string
-    last_name: string
-    rut: string
-    birth_date: string
-    gender: string
-    establishment: any
-    region: any
-    commune: any
-    street: string
-    street_number: string
-    current_grade: string
-    school_journey: string
-    adaptation_notes: string
-    allergies: string
-    current_medication: string
-    emergency_contact: string
-    emergency_phone: string
-    medical_notes: string
-    has_special_needs: boolean  // ✅ CORREGIDO: boolean en lugar de string
-    special_needs_type: string
-    autism_level: string
-    has_previous_therapies: boolean  // ✅ CORREGIDO: boolean en lugar de string
-    therapies_detail: string
-    referred_by: string
-    referred_by_detail: string
-    attended_where: any
-    guardian_consent: boolean  // ✅ CORREGIDO: boolean en lugar de string
-    consent_date: string
-    usuarios: number[]
-  }
+  formData: FormDataProps
 }
 
 interface Emits {
-  (e: 'update:formData', data: Props['formData']): void
   (e: 'validate', isValid: boolean): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Estado local para secciones abiertas
+// ============================================================================
+// STATE
+// ============================================================================
+
 const openSection = ref<string>('personal')
 
-// Datos simulados de padres
-const availableParents = ref<Parent[]>([
-  {
-    id: 10,
-    fullName: 'Carlos Ramírez Torres',
-    rut: '12.345.678-9',
-    email: 'carlos.ramirez@email.com',
-    phone: '+56 9 3333 4444'
-  },
-  {
-    id: 11,
-    fullName: 'María González López',
-    rut: '23.456.789-0',
-    email: 'maria.gonzalez@email.com',
-    phone: '+56 9 5555 6666'
+// ✅ NUEVO: Estado para cargar datos del establecimiento
+const loadingEstablishment = ref(false)
+const establishmentData = ref<Establishment | null>(null)
+
+// ============================================================================
+// METHODS
+// ============================================================================
+
+/**
+ * ✅ NUEVO: Cargar datos del establecimiento desde la API
+ */
+const loadEstablishmentData = async () => {
+  if (!props.formData.establishment) {
+    establishmentData.value = null
+    return
   }
-])
 
-// ✅ NUEVA FUNCIÓN: Formatear booleanos para display
-const formatBoolean = (value: boolean | string): string => {
-  if (typeof value === 'boolean') {
-    return value ? 'Sí' : 'No'
+  loadingEstablishment.value = true
+  
+  try {
+    const establishment = await nneService.getEstablishmentDetailApi(props.formData.establishment)
+    establishmentData.value = establishment
+    console.log('[Paso9Review] ✅ Establecimiento cargado:', establishment)
+  } catch (error) {
+    console.error('[Paso9Review] ❌ Error cargando establecimiento:', error)
+    establishmentData.value = null
+  } finally {
+    loadingEstablishment.value = false
   }
-  // Backward compatibility con strings
-  if (value === 'true') return 'Sí'
-  if (value === 'false') return 'No'
-  return 'No especificado'
 }
 
-// ✅ NUEVA FUNCIÓN: Convertir string a boolean para validación
-const toBoolean = (value: boolean | string): boolean => {
-  if (typeof value === 'boolean') return value
-  return value === 'true'
+/**
+ * ✅ NUEVO: Formatear dirección del establecimiento
+ */
+const formatEstablishmentAddress = (): string => {
+  if (!establishmentData.value) return 'No especificado'
+  
+  const est = establishmentData.value
+  const parts = []
+  
+  if (est.address) parts.push(est.address)
+  if (est.street_number) parts.push(est.street_number)
+  if (est.commune_detail?.name) parts.push(est.commune_detail.name)
+  if (est.region_detail?.name) parts.push(est.region_detail.name)
+  
+  return parts.length > 0 ? parts.join(', ') : 'No especificado'
 }
 
-// Funciones de formato (mantenidas)
-const formatDate = (date: string) => {
-  if (!date) return 'No especificada'
-  return new Date(date).toLocaleDateString('es-CL')
+const toggleSection = (section: string) => {
+  openSection.value = openSection.value === section ? '' : section
 }
 
-const calculateAge = (birthDate: string) => {
+const formatDate = (date: string): string => {
+  if (!date) return 'No especificado'
+  const d = new Date(date)
+  return d.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+const formatGender = (gender: string): string => {
+  const genders: Record<string, string> = {
+    'M': 'Masculino',
+    'F': 'Femenino',
+    'O': 'Otro',
+    'male': 'Masculino',
+    'female': 'Femenino',
+    'other': 'Otro'
+  }
+  return genders[gender] || gender || 'No especificado'
+}
+
+const formatSchoolJourney = (journey: string): string => {
+  const journeys: Record<string, string> = {
+    'morning': 'Mañana',
+    'afternoon': 'Tarde',
+    'full': 'Completa'
+  }
+  return journeys[journey] || journey || 'No especificado'
+}
+
+const formatSpecialNeedsType = (type: string): string => {
+  const types: Record<string, string> = {
+    'autism': 'Autismo',
+    'adhd': 'TDAH',
+    'dyslexia': 'Dislexia',
+    'other': 'Otro'
+  }
+  return types[type] || type || 'No especificado'
+}
+
+const formatAutismLevel = (level: string): string => {
+  const levels: Record<string, string> = {
+    'level_1': 'Nivel 1 (Apoyo)',
+    'level_2': 'Nivel 2 (Apoyo Sustancial)',
+    'level_3': 'Nivel 3 (Apoyo Muy Sustancial)',
+    'no_review': 'Sin evaluación'
+  }
+  return levels[level] || 'Sin evaluación'
+}
+
+const calculateAge = (birthDate: string): number => {
   if (!birthDate) return 0
   const today = new Date()
   const birth = new Date(birthDate)
@@ -377,109 +441,30 @@ const calculateAge = (birthDate: string) => {
   return age
 }
 
-const formatGender = (gender: string) => {
-  const genders: Record<string, string> = {
-    male: 'Masculino',
-    female: 'Femenino',
-    other: 'Otro',
-    unspecified: 'No especifica'
-  }
-  return genders[gender] || 'No especificado'
-}
+// ============================================================================
+// COMPUTED
+// ============================================================================
 
-const formatSchoolJourney = (journey: string) => {
-  const journeys: Record<string, string> = {
-    morning: 'Jornada Mañana',
-    afternoon: 'Jornada Tarde',
-    full_time: 'Jornada Completa',
-    extended: 'Jornada Extendida'
-  }
-  return journeys[journey] || 'No especificada'
-}
-
-const formatSpecialNeedsType = (type: string) => {
-  const types: Record<string, string> = {
-    permanent: 'Permanente',
-    temporary: 'Transitoria',
-    none: 'No aplica'
-  }
-  return types[type] || 'No especificado'
-}
-
-const formatAutismLevel = (level: string) => {
-  const levels: Record<string, string> = {
-    no_review: 'Sin revisión',
-    level_1: 'Nivel 1 - Requiere apoyo',
-    level_2: 'Nivel 2 - Requiere apoyo sustancial',
-    level_3: 'Nivel 3 - Requiere apoyo muy sustancial',
-    not_applicable: 'No aplica',
-    none: 'No aplica'
-  }
-  return levels[level] || 'No especificado'
-}
-
-const formatReferredBy = (referred: string) => {
-  const referredBy: Record<string, string> = {
-    school: 'Establecimiento Educacional',
-    doctor: 'Médico',
-    specialist: 'Especialista',
-    family: 'Familia',
-    other: 'Otro',
-    none: 'No aplica'
-  }
-  return referredBy[referred] || 'No especificado'
-}
-
-const formatPhone = (phone: string) => {
-  if (!phone) return 'No especificado'
-  return phone
-}
-
-const formatAddress = (street: string, number: string) => {
-  if (!street && !number) return 'No especificada'
-  return `${street || ''} ${number ? '#' + number : ''}`.trim()
-}
-
-// Funciones para obtener nombres (simuladas)
-const getEstablishmentName = (id: any) => {
-  const establishments: Record<string, string> = {
-    '4': 'Colegio Los Alerces',
-    '3': 'Centro de Terapia Norte'
-  }
-  return establishments[id] || 'No especificado'
-}
-
-const getRegionName = (id: any) => {
-  const regions: Record<string, string> = {
-    '7': 'Región Metropolitana'
-  }
-  return regions[id] || 'No especificado'
-}
-
-const getCommuneName = (id: any) => {
-  const communes: Record<string, string> = {
-    '8': 'Santiago'
-  }
-  return communes[id] || 'No especificado'
-}
-
-// ✅ VALIDACIONES CORREGIDAS - ALINEADAS CON BACKEND
 const isPersonalDataValid = computed((): boolean => {
   return !!(props.formData.first_name?.trim() && 
          props.formData.last_name?.trim() && 
-         props.formData.birth_date)
+         props.formData.rut?.trim() && 
+         props.formData.birth_date && 
+         props.formData.gender)
 })
 
+/**
+ * ✅ CORREGIDO: Validación simplificada
+ * Solo requiere que exista establishment (ID)
+ * Ya NO requiere region, commune, street, street_number
+ */
 const isLocationDataValid = computed((): boolean => {
-  return !!(props.formData.establishment && 
-         props.formData.region && 
-         props.formData.commune && 
-         props.formData.street?.trim() && 
-         props.formData.street_number?.trim())
+  return !!props.formData.establishment
 })
 
 const isSchoolDataValid = computed((): boolean => {
-  return !!props.formData.current_grade?.trim()
+  return !!(props.formData.current_grade && 
+         props.formData.school_journey)
 })
 
 const isMedicalDataValid = computed((): boolean => {
@@ -487,58 +472,34 @@ const isMedicalDataValid = computed((): boolean => {
          props.formData.emergency_phone?.trim())
 })
 
-const isSpecialNeedsDataValid = computed((): boolean => {
-  const hasNeeds = toBoolean(props.formData.has_special_needs)
-  if (hasNeeds) {
-    return !!(props.formData.special_needs_type && 
-             props.formData.special_needs_type !== 'none')
-  }
-  return true // Si no tiene NEE, es válido
+const isParentsDataValid = computed((): boolean => {
+  return !!(props.formData.usuarios && 
+         Array.isArray(props.formData.usuarios) && 
+         props.formData.usuarios.length > 0)
 })
 
-const isTherapyDataValid = computed((): boolean => {
-  const hasTherapies = toBoolean(props.formData.has_previous_therapies)
-  if (hasTherapies) {
-    return !!(props.formData.therapies_detail?.trim())
-  }
-  return true // Si no tiene terapias previas, es válido
+/**
+ * ✅ CORREGIDO: Validación de consentimiento flexible
+ * Acepta tanto booleano true como el string "true" del FormKit
+ */
+const isConsentDataValid = computed((): boolean => {
+  const consent = props.formData.guardian_consent
+  // Comprobamos si es el booleano true O si es el string "true"
+  return consent === true || String(consent) === 'true'
 })
 
-const isGuardianDataValid = computed((): boolean => {
-  const hasConsent = toBoolean(props.formData.guardian_consent)
-  if (hasConsent) {
-    return !!props.formData.consent_date
-  }
-  return true // Si no hay consentimiento, es válido (pero revisar requisitos legales)
-})
-
-const isParentsDataValid = computed(() => {
-  return props.formData.usuarios && props.formData.usuarios.length > 0
-})
-
-// Validación general - ALINEADA CON BACKEND
-const isAllDataValid = computed(() => {
+const isAllDataValid = computed((): boolean => {
   return isPersonalDataValid.value &&
          isLocationDataValid.value &&
          isSchoolDataValid.value &&
          isMedicalDataValid.value &&
-         isSpecialNeedsDataValid.value &&
-         isTherapyDataValid.value &&
-         isGuardianDataValid.value &&
-         isParentsDataValid.value
+         isParentsDataValid.value &&
+         isConsentDataValid.value
 })
 
-// Padres seleccionados
-const selectedParents = computed(() => {
-  return availableParents.value.filter(parent => 
-    props.formData.usuarios?.includes(parent.id)
-  )
-})
-
-// Estadísticas del resumen
 const summaryStats = computed(() => [
   {
-    icon: UserCircleIcon,
+    icon: 'UserCircleIcon',
     label: 'Datos Personales',
     value: isPersonalDataValid.value ? '✓' : '✗',
     color: isPersonalDataValid.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -551,72 +512,180 @@ const summaryStats = computed(() => [
   },
   {
     icon: 'AcademicCapIcon',
-    label: 'Escolar',
+    label: 'Info. Escolar',
     value: isSchoolDataValid.value ? '✓' : '✗',
     color: isSchoolDataValid.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
   },
   {
     icon: 'HeartIcon',
-    label: 'Médico',
+    label: 'Salud',
     value: isMedicalDataValid.value ? '✓' : '✗',
     color: isMedicalDataValid.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
   },
   {
-    icon: 'ClipboardDocumentCheckIcon',
-    label: 'Consentimiento',
-    value: isGuardianDataValid.value ? '✓' : '✗',
-    color: isGuardianDataValid.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-  }
+    icon: 'UsersIcon',
+    label: 'Tutores',
+    value: props.formData.usuarios?.length || 0,
+    color: isParentsDataValid.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+  },
+{
+  icon: 'ShieldCheckIcon',
+  label: 'Consentimiento',
+  value: isConsentDataValid.value ? '✓' : '✗', // Usa la validación corregida
+  color: isConsentDataValid.value ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+}
 ])
 
-// Estado de validación
-const validationStatus = computed(() => {
-  if (isAllDataValid.value) {
-    return {
-      icon: ClipboardDocumentCheckIcon,
-      title: '¡Todo listo!',
-      message: 'Todos los datos han sido completados correctamente. Puede proceder con el registro.',
-      class: 'status-valid'
-    }
-  } else {
-    return {
-      icon: XCircleIcon,
-      title: 'Revisión necesaria',
-      message: 'Hay algunos problemas que deben ser corregidos antes de continuar.',
-      class: 'status-invalid'
-    }
-  }
-})
+// ============================================================================
+// WATCHERS
+// ============================================================================
 
-// Validez del paso
-const isStepValid = computed(() => {
-  return isAllDataValid.value
-})
-
-// Métodos
-const toggleSection = (section: string) => {
-  openSection.value = openSection.value === section ? '' : section
-}
-
-// Método para validación externa
-const validate = () => {
-  const isValid = isStepValid.value
+watch(() => isAllDataValid.value, (isValid) => {
   emit('validate', isValid)
-  return isValid
-}
+}, { immediate: true })
 
-// Inicialización
+// ✅ NUEVO: Cargar datos del establecimiento cuando cambia el ID
+watch(() => props.formData.establishment, (newEstId) => {
+  if (newEstId) {
+    loadEstablishmentData()
+  } else {
+    establishmentData.value = null
+  }
+}, { immediate: true })
+
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
+
 onMounted(() => {
-  openSection.value = 'personal'
-  setTimeout(() => {
-    emit('validate', isStepValid.value)
-  }, 100)
-})
-
-// Exponer el método validate al componente padre
-defineExpose({
-  validate
+  console.log('[Paso9Review] 🚀 Componente montado')
+  console.log('[Paso9Review] 📊 FormData:', props.formData)
+  
+  // Cargar datos del establecimiento si existe
+  if (props.formData.establishment) {
+    loadEstablishmentData()
+  }
 })
 </script>
 
-<!-- Los estilos se mantienen igual -->
+<style scoped>
+.step-review {
+  @apply max-w-5xl mx-auto;
+}
+
+.step-header {
+  @apply flex items-start space-x-4 mb-8;
+}
+
+.step-number {
+  @apply flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold shadow-lg;
+}
+
+.review-summary {
+  @apply bg-white rounded-lg shadow-md p-6 mb-6;
+}
+
+.summary-header {
+  @apply flex items-center space-x-3 mb-4 pb-4 border-b border-gray-200;
+}
+
+.summary-title {
+  @apply text-lg font-semibold text-gray-900;
+}
+
+.summary-stats {
+  @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4;
+}
+
+.stat-card {
+  @apply flex items-center space-x-3 p-3 bg-gray-50 rounded-lg;
+}
+
+.stat-icon {
+  @apply w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0;
+}
+
+.stat-content {
+  @apply flex flex-col;
+}
+
+.stat-value {
+  @apply text-xl font-bold;
+}
+
+.stat-label {
+  @apply text-xs text-gray-600;
+}
+
+.review-sections {
+  @apply space-y-4;
+}
+
+.review-content {
+  @apply p-6;
+}
+
+.data-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.parent-card {
+  @apply border border-gray-200 rounded-lg p-4;
+}
+
+.parent-header {
+  @apply flex items-center space-x-2 mb-2;
+}
+
+.parent-label {
+  @apply font-medium text-gray-700;
+}
+
+.parent-info {
+  @apply text-sm text-gray-600;
+}
+
+.validation-alert {
+  @apply mt-6 bg-red-50 border-2 border-red-200 rounded-lg p-6;
+}
+
+.alert-header {
+  @apply flex items-center space-x-2 mb-3;
+}
+
+.alert-title {
+  @apply text-lg font-semibold text-red-900;
+}
+
+.alert-message {
+  @apply text-red-700 mb-4;
+}
+
+.alert-details {
+  @apply bg-white rounded-lg p-4 mb-4;
+}
+
+.alert-footer {
+  @apply text-sm text-red-600 font-medium;
+}
+
+.validation-success {
+  @apply mt-6 bg-green-50 border-2 border-green-200 rounded-lg p-6;
+}
+
+.success-content {
+  @apply flex items-center space-x-4;
+}
+
+.success-text {
+  @apply flex flex-col;
+}
+
+.success-title {
+  @apply text-lg font-semibold text-green-900;
+}
+
+.success-message {
+  @apply text-green-700;
+}
+</style>
