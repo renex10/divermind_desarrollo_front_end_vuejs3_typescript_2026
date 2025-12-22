@@ -1,5 +1,5 @@
 <!-- src/components/forms/multi-step/NneMultiStepForm.vue -->
-<!-- FORMULARIO MULTIPASOS PRINCIPAL - CON PERSISTENCIA INTEGRADA -->
+<!-- FORMULARIO MULTIPASOS PRINCIPAL - CON PERSISTENCIA Y SWEETALERT2 -->
 <template>
   <div class="multi-step-form">
     <!-- ✅ DRAFT MANAGER PARA PERSISTENCIA -->
@@ -21,7 +21,7 @@
         :class="['step-indicator', {
           'active': currentStep === step.number,
           'completed': currentStep > step.number,
-          'clickable': step.number < currentStep || step.number === currentStep
+          'clickable': step.number < currentStep || step.number === step.number
         }]"
         @click="goToStep(step.number)"
       >
@@ -187,12 +187,13 @@
         <span v-else>⚠️ Complete los campos requeridos</span>
       </button>
       
+      <!-- ✅ BOTÓN DE SUBMIT CON SWEETALERT2 -->
       <button 
         v-if="currentStep === totalSteps"
         class="btn btn-success"
         :disabled="!getStepValidity(currentStep) || isSubmitting"
         :class="{ 'btn-disabled': !getStepValidity(currentStep) || isSubmitting }"
-        @click="submitForm"
+        @click="submitFormWithConfirmation"
         type="button"
       >
         <span v-if="isSubmitting">⏳ Enviando...</span>
@@ -221,6 +222,9 @@ import Paso9Review from './pasos/Paso9Review.vue'
 import { useFormDraft } from '@/composables/useFormDraft'
 import DraftManager from '@/components/forms/DraftManager.vue'
 import { ArrowPathIcon } from '@heroicons/vue/24/outline'
+
+// ✅ IMPORTAR SWEETALERT2
+import Swal from 'sweetalert2'
 
 // ✅ CORREGIDO: Interface con tipo explícito para stepValidity
 interface StepValidityMap {
@@ -272,6 +276,8 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'submit', data: NneFormData): void
+  (e: 'submitSuccess', data: any): void
+  (e: 'submitError', error: any): void
   (e: 'cancel'): void
 }>()
 
@@ -348,203 +354,30 @@ const formData = reactive<NneFormData>({
   usuarios: []
 })
 
-// ==========================
-// ✅ INICIALIZAR SISTEMA DE PERSISTENCIA (MEJORADO)
-// ==========================
+// ✅ SISTEMA DE PERSISTENCIA INTEGRADO
 const {
   formData: draftData,
-  currentStep: draftStep,
-  hasUnsavedChanges,
-  isRecovering,
   clearAllDrafts,
-  forceSave
+  isRecovering,
+  hasUnsavedChanges
 } = useFormDraft({
   formId: 'nne-multi-step-form',
   autoSave: true,
-  autoSaveDelay: 3000,
-  draftExpiryDays: 7
+  autoSaveDelay: 1500
 })
 
-// ✅ CORREGIDO: Estado de inicialización
+// Flag para controlar si ya se inicializó
 const isInitialized = ref(false)
 
-// ✅ CORREGIDO: Inicialización mejorada para sincronización
-const initializeFormData = () => {
-  console.log('🔄 Inicializando formData con datos del draft...')
-  
-  // Si hay datos en el draft, usarlos
-  if (draftData?.value && Object.keys(draftData.value).length > 0) {
-    console.log('📥 Cargando datos del draft:', draftData.value)
-    Object.assign(formData, draftData.value)
-  } else if (props.editData) {
-    // Si no hay draft pero hay datos de edición, usarlos
-    console.log('📥 Cargando datos de edición:', props.editData)
-    Object.assign(formData, props.editData)
-  }
-  
-  console.log('✅ formData inicializado:', formData)
-}
+// ✅ CORREGIDO: Computed para Paso 2 (sin conflicto con FormData nativo)
+const paso2Data = computed(() => ({
+  street: formData.street,
+  street_number: formData.street_number,
+  commune: formData.commune,
+  region: formData.region
+}))
 
-// ==========================
-// ✅ SINCRONIZACIÓN MEJORADA ENTRE formData <-> draftData y pasos
-// ==========================
-
-// Watch para sincronizar formData -> draftData (cuando el usuario edita)
-watch(() => formData, (newFormData) => {
-  if (!isRecovering.value && isInitialized.value) {
-    console.log('📤 Sincronizando formData -> draftData:', newFormData)
-    Object.assign(draftData.value, newFormData)
-  }
-}, { deep: true, immediate: false })
-
-// Watch para sincronizar draftData -> formData (durante recuperación)
-watch(draftData, (newDraftData) => {
-  if (isRecovering.value) {
-    console.log('📥 Sincronizando draftData -> formData (recuperación):', newDraftData)
-    Object.assign(formData, newDraftData)
-  }
-}, { deep: true })
-
-// Sincronizar currentStep -> draftStep
-watch(() => currentStep.value, (newStep) => {
-  if (!isRecovering.value && isInitialized.value) {
-    draftStep.value = newStep
-    console.log('🔀 Sincronizando currentStep -> draftStep:', newStep)
-  }
-})
-
-// Sincronizar draftStep -> currentStep (durante recuperación)
-watch(draftStep, (newDraftStep) => {
-  if (isRecovering.value) {
-    currentStep.value = newDraftStep
-    console.log('🔀 Sincronizando draftStep -> currentStep (recuperación):', newDraftStep)
-  }
-})
-
-// ✅ CORREGIDO: Manejo mejorado de recuperación (manual / programático)
-const handleRecover = async (data: any, step: number) => {
-  console.log('🔄 Iniciando recuperación manual...', { step, data })
-  try {
-    // Asignar datos directamente al formData
-    Object.assign(formData, data)
-    currentStep.value = step
-
-    console.log('✅ Datos recuperados asignados al formData:', formData)
-    console.log('✅ Paso actualizado:', currentStep.value)
-    
-    // Forzar re-renderizado de los componentes y validaciones
-    await nextTick()
-    await forceValidation()
-
-    console.log('✅ Recuperación manual completada')
-  } catch (error) {
-    console.error('❌ Error en recuperación manual:', error)
-  }
-}
-
-const handleDiscard = () => {
-  console.log('🗑️ Descartando borrador...')
-  clearAllDrafts()
-  
-  // Resetear formulario a valores por defecto
-  Object.keys(formData).forEach(key => {
-    if (Array.isArray((formData as any)[key])) {
-      ;(formData as any)[key] = []
-    } else if (typeof (formData as any)[key] === 'object' && (formData as any)[key] !== null) {
-      ;(formData as any)[key] = null
-    } else if (key === 'gender') {
-      ;(formData as any)[key] = 'unspecified'
-    } else if (key === 'autism_level') {
-      ;(formData as any)[key] = 'no_review'
-    } else {
-      ;(formData as any)[key] = ''
-    }
-  })
-  currentStep.value = 1
-  
-  console.log('✅ Formulario reseteado')
-}
-
-const handleSave = () => {
-  console.log('💾 Guardado manual solicitado...')
-  forceSave()
-}
-
-// ==========================
-// FUNCIONES DE ACTUALIZACIÓN (deben estar antes de los computed)
-// ==========================
-const updatePaso1Data = (data: any) => {
-  Object.assign(formData, {
-    first_name: data.first_name,
-    last_name: data.last_name,
-    rut: data.rut,
-    birth_date: data.birth_date,
-    gender: data.gender
-  })
-}
-
-const updatePaso2Data = (data: any) => {
-  Object.assign(formData, {
-    establishment: data.establishment,
-    region: data.region,
-    commune: data.commune,
-    street: data.street,
-    street_number: data.street_number
-  })
-}
-
-const updatePaso3Data = (data: any) => {
-  Object.assign(formData, {
-    current_grade: data.current_grade,
-    school_journey: data.school_journey,
-    adaptation_notes: data.school_adaptation_notes
-  })
-}
-
-const updatePaso4Data = (data: any) => {
-  Object.assign(formData, {
-    allergies: data.allergies,
-    current_medication: data.current_medication,
-    emergency_contact: data.emergency_contact,
-    emergency_phone: data.emergency_phone,
-    medical_notes: data.medical_notes
-  })
-}
-
-const updatePaso5Data = (data: any) => {
-  Object.assign(formData, {
-    has_special_needs: data.has_special_needs,
-    special_needs_type: data.special_needs_type,
-    autism_level: data.autism_level,
-    autism_level_value: data.autism_level_value,
-    pie_diagnosis: data.pie_diagnosis,
-    pie_entry_date: data.pie_entry_date,
-    pie_status: data.pie_status
-  })
-}
-
-const updatePaso6Data = (data: any) => {
-  console.log('📥 Actualizando datos Paso 6:', data)
-  Object.assign(formData, {
-    has_previous_therapies: data.has_previous_therapies,
-    therapies_detail: data.therapies_detail,
-    referred_by: data.referred_by,
-    referred_by_detail: data.referred_by_detail,
-    attended_where: data.attended_where
-  })
-  console.log('✅ formData.has_previous_therapies:', formData.has_previous_therapies)
-}
-
-const updatePaso7Data = (data: any) => {
-  Object.assign(formData, {
-    guardian_consent: data.guardian_consent,
-    consent_date: data.consent_date
-  })
-}
-
-// ==========================
-// COMPUTED PROPERTIES para cada paso
-// ==========================
+// Computed para cada paso
 const paso1Data = computed(() => ({
   first_name: formData.first_name,
   last_name: formData.last_name,
@@ -553,18 +386,13 @@ const paso1Data = computed(() => ({
   gender: formData.gender
 }))
 
-const paso2Data = computed(() => ({
-  establishment: formData.establishment,
-  region: formData.region,
-  commune: formData.commune,
-  street: formData.street,
-  street_number: formData.street_number
-}))
-
+// ✅ CORREGIDO: Paso 3 con school_adaptation_notes
 const paso3Data = computed(() => ({
+  establishment: formData.establishment,
   current_grade: formData.current_grade,
   school_journey: formData.school_journey,
-  school_adaptation_notes: formData.adaptation_notes
+  adaptation_notes: formData.adaptation_notes,
+  school_adaptation_notes: formData.adaptation_notes // ← Alias para compatibilidad
 }))
 
 const paso4Data = computed(() => ({
@@ -577,7 +405,6 @@ const paso4Data = computed(() => ({
 
 const paso5Data = computed(() => ({
   has_special_needs: formData.has_special_needs,
-  special_needs: formData.has_special_needs,
   special_needs_type: formData.special_needs_type,
   autism_level: formData.autism_level,
   autism_level_value: formData.autism_level_value,
@@ -587,115 +414,186 @@ const paso5Data = computed(() => ({
 }))
 
 const paso6Data = computed(() => ({
-  has_previous_therapies: String(formData.has_previous_therapies),
+  has_previous_therapies: formData.has_previous_therapies,
   therapies_detail: formData.therapies_detail,
   referred_by: formData.referred_by,
   referred_by_detail: formData.referred_by_detail,
-  attended_where: formData.attended_where ? String(formData.attended_where) : ''
+  attended_where: formData.attended_where
 }))
 
 const paso7Data = computed(() => ({
-  guardian_consent: String(formData.guardian_consent),
+  guardian_consent: formData.guardian_consent,
   consent_date: formData.consent_date
 }))
 
-// ==========================
-// ✅ NUEVO: Función helper para obtener validez de paso de forma segura
-// ==========================
-const getStepValidity = (step: number): boolean => {
-  return stepValidity.value[step] ?? false
-}
-
-// ✅ CORREGIDO: setStepValidity con tipo seguro
-const setStepValidity = (step: number, isValid: boolean) => {
-  console.log(`✅ Step ${step} validity changed to:`, isValid)
-  stepValidity.value = {
-    ...stepValidity.value,
-    [step]: isValid
-  }
-}
-
-// ✅ NUEVO: Actualizar formData desde Paso8
-const updateFormData = (data: any) => {
-  console.log('📥 Actualizando formData desde paso 8:', data)
+// Update functions para cada paso
+const updatePaso1Data = (data: any) => {
   Object.assign(formData, data)
-  console.log('✅ formData.usuarios actualizado:', formData.usuarios)
 }
 
-const forceValidation = async () => {
-  console.log(`🔍 Forzando validación del paso ${currentStep.value}`)
-  await nextTick()
-  
-  const currentStepRef = getCurrentStepRef()
-  if (currentStepRef && typeof (currentStepRef as any).validate === 'function') {
-    const isValid = (currentStepRef as any).validate()
-    setStepValidity(currentStep.value, isValid)
+const updatePaso2Data = (data: any) => {
+  Object.assign(formData, data)
+}
+
+const updatePaso3Data = (data: any) => {
+  // Manejar tanto adaptation_notes como school_adaptation_notes
+  if (data.school_adaptation_notes !== undefined) {
+    data.adaptation_notes = data.school_adaptation_notes
   }
+  Object.assign(formData, data)
 }
 
-const getCurrentStepRef = () => {
-  switch (currentStep.value) {
-    case 1: return step1Ref.value
-    case 2: return step2Ref.value  
-    case 3: return step3Ref.value
-    case 4: return step4Ref.value
-    case 5: return step5Ref.value
-    case 6: return step6Ref.value
-    case 7: return step7Ref.value
-    case 8: return step8Ref.value
-    case 9: return step9Ref.value
-    default: return null
-  }
+const updatePaso4Data = (data: any) => {
+  Object.assign(formData, data)
 }
 
-// ✅ MEJORA: Forzar guardado de metadata al cambiar de paso
-const nextStep = async () => { 
-  if (currentStep.value < totalSteps) {
-    await forceValidation()
-    // Pequeño delay para asegurar que la validación se procese
-    await new Promise(resolve => setTimeout(resolve, 150))
-    
-    if (getStepValidity(currentStep.value)) {
-      currentStep.value++
-      
-      // 🔥 CRÍTICO: Guardado forzado instantáneo para actualizar el número de paso en el borrador
-      await nextTick()
-      forceSave() 
-      
-      setTimeout(() => forceValidation(), 300)
-    } else {
-      showDebug.value = true
-    }
-  }
+const updatePaso5Data = (data: any) => {
+  Object.assign(formData, data)
 }
 
-const previousStep = async () => { 
-  if (currentStep.value > 1) {
-    currentStep.value--
-    
-    // 🔥 CRÍTICO: Guardar paso actual inmediatamente
+const updatePaso6Data = (data: any) => {
+  Object.assign(formData, data)
+}
+
+const updatePaso7Data = (data: any) => {
+  Object.assign(formData, data)
+}
+
+const updateFormData = (data: any) => {
+  Object.assign(formData, data)
+}
+
+// ==========================
+// FUNCIONES DE NAVEGACIÓN
+// ==========================
+
+const setStepValidity = (step: number, isValid: boolean) => {
+  stepValidity.value[step] = isValid
+  console.log(`🔍 Paso ${step} validez actualizada a:`, isValid)
+}
+
+const getStepValidity = (step: number): boolean => {
+  return stepValidity.value[step] || false
+}
+
+const nextStep = async () => {
+  if (currentStep.value < totalSteps && getStepValidity(currentStep.value)) {
+    currentStep.value++
     await nextTick()
-    forceSave()
-    
-    setTimeout(() => forceValidation(), 100)
-  }
-}
-
-const goToStep = async (step: number) => { 
-  if (step >= 1 && step <= totalSteps && step <= currentStep.value) {
-    currentStep.value = step
-    
-    // 🔥 CRÍTICO: Guardar paso actual inmediatamente
-    await nextTick()
-    forceSave()
-    
     setTimeout(() => forceValidation(), 200)
   }
 }
 
+const previousStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  }
+}
+
+const goToStep = (step: number) => {
+  if (step <= currentStep.value || step === currentStep.value) {
+    currentStep.value = step
+    setTimeout(() => forceValidation(), 200)
+  }
+}
+
+// ✅ CORREGIDO: forceValidation sin error de tipo
+const forceValidation = async () => {
+  await nextTick()
+  
+  const stepRefs: Array<any> = [
+    step1Ref,
+    step2Ref,
+    step3Ref,
+    step4Ref,
+    step5Ref,
+    step6Ref,
+    step7Ref,
+    step8Ref,
+    step9Ref
+  ]
+  
+  const currentRef = stepRefs[currentStep.value - 1]
+  
+  // ✅ Verificar que el método validate existe
+  if (currentRef?.value && 'validate' in currentRef.value && typeof (currentRef.value as any).validate === 'function') {
+    const isValid = await (currentRef.value as any).validate()
+    setStepValidity(currentStep.value, isValid)
+  }
+}
+
 // ==========================
-// ✅ HELPER: Convertir a booleano
+// FUNCIONES DE PERSISTENCIA
 // ==========================
+
+const initializeFormData = () => {
+  if (draftData.value && Object.keys(draftData.value).length > 0 && !isRecovering.value) {
+    console.log('✅ Recuperando datos del borrador:', draftData.value)
+    Object.assign(formData, draftData.value)
+    
+    if (draftData.value.currentStep) {
+      currentStep.value = draftData.value.currentStep
+    }
+  }
+}
+
+const handleRecover = () => {
+  if (draftData.value && Object.keys(draftData.value).length > 0) {
+    Object.assign(formData, draftData.value)
+    if (draftData.value.currentStep) {
+      currentStep.value = draftData.value.currentStep
+    }
+    setTimeout(() => forceValidation(), 500)
+  }
+}
+
+const handleDiscard = () => {
+  Object.keys(formData).forEach(key => {
+    const typedKey = key as keyof NneFormData
+    if (typeof formData[typedKey] === 'boolean') {
+      (formData[typedKey] as any) = false
+    } else if (Array.isArray(formData[typedKey])) {
+      (formData[typedKey] as any) = []
+    } else if (typeof formData[typedKey] === 'object') {
+      (formData[typedKey] as any) = null
+    } else {
+      (formData[typedKey] as any) = ''
+    }
+  })
+  currentStep.value = 1
+  stepValidity.value = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false }
+}
+
+// ✅ CORREGIDO: handleSave sin parámetros
+const handleSave = () => {
+  // La sincronización se hace automáticamente en el watcher
+  console.log('💾 Guardado manual solicitado')
+}
+
+// ==========================
+// SINCRONIZACIÓN DE DATOS
+// ==========================
+
+watch(formData, (newVal) => {
+  if (isInitialized.value && !isRecovering.value) {
+    const dataToSave = {
+      ...newVal,
+      currentStep: currentStep.value
+    }
+    Object.assign(draftData.value, dataToSave)
+  }
+}, { deep: true })
+
+watch(currentStep, (newStep) => {
+  if (isInitialized.value && !isRecovering.value) {
+    draftData.value.currentStep = newStep
+  }
+})
+
+// ==========================
+// FUNCIÓN AUXILIAR
+// ==========================
+
 const convertToBoolean = (value: any): boolean => {
   if (typeof value === 'boolean') return value
   if (value === 'true') return true
@@ -768,25 +666,76 @@ const prepareDataForBackend = (data: NneFormData) => {
 }
 
 // ==========================
-// ✅ CORREGIDO: submitForm con preparación de datos y LIMPIEZA DE BORRADORES
+// ✅✅✅ NUEVA FUNCIÓN: Submit con SweetAlert2
 // ==========================
-const submitForm = async () => {
-  console.log('🚀 ========== INICIO SUBMIT FORM ==========')
-  console.log('📊 Estado de validación completo:', stepValidity.value)
-  console.log('📋 Datos del formulario ANTES de preparar:', JSON.stringify(formData, null, 2))
-  console.log('🔍 Paso actual:', currentStep.value)
-  console.log('🔍 Total de pasos:', totalSteps)
-  console.log('🔍 Validez del último paso:', getStepValidity(totalSteps))
+const submitFormWithConfirmation = async () => {
+  console.log('🚀 ========== INICIO SUBMIT CON SWEETALERT ==========')
   
+  // Validación inicial
   if (!getStepValidity(totalSteps)) {
     console.error('❌ SUBMIT BLOQUEADO: Paso 9 no está válido')
-    console.error('❌ Estado de validación del paso 9:', stepValidity.value[9])
+    
+    await Swal.fire({
+      icon: 'warning',
+      title: 'Formulario Incompleto',
+      html: `
+        <div style="text-align: left;">
+          <p style="margin-bottom: 1rem;">Por favor complete todos los campos requeridos:</p>
+          <ul style="color: #dc2626; line-height: 1.8;">
+            <li>✓ Revise que todos los datos sean correctos</li>
+            <li>✓ Verifique los padres/tutores asignados</li>
+            <li>✓ Confirme la información en la revisión final</li>
+          </ul>
+        </div>
+      `,
+      confirmButtonColor: '#f59e0b',
+      confirmButtonText: 'Entendido'
+    })
+    
     showDebug.value = true
-    alert('⚠️ Por favor complete todos los campos requeridos en la revisión final.')
     return
   }
   
-  console.log('✅ Validación del paso 9 APROBADA, continuando...')
+  // ✅ CONFIRMACIÓN ANTES DE ENVIAR
+  // ✅ CORREGIDO: No asignar a variable no usada
+  await Swal.fire({
+    title: '¿Registrar Niño/a?',
+    html: `
+      <div style="text-align: left; padding: 1rem;">
+        <p style="margin-bottom: 1rem;"><strong>Se creará la ficha con los siguientes datos:</strong></p>
+        <ul style="list-style: none; padding: 0; background: #f3f4f6; padding: 1rem; border-radius: 6px; font-size: 0.9rem;">
+          <li style="margin-bottom: 0.5rem;">👤 <strong>Nombre:</strong> ${formData.first_name} ${formData.last_name}</li>
+          <li style="margin-bottom: 0.5rem;">🆔 <strong>RUT:</strong> ${formData.rut}</li>
+          <li style="margin-bottom: 0.5rem;">📅 <strong>Fecha Nacimiento:</strong> ${formData.birth_date}</li>
+          <li style="margin-bottom: 0.5rem;">👨‍👩‍👧 <strong>Padres/Tutores:</strong> ${formData.usuarios.length} asignado(s)</li>
+        </ul>
+        <p style="margin-top: 1rem; color: #6b7280; font-size: 0.85rem;">
+          ¿Confirma que los datos son correctos?
+        </p>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#10b981',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Sí, registrar',
+    cancelButtonText: 'Revisar datos',
+    showLoaderOnConfirm: true,
+    preConfirm: async () => {
+      return await submitForm()
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  })
+}
+
+// ==========================
+// ✅ FUNCIÓN INTERNA: Submit real (llamada por confirmación)
+// ==========================
+const submitForm = async () => {
+  console.log('✅ Confirmación recibida, iniciando envío...')
+  console.log('📊 Estado de validación completo:', stepValidity.value)
+  console.log('📋 Datos del formulario ANTES de preparar:', JSON.stringify(formData, null, 2))
+  
   isSubmitting.value = true
   
   try {
@@ -798,30 +747,148 @@ const submitForm = async () => {
     console.log('📤 ========== DATOS FINALES A ENVIAR ==========')
     console.log(JSON.stringify(dataToSubmit, null, 2))
     console.log('📤 Usuarios a asociar:', dataToSubmit.usuarios)
-    console.log('📤 Has special needs:', dataToSubmit.has_special_needs, typeof dataToSubmit.has_special_needs)
-    console.log('📤 Guardian consent:', dataToSubmit.guardian_consent, typeof dataToSubmit.guardian_consent)
-    console.log('📤 Has previous therapies:', dataToSubmit.has_previous_therapies, typeof dataToSubmit.has_previous_therapies)
     console.log('================================================')
     
     console.log('🎯 Emitiendo evento submit...')
+    
+    // Emitir evento al componente padre
     emit('submit', dataToSubmit as NneFormData)
     
-    // ✅ LIMPIAR BORRADORES DESPUÉS DE ENVÍO EXITOSO
-    clearAllDrafts()
-    console.log('🧹 Borradores limpiados después del envío exitoso')
+    // NOTA: El éxito se manejará desde el componente padre
+    // que llamará a handleSubmitSuccess
     
-    console.log('✅ Evento submit emitido correctamente')
+    return true
     
   } catch (error) {
-    console.error('❌ ========== ERROR EN SUBMIT ==========>')
+    console.error('❌ ========== ERROR EN SUBMIT ==========')
     console.error('Error completo:', error)
     console.error('Stack:', error instanceof Error ? error.stack : 'No stack available')
-    console.error('==========================================')
-    alert(`❌ Error al enviar el formulario: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    
+    // ✅ SWEETALERT2: Notificación de error
+    await Swal.fire({
+      icon: 'error',
+      title: 'Error al Enviar Formulario',
+      html: `
+        <div style="text-align: left;">
+          <p style="margin-bottom: 1rem; color: #dc2626;">
+            <strong>Ocurrió un error al procesar el formulario:</strong>
+          </p>
+          <p style="background: #fee2e2; padding: 1rem; border-radius: 6px; color: #991b1b;">
+            ${error instanceof Error ? error.message : 'Error desconocido'}
+          </p>
+        </div>
+      `,
+      confirmButtonColor: '#dc2626',
+      footer: '<small>Por favor intente nuevamente o contacte al soporte técnico</small>'
+    })
+    
+    return false
+    
   } finally {
     isSubmitting.value = false
     console.log('🏁 ========== FIN SUBMIT FORM ==========')
   }
+}
+
+// ==========================
+// ✅ FUNCIONES PÚBLICAS PARA EL COMPONENTE PADRE
+// ==========================
+
+/**
+ * Llamar esta función cuando el backend confirme el éxito
+ */
+const handleSubmitSuccess = async (response: any) => {
+  console.log('✅ handleSubmitSuccess llamado con:', response)
+  
+  // ✅ LIMPIAR BORRADORES DESPUÉS DE ÉXITO CONFIRMADO
+  clearAllDrafts()
+  console.log('🧹 Borradores limpiados después del éxito')
+  
+  // ✅ SWEETALERT2: Notificación de éxito
+  await Swal.fire({
+    icon: 'success',
+    title: '¡Registro Exitoso! 🎉',
+    html: `
+      <div style="text-align: left; padding: 1rem;">
+        <p style="margin-bottom: 1rem;"><strong>La ficha ha sido creada exitosamente:</strong></p>
+        <ul style="list-style: none; padding: 0;">
+          <li style="margin-bottom: 0.5rem;">✅ <strong>Niño/a:</strong> ${formData.first_name} ${formData.last_name}</li>
+          <li style="margin-bottom: 0.5rem;">🆔 <strong>RUT:</strong> ${formData.rut}</li>
+          ${response?.id ? `<li style="margin-bottom: 0.5rem;">📋 <strong>ID Ficha:</strong> ${response.id}</li>` : ''}
+        </ul>
+        <p style="margin-top: 1rem; color: #10b981; font-weight: 600; text-align: center; background: #d1fae5; padding: 0.75rem; border-radius: 6px;">
+          ✅ El registro fue procesado correctamente
+        </p>
+      </div>
+    `,
+    confirmButtonText: 'Aceptar',
+    confirmButtonColor: '#10b981',
+    timer: 6000,
+    timerProgressBar: true,
+    showClass: {
+      popup: 'animate__animated animate__fadeInDown'
+    }
+  })
+  
+  // Emitir evento de éxito
+  emit('submitSuccess', response)
+}
+
+/**
+ * Llamar esta función cuando el backend retorne error
+ */
+const handleSubmitError = async (error: any) => {
+  console.error('❌ handleSubmitError llamado con:', error)
+  
+  // Extraer mensaje de error
+  let errorMessage = 'Error desconocido al procesar el registro'
+  let errorDetails = ''
+  
+  if (error.response?.data) {
+    const data = error.response.data
+    
+    // Manejar errores de validación
+    if (data.errors) {
+      errorDetails = '<ul style="text-align: left; color: #991b1b; line-height: 1.8;">'
+      Object.entries(data.errors).forEach(([field, messages]: [string, any]) => {
+        if (Array.isArray(messages)) {
+          messages.forEach(msg => {
+            errorDetails += `<li>• <strong>${field}:</strong> ${msg}</li>`
+          })
+        }
+      })
+      errorDetails += '</ul>'
+      errorMessage = 'Errores de validación en el formulario'
+    } else if (data.message) {
+      errorMessage = data.message
+    } else if (data.detail) {
+      errorMessage = data.detail
+    }
+  } else if (error.message) {
+    errorMessage = error.message
+  }
+  
+  // ✅ SWEETALERT2: Notificación de error detallada
+  await Swal.fire({
+    icon: 'error',
+    title: 'Error al Crear Ficha',
+    html: `
+      <div style="text-align: left;">
+        <p style="margin-bottom: 1rem; color: #dc2626;">
+          <strong>${errorMessage}</strong>
+        </p>
+        ${errorDetails ? `<div style="background: #fee2e2; padding: 1rem; border-radius: 6px; max-height: 300px; overflow-y: auto;">${errorDetails}</div>` : ''}
+        ${!errorDetails ? `<p style="background: #fee2e2; padding: 1rem; border-radius: 6px; color: #991b1b;">${errorMessage}</p>` : ''}
+      </div>
+    `,
+    confirmButtonColor: '#dc2626',
+    confirmButtonText: 'Entendido',
+    footer: '<small>Revise los errores y vuelva a intentar. Si el problema persiste, contacte al soporte.</small>',
+    width: '600px'
+  })
+  
+  // Emitir evento de error
+  emit('submitError', error)
 }
 
 // ==========================
@@ -830,7 +897,7 @@ const submitForm = async () => {
 onMounted(async () => {
   console.log('🚀 Montando NneMultiStepForm...')
 
-  // Cargar datos de edición si existen (inmediatamente para evitar sobrescritura por draft)
+  // Cargar datos de edición si existen
   if (props.editData && Object.keys(props.editData).length > 0) {
     console.log('📥 Cargando props.editData en onMounted:', props.editData)
     Object.assign(formData, props.editData)
@@ -852,10 +919,13 @@ watch(currentStep, async () => {
   setTimeout(() => forceValidation(), 200)
 })
 
+// ✅ EXPONER FUNCIONES PÚBLICAS
 defineExpose({
   forceValidation,
   getCurrentStep: () => currentStep.value,
-  getStepValidity: () => stepValidity.value
+  getStepValidity: () => stepValidity.value,
+  handleSubmitSuccess,
+  handleSubmitError
 })
 </script>
 
@@ -900,7 +970,7 @@ defineExpose({
 }
 
 .step-indicator.active {
-  background-color: #eff6ff;
+  background-color: #dbeafe;
 }
 
 .step-indicator.completed .step-number {
@@ -915,11 +985,10 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
+  background-color: #e5e7eb;
   color: #6b7280;
   font-weight: 600;
   font-size: 0.875rem;
-  transition: all 0.3s ease;
   flex-shrink: 0;
 }
 
@@ -930,41 +999,55 @@ defineExpose({
 
 .step-label {
   font-size: 0.75rem;
-  font-weight: 500;
   color: #6b7280;
   text-align: center;
   line-height: 1.2;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  hyphens: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .step-indicator.active .step-label {
-  color: #3b82f6;
+  color: #1f2937;
   font-weight: 600;
 }
 
-.step-indicator.completed .step-label {
-  color: #10b981;
+.recovery-notice {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+.recovery-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #92400e;
+  font-weight: 500;
 }
 
 .step-content {
   background: white;
   border-radius: 0.75rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e2e8f0;
-  margin-bottom: 2rem;
   min-height: 400px;
-  padding: 2rem;
 }
 
 .step-navigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
   background: white;
   border-radius: 0.75rem;
-  padding: 1.5rem 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e2e8f0;
 }
@@ -975,48 +1058,62 @@ defineExpose({
   align-items: center;
 }
 
-/* ✅ ESTILOS PARA INDICADOR DE RECUPERACIÓN */
-.recovery-notice {
-  @apply bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4;
-}
-
-.recovery-content {
-  @apply flex items-center gap-3 text-blue-700 font-medium;
-}
-
-/* ✅ ESTILOS PARA INDICADOR DE GUARDADO */
 .unsaved-indicator {
-  @apply flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #fef3c7;
+  border-radius: 0.5rem;
 }
 
 .saving-dots {
-  @apply flex space-x-1;
+  display: flex;
+  gap: 0.25rem;
 }
 
 .saving-dots span {
-  @apply w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse;
+  width: 6px;
+  height: 6px;
+  background: #f59e0b;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.saving-dots span:nth-child(1) {
+  animation-delay: -0.32s;
 }
 
 .saving-dots span:nth-child(2) {
-  animation-delay: 0.2s;
+  animation-delay: -0.16s;
 }
 
-.saving-dots span:nth-child(3) {
-  animation-delay: 0.4s;
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  border: none;
   border-radius: 0.5rem;
-  font-weight: 500;
+  font-weight: 600;
+  border: none;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.875rem;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn:disabled,
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -1029,54 +1126,44 @@ defineExpose({
 }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: #6b7280;
+  color: white;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
+  background: #4b5563;
 }
 
 .btn-success {
-  background-color: #10b981;
+  background: #10b981;
   color: white;
 }
 
 .btn-success:hover:not(:disabled) {
-  background-color: #059669;
+  background: #059669;
 }
 
 .btn-outline {
-  background-color: transparent;
+  background: white;
   color: #6b7280;
   border: 1px solid #d1d5db;
 }
 
 .btn-outline:hover:not(:disabled) {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
-
-.btn-disabled,
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  background: #f9fafb;
 }
 
 .btn-sm {
   padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .debug-info {
   background: #fef3c7;
-  border: 1px solid #f59e0b;
+  border: 2px solid #fbbf24;
   border-radius: 0.5rem;
   padding: 1rem;
-  margin-bottom: 1rem;
-  font-family: monospace;
-  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
 }
 
 .debug-info h4 {
@@ -1086,24 +1173,18 @@ defineExpose({
 
 .debug-info p {
   margin: 0.25rem 0;
+  font-size: 0.875rem;
   color: #78350f;
 }
 
-@media (max-width: 1200px) {
-  .steps-header {
-    grid-template-columns: repeat(9, minmax(70px, 1fr));
-    gap: 0.25rem;
-    padding: 1rem 0.5rem;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
-  
-  .step-label {
-    font-size: 0.65rem;
-  }
-  
-  .step-number {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 0.75rem;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -1113,64 +1194,34 @@ defineExpose({
   }
   
   .steps-header {
-    grid-template-columns: repeat(9, 1fr);
-    gap: 0.25rem;
-    padding: 0.75rem 0.5rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
   }
   
   .step-label {
-    font-size: 0.6rem;
-  }
-  
-  .step-number {
-    width: 1.5rem;
-    height: 1.5rem;
-    font-size: 0.7rem;
-  }
-  
-  .step-content {
-    padding: 1rem;
+    font-size: 0.65rem;
   }
   
   .step-navigation {
     flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-  }
-  
-  .navigation-spacer {
-    order: -1;
-    width: 100%;
-    justify-content: center;
   }
   
   .btn {
     width: 100%;
     justify-content: center;
   }
-
-  .unsaved-indicator {
-    justify-content: center;
-    width: 100%;
-  }
 }
 
-@media (max-width: 480px) {
-  .steps-header {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 0.5rem;
-    padding: 1rem;
-  }
-  
-  .step-label {
-    font-size: 0.7rem;
-  }
-  
-  .step-number {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 0.75rem;
-  }
+/* ✅ ESTILOS PARA SWEETALERT2 */
+:global(.swal2-popup) {
+  font-family: inherit;
+}
+
+:global(.swal2-html-container ul) {
+  text-align: left;
+}
+
+:global(.animate__animated) {
+  animation-duration: 0.3s;
 }
 </style>

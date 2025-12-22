@@ -197,7 +197,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { debounce } from 'lodash-es'
 import * as nneService from '@/services/nneService'
 import type { SelectOption, Establishment } from '@/type/nne'
-import { useFormDraft } from '@/composables/useFormDraft' // ✅ Importar persistencia
+import { useFormDraft } from '@/composables/useFormDraft'
+// ✅ IMPORTAR SWEETALERT2
+import Swal from 'sweetalert2'
 
 // ============================================================================
 // INTERFACES
@@ -219,6 +221,13 @@ interface EstablishmentFormData {
   commune?: number
   phone?: string
   email?: string
+}
+
+interface ApiResponse {
+  id?: number
+  data?: Establishment
+  message?: string
+  [key: string]: any
 }
 
 // ============================================================================
@@ -332,6 +341,34 @@ const isFormValid = computed(() => {
 })
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Obtiene el nombre del tipo de establecimiento
+ */
+const getEstablishmentTypeName = (typeId: number): string => {
+  const type = establishmentTypeOptions.value.find(opt => opt.value === typeId)
+  return type?.label || 'Establecimiento'
+}
+
+/**
+ * Obtiene el nombre de la región
+ */
+const getRegionName = (regionId: number): string => {
+  const region = regionOptions.value.find(opt => opt.value === regionId)
+  return region?.label || ''
+}
+
+/**
+ * Obtiene el nombre de la comuna
+ */
+const getCommuneName = (communeId: number): string => {
+  const commune = communeOptions.value.find(opt => opt.value === communeId)
+  return commune?.label || ''
+}
+
+// ============================================================================
 // METHODS
 // ============================================================================
 
@@ -397,16 +434,26 @@ const checkRBDAvailability = debounce(async (rbd: string) => {
 }, 500)
 
 /**
- * Manejar envío del formulario con limpieza de borrador
+ * ✅✅✅ FUNCIÓN CORREGIDA - SOLUCIÓN AL ERROR DE ID TEMPORAL ✅✅✅
+ * 
+ * CAMBIO CRÍTICO: Ahora captura y usa el ID REAL del backend
+ * en lugar de generar un ID temporal con Date.now()
  */
 const handleSubmit = async () => {
   saveError.value = ''
+  
   if (!isFormValid.value) {
-    saveError.value = 'Por favor completa todos los campos obligatorios'
+    await Swal.fire({
+      icon: 'warning',
+      title: 'Formulario Incompleto',
+      text: 'Por favor completa todos los campos obligatorios antes de continuar.',
+      confirmButtonColor: '#f59e0b'
+    })
     return
   }
   
   isSaving.value = true
+  
   try {
     const payload = {
       name: formData.value.name!,
@@ -420,32 +467,158 @@ const handleSubmit = async () => {
       email: formData.value.email || undefined
     }
     
-    await nneService.createEstablishmentApi(payload)
+    console.log('📤 Enviando payload al backend:', payload)
+    
+    // ✅ CRÍTICO: Capturar la respuesta completa con el ID REAL
+    const response = await nneService.createEstablishmentApi(payload) as ApiResponse
+    
+    console.log('✅ Respuesta completa del backend:', response)
+    console.log('✅ Tipo de respuesta:', typeof response, Array.isArray(response) ? 'Array' : 'Object')
+    
+    // ✅ CRÍTICO: Extraer el ID REAL del backend
+    // El backend puede retornar en diferentes formatos:
+    // 1. { id: X, name: "...", ... }
+    // 2. { message: "...", data: { id: X, ... } }
+    let establishmentId: number
+    
+    if (response.data && response.data.id) {
+      // Formato: { message: "...", data: { id: X, ... } }
+      establishmentId = response.data.id
+    } else if (response.id) {
+      // Formato directo: { id: X, name: "...", ... }
+      establishmentId = response.id
+    } else {
+      throw new Error('El backend no retornó un ID válido para el establecimiento')
+    }
+    
+    console.log('🆔 ID REAL del establecimiento creado:', establishmentId)
+    console.log('🆔 Tipo del ID:', typeof establishmentId)
+    
+    // ✅ Validar que el ID es un número válido
+    if (!establishmentId || typeof establishmentId !== 'number' || establishmentId <= 0) {
+      throw new Error(`ID inválido recibido del backend: ${establishmentId}`)
+    }
     
     // ✅ LIMPIAR BORRADOR TÉCNICO AL TENER ÉXITO
     clearAllDrafts()
     
+    // Construir dirección completa para mostrar
+    const fullAddress = `${formData.value.address}${formData.value.street_number ? ' ' + formData.value.street_number : ''}, ${getCommuneName(formData.value.commune!)}, ${getRegionName(formData.value.region!)}`
+    
+    // ✅ SWEETALERT2: Notificación de éxito detallada
+    await Swal.fire({
+      icon: 'success',
+      title: '¡Establecimiento Creado Exitosamente! 🎉',
+      html: `
+        <div style="text-align: left; padding: 1rem;">
+          <p style="margin-bottom: 1rem;"><strong>El establecimiento ha sido registrado en el sistema:</strong></p>
+          <ul style="list-style: none; padding: 0;">
+            <li style="margin-bottom: 0.5rem;">🆔 <strong>ID:</strong> ${establishmentId}</li>
+            <li style="margin-bottom: 0.5rem;">🏫 <strong>Nombre:</strong> ${formData.value.name}</li>
+            <li style="margin-bottom: 0.5rem;">📋 <strong>Tipo:</strong> ${getEstablishmentTypeName(formData.value.establishment_type!)}</li>
+            ${formData.value.rbd ? `<li style="margin-bottom: 0.5rem;">🆔 <strong>${isEducationalType.value ? 'RBD' : 'RUT'}:</strong> ${formData.value.rbd}</li>` : ''}
+            <li style="margin-bottom: 0.5rem;">📍 <strong>Dirección:</strong> ${fullAddress}</li>
+            ${formData.value.phone ? `<li style="margin-bottom: 0.5rem;">📱 <strong>Teléfono:</strong> ${formData.value.phone}</li>` : ''}
+            ${formData.value.email ? `<li style="margin-bottom: 0.5rem;">📧 <strong>Email:</strong> ${formData.value.email}</li>` : ''}
+          </ul>
+          <p style="margin-top: 1rem; color: #3b82f6; font-weight: 600; text-align: center; background: #dbeafe; padding: 0.75rem; border-radius: 6px;">
+            ✅ El establecimiento ha sido seleccionado automáticamente
+          </p>
+        </div>
+      `,
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#3b82f6',
+      timer: 6000,
+      timerProgressBar: true,
+      showClass: {
+        popup: 'animate__animated animate__fadeInDown'
+      }
+    })
+    
+    // ✅ CRÍTICO: Construir objeto con el ID REAL del backend, NO uno temporal
     const newEstablishment: Establishment = {
-      id: Date.now(),
-      ...payload,
+      id: establishmentId,  // ← ✅ ID REAL DEL BACKEND (no Date.now())
+      name: payload.name,
+      establishment_type: payload.establishment_type,
       rbd: payload.rbd || '',
+      address: payload.address,
       street_number: payload.street_number || '',
+      region: payload.region,
+      commune: payload.commune,
       phone: payload.phone || '',
       email: payload.email || ''
     }
     
+    console.log('✅ Establecimiento final con ID REAL:', newEstablishment)
+    console.log('✅ Verificación final - ID:', newEstablishment.id, 'Tipo:', typeof newEstablishment.id)
+    
+    // ✅ CRÍTICO: Emitir evento con el establecimiento que contiene el ID REAL
     emit('created', newEstablishment)
+    
+    console.log('✅ Establecimiento emitido para asociación automática')
+    
+    // Limpiar formulario
     formData.value = {}
     
   } catch (error: any) {
-    saveError.value = error.response?.data?.detail || 'Error al guardar el establecimiento.'
+    console.error('❌ Error al crear establecimiento:', error)
+    console.error('❌ Error completo:', {
+      message: error.message,
+      response: error.response,
+      stack: error.stack
+    })
+    
+    const errorMessage = error.response?.data?.detail || 
+                        error.response?.data?.message || 
+                        error.message ||
+                        'Error desconocido al guardar el establecimiento'
+    
+    // ✅ SWEETALERT2: Notificación de error
+    await Swal.fire({
+      icon: 'error',
+      title: 'Error al Crear Establecimiento',
+      html: `
+        <div style="text-align: left;">
+          <p style="margin-bottom: 1rem; color: #dc2626;">
+            <strong>No se pudo completar la operación:</strong>
+          </p>
+          <p style="background: #fee2e2; padding: 1rem; border-radius: 6px; color: #991b1b;">
+            ${errorMessage}
+          </p>
+        </div>
+      `,
+      confirmButtonColor: '#dc2626',
+      footer: '<small>Si el problema persiste, contacte al administrador del sistema</small>'
+    })
+    
+    saveError.value = errorMessage
+    
   } finally {
     isSaving.value = false
   }
 }
 
 const handleCancel = () => {
-  emit('cancel')
+  // ✅ OPCIONAL: Confirmar cancelación si hay cambios sin guardar
+  if (hasUnsavedChanges.value) {
+    Swal.fire({
+      title: '¿Cancelar creación?',
+      text: 'Tienes cambios sin guardar. ¿Estás seguro de que deseas volver?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, cancelar',
+      cancelButtonText: 'Continuar editando'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        clearAllDrafts()
+        emit('cancel')
+      }
+    })
+  } else {
+    emit('cancel')
+  }
 }
 
 // ============================================================================
@@ -490,4 +663,17 @@ onMounted(() => {
 <style scoped>
 .crear-establecimiento { @apply w-full; }
 .form-grid { @apply grid grid-cols-1 md:grid-cols-3 gap-6; }
+
+/* ✅ ESTILOS PARA ANIMACIONES DE SWEETALERT2 */
+:global(.swal2-popup) {
+  font-family: inherit;
+}
+
+:global(.swal2-html-container ul) {
+  text-align: left;
+}
+
+:global(.animate__animated) {
+  animation-duration: 0.3s;
+}
 </style>

@@ -134,20 +134,18 @@
             }"
           />
 
-<FormKit
-  type="tel"
-  name="phone"
-  label="Teléfono"
-  placeholder="+56912345678 o 912345678"
-  validation="phoneValidation"
-  validation-visibility="live"
-  :validation-messages="{
-    matches: 'Formato de teléfono inválido'
-  }"
-  @blur="formatearTelefono"
-/>
-
-         
+          <FormKit
+            type="tel"
+            name="phone"
+            label="Teléfono"
+            placeholder="+56912345678 o 912345678"
+            validation="phoneValidation"
+            validation-visibility="live"
+            :validation-messages="{
+              matches: 'Formato de teléfono inválido'
+            }"
+            @blur="formatearTelefono"
+          />
 
           <FormKit
             type="password"
@@ -195,7 +193,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import { createParentApi } from '@/services/nneService'
-import { useAlertModalStore } from '@/store/alertModalStore'
 import type { ParentUser, ParentUserCreate } from '@/type/nne'
 import { useRutValidation } from '@/composables/useRutValidation'
 import { 
@@ -203,13 +200,14 @@ import {
   getUserFriendlyErrorMessage,
   type ApiError
 } from '@/exceptions/apiError'
+// ✅ IMPORTAR SWEETALERT2
+import Swal from 'sweetalert2'
 
 interface Emits {
   (e: 'parent-created', parent: ParentUser): void
 }
 
 const emit = defineEmits<Emits>()
-const alertModal = useAlertModalStore()
 
 const showCreateForm = ref(false)
 const isCreating = ref(false)
@@ -244,8 +242,6 @@ const formData = ref({
   password_confirm: ''
 })
 
-// ✅ CORREGIDO: Nueva lógica más clara para habilitar el botón
-
 const canSubmit = computed(() => {
   const allFieldsFilled = Boolean(
     formData.value.first_name &&
@@ -261,14 +257,6 @@ const canSubmit = computed(() => {
   const rutValidAndAvailable = rutIsValid.value && isAvailable.value === true
   const notChecking = !isCheckingAvailability.value
   const notCreating = !isCreating.value
-
-  console.log('🔍 Estado del botón:', {
-    allFieldsFilled,
-    rutValidAndAvailable,
-    notChecking,
-    notCreating,
-    canSubmit: allFieldsFilled && rutValidAndAvailable && notChecking && notCreating
-  })
 
   return allFieldsFilled && rutValidAndAvailable && notChecking && notCreating
 })
@@ -304,26 +292,22 @@ const handleEmailBlur = async () => {
   }, 100)
 }
 
-// ✅ OPTIMIZADO: Evitar verificaciones múltiples
 const onRutInput = (event: Event) => {
   const input = event.target as HTMLInputElement
   const value = input.value
   
   setRutValue(value)
   
-  // Limpiar timeout anterior
   if (rutCheckTimeout) {
     clearTimeout(rutCheckTimeout)
   }
   
   const validation = validateRutSync(value)
   
-  // Solo verificar disponibilidad cuando el RUT esté completo y válido
   if (validation.isValid && !validation.isPartial && validation.rutNormalized) {
-    console.log('⚡ RUT completo detectado, programando verificación...')
     rutCheckTimeout = window.setTimeout(() => {
       checkRutAvailability(value)
-    }, 800) // 800ms de delay para evitar llamadas excesivas
+    }, 800)
   }
 }
 
@@ -333,7 +317,6 @@ const onRutBlur = async (event: Event) => {
   
   if (!rut) return
   
-  // Limpiar timeout si existe
   if (rutCheckTimeout) {
     clearTimeout(rutCheckTimeout)
     rutCheckTimeout = null
@@ -349,9 +332,7 @@ const onRutBlur = async (event: Event) => {
     
     const validation = validateRutSync(rut)
     
-    // Solo verificar si es válido y no está en proceso de escritura
     if (validation.isValid && validation.rutNormalized && !isPartialRut.value) {
-      console.log('🔍 Verificando disponibilidad en blur...')
       await checkRutAvailability(rut)
     }
   } catch (error) {
@@ -361,7 +342,6 @@ const onRutBlur = async (event: Event) => {
 
 const forceRutRecheck = async () => {
   if (rutValue.value && rutValidation.value?.isValid) {
-    console.log('🔄 Re-verificando RUT manualmente...')
     await recheckAvailability()
   }
 }
@@ -467,27 +447,31 @@ const clearForm = () => {
   formData.value.password_confirm = ''
   setRutValue('')
   
-  // Limpiar timeout si existe
   if (rutCheckTimeout) {
     clearTimeout(rutCheckTimeout)
     rutCheckTimeout = null
   }
 }
 
+// ✅ FUNCIÓN MEJORADA CON SWEETALERT2
 const createNewParent = async () => {
   if (!rutIsValid.value) {
-    alertModal.error(
-      'Error en RUT',
-      rutErrorMessage.value || 'El RUT ingresado no es válido.'
-    )
+    await Swal.fire({
+      icon: 'error',
+      title: 'Error en RUT',
+      text: rutErrorMessage.value || 'El RUT ingresado no es válido.',
+      confirmButtonColor: '#dc2626'
+    })
     return
   }
 
   if (isAvailable.value !== true) {
-    alertModal.error(
-      'RUT no disponible',
-      'El RUT ya está registrado o no ha sido verificado correctamente.'
-    )
+    await Swal.fire({
+      icon: 'warning',
+      title: 'RUT no disponible',
+      text: 'El RUT ya está registrado o no ha sido verificado correctamente.',
+      confirmButtonColor: '#f59e0b'
+    })
     return
   }
   
@@ -511,17 +495,36 @@ const createNewParent = async () => {
     
     console.log('✅ Respuesta del servidor:', response)
     
-    // El servicio `createParentApi` ya normaliza y retorna un `ParentUser`
     const newParent = response
     
-    // Emitir evento con el padre creado
+    // ✅ SWEETALERT2: Notificación de éxito con auto-asociación
+    await Swal.fire({
+      icon: 'success',
+      title: '¡Padre Creado Exitosamente! 🎉',
+      html: `
+        <div style="text-align: left; padding: 1rem;">
+          <p style="margin-bottom: 1rem;"><strong>El padre/tutor ha sido registrado en el sistema:</strong></p>
+          <ul style="list-style: none; padding: 0;">
+            <li style="margin-bottom: 0.5rem;">👤 <strong>Nombre:</strong> ${newParent.first_name} ${newParent.last_name}</li>
+            <li style="margin-bottom: 0.5rem;">🆔 <strong>RUT:</strong> ${newParent.rut}</li>
+            <li style="margin-bottom: 0.5rem;">📧 <strong>Email:</strong> ${newParent.email}</li>
+            ${newParent.phone ? `<li style="margin-bottom: 0.5rem;">📱 <strong>Teléfono:</strong> ${newParent.phone}</li>` : ''}
+          </ul>
+          <p style="margin-top: 1rem; color: #10b981; font-weight: 600;">
+            ✅ El padre ha sido asociado automáticamente al estudiante
+          </p>
+        </div>
+      `,
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#10b981',
+      timer: 5000,
+      timerProgressBar: true
+    })
+    
+    // ✅ CRÍTICO: Emitir evento INMEDIATAMENTE para asociación automática
     emit('parent-created', newParent)
     
-    // Mostrar alerta de éxito
-    alertModal.success(
-      'Padre creado exitosamente', 
-      `El padre ${newParent.first_name} ${newParent.last_name} (RUT: ${newParent.rut}) ha sido creado y agregado correctamente al sistema.`
-    )
+    console.log('✅ Padre emitido para asociación automática:', newParent)
     
     // Limpiar formulario y cerrar
     clearForm()
@@ -532,7 +535,15 @@ const createNewParent = async () => {
     
     const parsedError = parseApiError(error)
     const errorInfo = getDetailedErrorInfo(parsedError)
-    alertModal.error(errorInfo.title, errorInfo.message)
+    
+    // ✅ SWEETALERT2: Notificación de error detallada
+    await Swal.fire({
+      icon: 'error',
+      title: errorInfo.title,
+      text: errorInfo.message,
+      confirmButtonColor: '#dc2626',
+      footer: '<small>Si el problema persiste, contacte al administrador del sistema</small>'
+    })
   } finally {
     isCreating.value = false
   }
@@ -761,5 +772,14 @@ defineExpose({
 
 :deep(.formkit-input-partial) {
   border-color: #9ca3af;
+}
+
+/* ✅ ESTILOS PERSONALIZADOS PARA SWEETALERT2 */
+:global(.swal2-popup) {
+  font-family: inherit;
+}
+
+:global(.swal2-html-container ul) {
+  text-align: left;
 }
 </style>
