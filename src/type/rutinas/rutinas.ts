@@ -2,14 +2,28 @@
 // -------------------------------------------------------------
 // Definiciones de TypeScript para el Módulo de Rutinas
 //
-// Este archivo contiene todas las interfaces y tipos de datos
-// que se utilizan para la comunicación entre el frontend (Vue/Pinia)
-// y el backend (Django REST Framework).
+// ✅ ACTUALIZACIÓN CRÍTICA: FlexibilityLevel corregido a MAYÚSCULAS
+// El backend Django espera 'LOW', 'MEDIUM', 'HIGH' en MAYÚSCULAS
 // -------------------------------------------------------------
 
 // =============================================================
 // 1. TIPOS BÁSICOS Y DE FILTRO
 // =============================================================
+
+/**
+ * Nivel de flexibilidad aceptado por el backend.
+ * ✅ CORRECCIÓN FINAL: El backend espera MAYÚSCULAS ('LOW', 'MEDIUM', 'HIGH')
+ * 
+ * Nota: En el frontend usamos minúsculas para mejor DX, pero la función
+ * mapFlexibilityToBackend() convierte a mayúsculas antes de enviar al API.
+ */
+export type FlexibilityLevel = 'low' | 'medium' | 'high';
+
+/**
+ * Tipo que representa los valores REALES que espera el backend.
+ * Usar este tipo al enviar datos al API directamente.
+ */
+export type FlexibilityLevelBackend = 'LOW' | 'MEDIUM' | 'HIGH';
 
 /**
  * Tipos de estado de rutina para los filtros del store.
@@ -68,14 +82,15 @@ export interface RoutineStep {
 
 /**
  * Estrategias de una rutina (RoutineStrategySerializer)
+ * 🚩 CORRECCIÓN ERROR 400: Eliminación de nulos y tipado estricto
  */
 export interface RoutineStrategy {
   id: number
-  flexibility_level: 'low' | 'medium' | 'high'
+  flexibility_level: FlexibilityLevel
   flexibility_level_display: string
   change_tolerance_notes: string
   needs_advance_warning: boolean
-  warning_time_minutes: number | null
+  warning_time_minutes: number
   warning_method: string
   warning_method_display: string
   transition_strategies: string
@@ -144,9 +159,6 @@ export interface RoutineEvaluation {
 // 3. INTERFACES PRINCIPALES DE RUTINA (Serializers Principales)
 // =============================================================
 
-/**
- * Objeto para la API de listado (DailyRoutineListSerializer)
- */
 export interface DailyRoutineList {
   id: number
   name: string
@@ -162,10 +174,6 @@ export interface DailyRoutineList {
   created_at: string
 }
 
-/**
- * Objeto para la API de detalle (DailyRoutineDetailSerializer)
- * Hereda de List e incluye todas las relaciones anidadas.
- */
 export interface DailyRoutineDetail extends DailyRoutineList {
   description: string
   child: number
@@ -183,9 +191,6 @@ export interface DailyRoutineDetail extends DailyRoutineList {
   evaluations: RoutineEvaluation[]
 }
 
-/**
- * Objeto para crear/actualizar una rutina (DailyRoutineWriteSerializer)
- */
 export interface RoutineWriteData {
   name: string
   routine_type: string
@@ -200,9 +205,6 @@ export interface RoutineWriteData {
 // 4. INTERFACES DEL ASISTENTE (Wizard Store)
 // =============================================================
 
-/**
- * Paso 1: Información Básica (Wizard)
- */
 export interface WizardBasicInfo {
   name: string
   routine_type: string | null
@@ -210,64 +212,54 @@ export interface WizardBasicInfo {
   status: 'draft' | 'active'
 }
 
-/**
- * Paso 2: Horarios (Wizard)
- */
 export interface WizardSchedule {
   id?: number | string
-  start_time: string // "HH:mm"
+  start_time: string 
   estimated_duration_minutes: number | null
-  days_of_week: string[] // ['monday', 'tuesday', ...]
+  days_of_week: string[]
 }
 
-/**
- * Paso 3: Pasos (Wizard)
- */
 export interface WizardStep {
-  // 'id' y 'order' se gestionan en el backend
+  id?: number | string
   action: string
   description: string
   estimated_minutes: number | null
-  visual_support: string // (Asumimos URL o path)
+  visual_support_description: string 
+  visual_support_image_id: number | null
+  visual_support: string 
   requires_supervision: boolean
   is_skippable: boolean
 }
 
-// --- AÑADIR ESTA INTERFAZ ---
-/**
- * Representa una estrategia individual añadida en el wizard.
- * (Ajusta los campos según lo que necesites guardar por estrategia)
- */
-export interface WizardStrategy { // <-- La interfaz que faltaba
-    id?: number | string  // ✅ AGREGAR ESTA LÍNEA
-  strategy_type: string // Ej: 'calming', 'transition', 'visual_support'
-  description: string   // Ej: 'Usar temporizador visual', 'Ofrecer objeto sensorial'
-  related_step_order?: number | null // Opcional: A qué paso se asocia
-  // Añade otros campos si son necesarios por estrategia individual
+export interface WizardStrategy {
+  id?: number | string
+  strategy_type: string 
+  description: string   
+  related_step_order?: number | null 
 }
 
 /**
  * Paso 4: Estrategias (Wizard)
+ * ✅ CORRECCIÓN ERROR 400: 
+ * - Frontend usa minúsculas para FlexibilityLevel (mejor DX)
+ * - Store convierte a MAYÚSCULAS antes de enviar al backend
  */
 export interface WizardStrategies {
-  flexibility_level: 'low' | 'medium' | 'high' | null
+  flexibility_level: FlexibilityLevel  // Frontend: 'low' | 'medium' | 'high'
   change_tolerance_notes: string
   needs_advance_warning: boolean
-  warning_time_minutes: number | null
-  warning_method: string | null
+  warning_time_minutes: number
+  warning_method: string
   transition_strategies: string
   calming_strategies: string
   visual_supports_needed: boolean
-  visual_support_type: string | null
+  visual_support_type: string
 }
 
 // =============================================================
 // 5. INTERFACES DE REGISTROS (Completion Logs)
 // =============================================================
 
-/**
- * Detalle de un paso completado (StepCompletionSerializer)
- */
 export interface StepCompletion {
   id: number
   step: number
@@ -280,9 +272,6 @@ export interface StepCompletion {
   notes: string
 }
 
-/**
- * Objeto para crear un detalle de paso (StepCompletionCreateSerializer)
- */
 export interface StepCompletionCreateData {
   step_id: number
   completed: boolean
@@ -292,9 +281,6 @@ export interface StepCompletionCreateData {
   notes?: string
 }
 
-/**
- * Registro de cumplimiento (RoutineCompletionLogDetailSerializer)
- */
 export interface LogEntry {
   id: number
   routine: number
@@ -309,7 +295,7 @@ export interface LogEntry {
   completion_status_display: string
   support_level_needed: 'none' | 'low' | 'medium' | 'high'
   support_level_display: string
-  independence_rating: number | null // 1-5
+  independence_rating: number | null 
   went_well: string
   difficulties: string
   modifications_made: string
@@ -320,17 +306,11 @@ export interface LogEntry {
   emotional_state_end: string
   emotional_state_end_display: string
   completion_percentage: number
-  
-  // Relaciones anidadas
   step_completions: StepCompletion[]
-  // (steps_completed y steps_with_difficulty son listas de IDs o objetos RoutineStep)
   steps_completed: RoutineStep[]
   steps_with_difficulty: RoutineStep[]
 }
 
-/**
- * Objeto para crear un registro (RoutineCompletionLogCreateSerializer)
- */
 export interface LogCreateData {
   date: string
   start_time: string
@@ -347,8 +327,6 @@ export interface LogCreateData {
   emotional_state_start?: string
   emotional_state_end?: string
   notes?: string
-  
-  // Array anidado para creación en batch
   step_completions: StepCompletionCreateData[]
 }
 
@@ -356,26 +334,17 @@ export interface LogCreateData {
 // 6. INTERFACES DE ACCIONES Y ANALÍTICAS (API Views)
 // =============================================================
 
-/**
- * Respuesta de la acción 'toggleStatus'.
- */
 export interface ToggleStatusResponse {
   status: string
   message: string
 }
 
-/**
- * Payload para la acción 'clone'.
- */
 export interface CloneRoutineData {
   new_name: string
   copy_steps?: boolean
   copy_strategies?: boolean
 }
 
-/**
- * Datos de una rutina para la comparación.
- */
 interface ComparisonRoutineData {
   name: string
   metrics: {
@@ -386,9 +355,6 @@ interface ComparisonRoutineData {
   }
 }
 
-/**
- * Respuesta de la API de 'RoutineComparisonView'.
- */
 export interface ComparisonData {
   period_days: number
   routine_a: ComparisonRoutineData
@@ -397,9 +363,6 @@ export interface ComparisonData {
   recommendation: string
 }
 
-/**
- * Respuesta de la API de 'effectiveness_report'.
- */
 export interface EffectivenessReport {
   routine_id: number
   routine_name: string

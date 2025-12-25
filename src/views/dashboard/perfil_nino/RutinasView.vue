@@ -1,65 +1,58 @@
-<!-- src/views/dashboard/perfil_nino/RutinasView.vue -->
 <template>
-  <div class="rutinas-container min-h-screen bg-gray-50">
-    <!-- HEADER CON ACCIONES -->
-    <div class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+  <div class="rutinas-container min-h-screen bg-gray-50 flex flex-col">
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm flex-shrink-0">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between py-6">
           <div class="flex items-center space-x-4">
-            <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-              </svg>
+            <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200">
+              <ClipboardDocumentListIcon class="w-8 h-8 text-white" />
             </div>
             
             <div>
-              <h1 class="text-3xl font-bold text-gray-900">
+              <h1 class="text-3xl font-black text-gray-900 tracking-tight">
                 Rutinas Diarias
               </h1>
-              <p class="text-sm text-gray-500 mt-1">
-                Gestiona y monitorea las rutinas de {{ childName }}
+              <p class="text-sm text-gray-500 mt-0.5 font-medium">
+                Gestiona y monitorea las rutinas de <span class="text-primary-600 font-bold">{{ childName }}</span>
               </p>
             </div>
           </div>
 
           <button
             @click="openCreateWizard"
-            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-primary-700 hover:to-primary-800 transform hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            class="btn-primary-gradient"
           >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
+            <PlusIcon class="w-5 h-5 mr-2 stroke-[3]" />
             Nueva Rutina
           </button>
         </div>
       </div>
-    </div>
+    </header>
 
-    <!-- TABS DE NAVEGACIÓN -->
-    <div class="bg-white border-b border-gray-200 shadow-sm">
+    <div class="bg-white border-b border-gray-200 shadow-sm sticky top-[105px] z-30">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav class="flex space-x-1" aria-label="Tabs">
+        <nav class="flex space-x-2" aria-label="Tabs">
           <button
             v-for="tab in tabs"
             :key="tab.name"
             @click="activeTab = tab.name"
             :class="[
-              'relative px-6 py-4 font-medium text-sm rounded-t-lg transition-all duration-200',
+              'relative px-6 py-4 font-bold text-sm transition-all duration-300 flex items-center gap-2',
               activeTab === tab.name
-                ? 'text-primary-700 bg-gray-50'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'text-primary-700 bg-primary-50/50'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
             ]"
           >
-            <span class="text-xl mr-2">{{ tab.icon }}</span>
+            <span class="text-xl">{{ tab.icon }}</span>
             <span>{{ tab.label }}</span>
             
             <span
               v-if="tab.count !== undefined"
               :class="[
-                'ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                'ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider',
                 activeTab === tab.name
-                  ? 'bg-primary-100 text-primary-800'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-500'
               ]"
             >
               {{ tab.count }}
@@ -67,44 +60,42 @@
             
             <span
               v-if="activeTab === tab.name"
-              class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-600 to-primary-500 rounded-t-full"
+              class="absolute bottom-0 left-0 right-0 h-1 bg-primary-600 rounded-t-full shadow-[0_-2px_10px_rgba(79,70,229,0.4)]"
             ></span>
           </button>
         </nav>
       </div>
     </div>
 
-    <!-- CONTENIDO DEL TAB ACTIVO -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Loading State -->
-      <div v-if="isLoading" class="flex items-center justify-center py-20">
-        <div class="text-center">
-          <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
-          <p class="mt-4 text-gray-600">Cargando rutinas...</p>
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-y-auto custom-scrollbar">
+      
+      <div v-if="routinesStore.loading" class="flex flex-col items-center justify-center py-24 animate-pulse">
+        <div class="relative w-16 h-16">
+          <div class="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
+          <div class="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
         </div>
+        <p class="mt-6 text-gray-500 font-bold text-sm uppercase tracking-widest">Sincronizando con Divermind AI...</p>
       </div>
 
-      <!-- Contenido -->
       <KeepAlive v-else>
-        <Transition name="fade" mode="out-in">
+        <Transition name="fade-slide" mode="out-in">
           <component
             :is="currentTabComponent"
             :child-id="childId"
             :child-name="childName"
-            @refresh="handleRefresh"
-            @routine-created="handleRoutineCreated"
-            @routine-updated="handleRoutineUpdated"
-            @update-count="handleUpdateCount"
+            :routines="routinesStore.routines"
+            :loading="routinesStore.loading"
+            @refresh="loadRoutines"
+            @create-routine="openCreateWizard"
+            @routine-updated="loadRoutines"
           />
         </Transition>
       </KeepAlive>
-    </div>
+    </main>
 
-    <!-- ✅ MODAL: WIZARD DE CREACIÓN (SIN TRANSITION REDUNDANTE) -->
     <Suspense v-if="showWizard">
       <template #default>
-        <component
-          :is="RoutineCreationWizard"
+        <RoutineCreationWizard
           :child-id="childId"
           :child-name="childName"
           @close="closeWizard"
@@ -113,85 +104,35 @@
       </template>
       <template #fallback>
         <Teleport to="body">
-          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-8">
-              <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent mx-auto"></div>
-              <p class="mt-4 text-gray-600">Cargando wizard...</p>
+          <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div class="bg-white rounded-3xl p-10 shadow-2xl flex flex-col items-center">
+              <div class="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+              <p class="mt-4 text-gray-900 font-black">Preparando Asistente...</p>
             </div>
           </div>
         </Teleport>
       </template>
     </Suspense>
 
-    <!-- TOAST NOTIFICATIONS (se mantiene igual) -->
     <Teleport to="body">
-      <div class="fixed bottom-4 right-4 z-50 space-y-2">
-        <TransitionGroup
-          enter-active-class="transition ease-out duration-300"
-          enter-from-class="transform translate-x-full opacity-0"
-          enter-to-class="transform translate-x-0 opacity-100"
-          leave-active-class="transition ease-in duration-200"
-          leave-from-class="transform translate-x-0 opacity-100"
-          leave-to-class="transform translate-x-full opacity-0"
-        >
+      <div class="fixed bottom-6 right-6 z-[60] flex flex-col gap-3">
+        <TransitionGroup name="toast">
           <div
-            v-for="notification in notifications"
-            :key="notification.id"
-            :class="[
-              'max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden',
-              getNotificationStyles(notification.type)
-            ]"
+            v-for="n in notifications" :key="n.id"
+            :class="['toast-card', getNotificationStyles(n.type)]"
           >
-            <div class="p-4">
-              <div class="flex items-start">
-                <div class="flex-shrink-0">
-                  <svg 
-                    v-if="notification.type === 'success'" 
-                    class="h-6 w-6 text-green-400" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <svg 
-                    v-else-if="notification.type === 'error'" 
-                    class="h-6 w-6 text-red-400" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <svg 
-                    v-else 
-                    class="h-6 w-6 text-blue-400" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div class="ml-3 w-0 flex-1">
-                  <p class="text-sm font-medium text-gray-900">
-                    {{ notification.title }}
-                  </p>
-                  <p v-if="notification.message" class="mt-1 text-sm text-gray-500">
-                    {{ notification.message }}
-                  </p>
-                </div>
-                <div class="ml-4 flex-shrink-0 flex">
-                  <button
-                    @click="removeNotification(notification.id)"
-                    class="rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                  >
-                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
+            <div class="flex items-center gap-4">
+              <div :class="['p-2 rounded-xl bg-white/20 shadow-sm']">
+                <CheckCircleIcon v-if="n.type === 'success'" class="w-6 h-6" />
+                <ExclamationTriangleIcon v-else class="w-6 h-6" />
               </div>
+              <div class="flex-1">
+                <p class="font-black text-sm uppercase tracking-tight">{{ n.title }}</p>
+                <p class="text-xs font-medium opacity-90">{{ n.message }}</p>
+              </div>
+              <button @click="removeNotification(n.id)" class="p-1 hover:bg-white/10 rounded-lg">
+                <XMarkIcon class="w-5 h-5" />
+              </button>
             </div>
           </div>
         </TransitionGroup>
@@ -204,247 +145,130 @@
 import { ref, computed, onMounted, defineAsyncComponent, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNinoActivoStore } from '@/store/ninoActivoStore'
+import { useRoutinesStore } from '@/store/rutinas/routinesStore'
+import { 
+  ClipboardDocumentListIcon, PlusIcon, XMarkIcon, 
+  CheckCircleIcon, ExclamationTriangleIcon 
+} from '@heroicons/vue/24/outline'
 
-// LAZY LOADING DE SUB-VISTAS con loading component
-const createAsyncComponent = (loader) => {
-  return defineAsyncComponent({
-    loader,
-    loadingComponent: {
-      template: `
-        <div class="flex items-center justify-center py-20">
-          <div class="text-center">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
-            <p class="mt-4 text-gray-600">Cargando vista...</p>
-          </div>
-        </div>
-      `
-    },
-    errorComponent: {
-      template: `
-        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p class="text-red-600 font-medium">Error al cargar la vista</p>
-          <p class="text-red-500 text-sm mt-2">Por favor, recarga la página</p>
-        </div>
-      `
-    },
-    delay: 200,
-    timeout: 10000
-  })
-}
+// LAZY LOADING DE VISTAS
+const RutinasAgendaView = defineAsyncComponent(() => import('./rutinas/RutinasAgendaView.vue'))
+const RutinasListView = defineAsyncComponent(() => import('./rutinas/RutinasListView.vue'))
+const RutinasAnalyticsView = defineAsyncComponent(() => import('./rutinas/RutinasAnalyticsView.vue'))
+const RutinasComparisonView = defineAsyncComponent(() => import('./rutinas/RutinasComparisonView.vue'))
 
-const RutinasAgendaView = createAsyncComponent(() =>
-  import('./rutinas/RutinasAgendaView.vue')
-)
-const RutinasListView = createAsyncComponent(() =>
-  import('./rutinas/RutinasListView.vue')
-)
-const RutinasAnalyticsView = createAsyncComponent(() =>
-  import('./rutinas/RutinasAnalyticsView.vue')
-)
-const RutinasComparisonView = createAsyncComponent(() =>
-  import('./rutinas/RutinasComparisonView.vue')
+const RoutineCreationWizard = defineAsyncComponent(() => 
+  import('@/components/gestion/rutinas/wizard/RoutineCreationWizard.vue')
 )
 
-const RoutineCreationWizard = defineAsyncComponent({
-  loader: () => import('@/components/gestion/rutinas/wizard/RoutineCreationWizard.vue'),
-  errorComponent: {
-    template: '<div class="p-4 bg-red-50 text-red-600 rounded">Error al cargar wizard</div>'
-  }
-})
-
-// PROPS Y ROUTER
+// STORES Y CONFIGURACIÓN
 const route = useRoute()
-const childId = computed(() => parseInt(route.params.id))
 const ninoStore = useNinoActivoStore()
+const routinesStore = useRoutinesStore()
+
+const childId = computed(() => parseInt(route.params.id))
 const childName = computed(() => ninoStore.nombreNino || 'Cargando...')
 
-// STORE DE RUTINAS - Intento de carga opcional
-let routinesStore = null
-try {
-  // Descomenta cuando el store exista:
-  // const { useRoutinesStore } = await import('@/store/rutinas/routinesStore')
-  // routinesStore = useRoutinesStore()
-} catch (error) {
-  console.info('Store de rutinas no disponible, usando modo local')
-}
-
-// STATE
+// ESTADO DE LA VISTA
 const activeTab = ref('agenda')
 const showWizard = ref(false)
-const isLoading = ref(false)
 const notifications = ref([])
-const routineCount = ref(0) // Contador local
 
-// CONFIGURACIÓN DE TABS
+// TABS CONFIGURACIÓN
 const tabs = computed(() => [
-  {
-    name: 'agenda',
-    label: 'Agenda Hoy',
-    icon: '📅',
-    count: undefined
+  { name: 'agenda', label: 'Agenda Hoy', icon: '📅' },
+  { 
+    name: 'list', 
+    label: 'Mis Rutinas', 
+    icon: '📋', 
+    count: routinesStore.routines.length // Conexión directa al Store
   },
-  {
-    name: 'list',
-    label: 'Mis Rutinas',
-    icon: '📋',
-    count: routinesStore?.activeRoutines?.length ?? routineCount.value
-  },
-  {
-    name: 'analytics',
-    label: 'Análisis',
-    icon: '📊',
-    count: undefined
-  },
-  {
-    name: 'comparison',
-    label: 'Comparar',
-    icon: '⚖️',
-    count: undefined
-  }
+  { name: 'analytics', label: 'Análisis', icon: '📊' },
+  { name: 'comparison', label: 'Comparar', icon: '⚖️' }
 ])
 
-// COMPONENTE DINÁMICO SEGÚN TAB
 const currentTabComponent = computed(() => {
-  const componentMap = {
+  const map = {
     agenda: RutinasAgendaView,
     list: RutinasListView,
     analytics: RutinasAnalyticsView,
     comparison: RutinasComparisonView
   }
-  return componentMap[activeTab.value]
+  return map[activeTab.value]
 })
 
-// MÉTODOS
-const openCreateWizard = () => {
-  showWizard.value = true
-}
-
-const closeWizard = () => {
-  showWizard.value = false
-}
-
-const handleRoutineCreated = (routine) => {
-  showWizard.value = false
-  
-  addNotification({
-    type: 'success',
-    title: 'Rutina creada',
-    message: `"${routine?.name || 'La rutina'}" se creó exitosamente`
-  })
-  
-  activeTab.value = 'list'
-  loadRoutines()
-}
-
-const handleRoutineUpdated = () => {
-  addNotification({
-    type: 'success',
-    title: 'Rutina actualizada',
-    message: 'Los cambios se guardaron correctamente'
-  })
-  
-  loadRoutines()
-}
-
-const handleRefresh = () => {
-  loadRoutines()
-}
-
-// Nuevo: handler para actualizar contador desde sub-vistas
-const handleUpdateCount = (count) => {
-  routineCount.value = count
-}
-
+// MÉTODOS DE DATOS
 const loadRoutines = async () => {
-  // Si hay store, úsalo
-  if (routinesStore?.fetchRoutines) {
-    isLoading.value = true
-    try {
-      await routinesStore.fetchRoutines(childId.value)
-      routineCount.value = routinesStore.activeRoutines?.length || 0
-    } catch (error) {
-      console.error('Error cargando rutinas:', error)
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'No se pudieron cargar las rutinas'
-      })
-    } finally {
-      isLoading.value = false
-    }
-  } else {
-    // Si no hay store, las sub-vistas manejan sus propios datos
-    console.info('Usando datos locales de sub-vistas')
+  if (!childId.value) return
+  try {
+    // Sincronización completa: obtenemos todo (drafts y active) para la biblioteca
+    await routinesStore.fetchRoutines(childId.value, { status: 'all' })
+  } catch (err) {
+    addNotification({ type: 'error', title: 'Error de Red', message: 'No se pudo sincronizar la biblioteca.' })
   }
 }
 
-// SISTEMA DE NOTIFICACIONES
-let notificationId = 0
-
-const addNotification = ({ type, title, message }) => {
-  const id = ++notificationId
-  notifications.value.push({ id, type, title, message })
-  
-  setTimeout(() => {
-    removeNotification(id)
-  }, 5000)
-}
-
-const removeNotification = (id) => {
-  const index = notifications.value.findIndex(n => n.id === id)
-  if (index !== -1) {
-    notifications.value.splice(index, 1)
-  }
-}
-
-const getNotificationStyles = (type) => {
-  const styles = {
-    success: 'border-l-4 border-green-500',
-    error: 'border-l-4 border-red-500',
-    warning: 'border-l-4 border-yellow-500',
-    info: 'border-l-4 border-blue-500'
-  }
-  return styles[type] || styles.info
-}
-
-// LIFECYCLE HOOKS
-onMounted(async () => {
+const handleRoutineCreated = async (routine) => {
+  showWizard.value = false
+  addNotification({
+    type: 'success',
+    title: '¡Rutina Lista!',
+    message: `"${routine?.name}" se ha añadido a la biblioteca.`
+  })
+  activeTab.value = 'list'
   await loadRoutines()
-})
+}
 
-watch(() => childId.value, async (newId) => {
-  if (newId) {
-    await loadRoutines()
-  }
-})
+// GESTIÓN DE MODALES
+const openCreateWizard = () => { showWizard.value = true }
+const closeWizard = () => { showWizard.value = false }
+
+// SISTEMA DE TOASTS
+let nId = 0
+const addNotification = (n) => {
+  const id = ++nId
+  notifications.value.push({ ...n, id })
+  setTimeout(() => removeNotification(id), 5000)
+}
+const removeNotification = (id) => {
+  notifications.value = notifications.value.filter(n => n.id !== id)
+}
+const getNotificationStyles = (type) => {
+  return type === 'success' 
+    ? 'bg-emerald-600 text-white shadow-emerald-200' 
+    : 'bg-red-600 text-white shadow-red-200'
+}
+
+// INICIO
+onMounted(() => loadRoutines())
+watch(() => childId.value, () => loadRoutines())
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+/* Botones con estilo Divermind */
+.btn-primary-gradient {
+  @apply inline-flex items-center px-8 py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-black rounded-2xl shadow-xl shadow-primary-200 hover:scale-105 active:scale-95 transition-all duration-300;
 }
 
-.fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
+/* Scrollbar Personalizada */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
+/* Transiciones de Vista */
+.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.fade-slide-enter-from { opacity: 0; transform: translateY(20px); }
+.fade-slide-leave-to { opacity: 0; transform: translateY(-20px); }
 
-.rutinas-container ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Animación de Toasts */
+.toast-card {
+  @apply min-w-[320px] p-5 rounded-2xl shadow-2xl animate-fade-in pointer-events-auto;
 }
+.toast-enter-active { animation: toast-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+.toast-leave-active { animation: toast-in 0.3s reverse ease-in; }
 
-.rutinas-container ::-webkit-scrollbar-track {
-  @apply bg-gray-100 rounded;
-}
-
-.rutinas-container ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded hover:bg-gray-400;
+@keyframes toast-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 </style>

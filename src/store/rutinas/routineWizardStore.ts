@@ -1,72 +1,55 @@
 // src/store/rutinas/routineWizardStore.ts
+// ✅ VERSIÓN FINAL - VALORES CORRECTOS DEL BACKEND
 
 import { defineStore } from 'pinia'
 import { routinesApi } from '@/services/rutinas/routinesApi'
-// Importa useRoutinesStore para añadir la rutina al final
 import { useRoutinesStore } from './routinesStore'
-// Importa los tipos necesarios desde el archivo centralizado
-// Ya no necesitamos importar WizardBasicInfo, etc. aquí si las definimos y exportamos localmente
-import type { DailyRoutineList } from '@/type/rutinas/rutinas' // Asegúrate que la ruta sea correcta
+import type { DailyRoutineList, FlexibilityLevel, WizardStrategies } from '@/type/rutinas/rutinas' 
+import Swal from 'sweetalert2'
 
 // =============================================================================
-// INTERFACES (Definidas y Exportadas Localmente)
+// INTERFACES LOCALES
 // =============================================================================
 
-// --- Paso 1: Información Básica ---
-export interface WizardBasicInfo { // <-- EXPORT AÑADIDO
+export interface WizardBasicInfo {
   name: string
   routine_type: string | null
   description: string
   status: 'draft' | 'active'
 }
 
-// --- Paso 2: Horarios ---
-export interface WizardSchedule { // <-- EXPORT AÑADIDO
+export interface WizardSchedule {
   start_time: string
   estimated_duration_minutes: number | null
   days_of_week: string[]
 }
 
-// --- Paso 3: Pasos ---
 export interface WizardStep {
-  id?: number | string  // ✅ AGREGAR ESTA LÍNEA
+  id?: number | string
   action: string
   description: string
   estimated_minutes: number | null
+  visual_support_description: string 
+  visual_support_image_id: number | null
   visual_support: string
   requires_supervision: boolean
   is_skippable: boolean
 }
 
-// --- Paso 4: Estrategias (Individual) ---
-export interface WizardStrategy { // <-- EXPORT AÑADIDO
-  id?: number | string  // ✅ OPCIONAL - se asigna dinámicamente
+export interface WizardStrategy {
+  id?: number | string
   strategy_type: string
   description: string
   related_step_order: number | null
 }
 
-// --- Paso 4: Estrategias (Configuración General) ---
-export interface WizardStrategies { // <-- EXPORT AÑADIDO
-  flexibility_level: 'low' | 'medium' | 'high' | null
-  change_tolerance_notes: string
-  needs_advance_warning: boolean
-  warning_time_minutes: number | null
-  warning_method: string | null
-  transition_strategies: string
-  calming_strategies: string
-  visual_supports_needed: boolean
-  visual_support_type: string | null
-}
-
-// --- Estado Principal del Store ---
-export interface RoutineWizardState { // <-- EXPORT AÑADIDO
+export interface RoutineWizardState {
   childId: number | null
   basicInfo: WizardBasicInfo
   schedules: WizardSchedule[]
   steps: WizardStep[]
-  strategies: WizardStrategy[] // Array de estrategias individuales
-  strategiesConfig: WizardStrategies // Configuración general de estrategias
+  strategies: WizardStrategy[] 
+  strategiesConfig: WizardStrategies 
   isLoading: boolean
   error: string | null
 }
@@ -75,25 +58,23 @@ export interface RoutineWizardState { // <-- EXPORT AÑADIDO
 // VALORES POR DEFECTO
 // =============================================================================
 
-// Función para obtener el estado inicial de basicInfo
 const getDefaultBasicInfo = (): WizardBasicInfo => ({
   name: '',
   routine_type: null,
-  description: '', // Asegúrate que coincida con el tipo (string, no undefined)
-  status: 'draft',
+  description: '',
+  status: 'active',
 })
 
-// Función para obtener el estado inicial de strategiesConfig
 const getDefaultStrategiesConfig = (): WizardStrategies => ({
-  flexibility_level: 'medium',
+  flexibility_level: 'medium' as FlexibilityLevel, 
   change_tolerance_notes: '',
   needs_advance_warning: false,
   warning_time_minutes: 5,
-  warning_method: null,
+  warning_method: 'verbal',    
   transition_strategies: '',
   calming_strategies: '',
   visual_supports_needed: false,
-  visual_support_type: null,
+  visual_support_type: 'pictograms' 
 })
 
 // =============================================================================
@@ -107,66 +88,33 @@ export const useRoutineWizardStore = defineStore('routineWizard', {
     basicInfo: getDefaultBasicInfo(),
     schedules: [],
     steps: [],
-    strategies: [], // Array vacío para estrategias individuales
-    strategiesConfig: getDefaultStrategiesConfig(), // Configuración general
+    strategies: [], 
+    strategiesConfig: getDefaultStrategiesConfig(),
     isLoading: false,
     error: null,
   }),
 
   getters: {
-    /**
-     * Valida si el Paso 1 (Información Básica) está completo.
-     */
     isStep1Valid: (state): boolean => {
       return !!state.basicInfo.name &&
-             state.basicInfo.name.length >= 4 && // Ajustado a validación FormKit
+             state.basicInfo.name.length >= 4 &&
              !!state.basicInfo.routine_type
     },
-
-    /**
-     * Valida si el Paso 2 (Horarios) está completo.
-     * Es válido incluso sin horarios.
-     */
-    isStep2Valid: (): boolean => {
-      // Podrías añadir validación más compleja si los horarios fueran obligatorios
-      // o si hubiera reglas entre ellos.
-      return true
-    },
-
-    /**
-     * Valida si el Paso 3 (Pasos) está completo.
-     * Requiere al menos un paso con una acción definida.
-     */
+    isStep2Valid: (state): boolean => state.schedules.length > 0,
     isStep3Valid: (state): boolean => {
       return state.steps.length > 0 &&
              state.steps.every(step => !!step.action && step.action.trim().length > 0)
     },
-
-    /**
-     * Valida si el Paso 4 (Estrategias) está completo.
-     * Por ahora, se considera siempre válido.
-     */
-    isStep4Valid: (): boolean => {
-      // Podrías añadir validación si ciertos campos de strategiesConfig
-      // fueran obligatorios basados en otras selecciones.
-      return true
-    },
+    isStep4Valid: (state): boolean => !!state.strategiesConfig.flexibility_level,
   },
 
   actions: {
-    /**
-     * Inicializa el store con el ID del niño y resetea los datos.
-     */
     initialize(childId: number) {
-      this.reset() // Limpia datos previos
+      this.resetStore()
       this.childId = childId
-      console.log(`Wizard Store inicializado para childId: ${childId}`)
     },
 
-    /**
-     * Resetea el estado del store a sus valores por defecto.
-     */
-    reset() {
+    resetStore() {
       this.childId = null
       this.basicInfo = getDefaultBasicInfo()
       this.schedules = []
@@ -175,139 +123,207 @@ export const useRoutineWizardStore = defineStore('routineWizard', {
       this.strategiesConfig = getDefaultStrategiesConfig()
       this.isLoading = false
       this.error = null
-      console.log('Wizard Store reseteado')
     },
 
     /**
-     * Orquesta la creación completa de la rutina llamando a la API secuencialmente.
-     * @returns {Promise<DailyRoutineList>} La rutina básica creada (DailyRoutineList).
-     * @throws {Error} Si falla la creación o el rollback.
+     * ✅ CORRECCIÓN FINAL: Mapea valores del frontend a los valores EXACTOS del backend
+     * Backend espera: 'rigid', 'low', 'moderate', 'high'
+     * Frontend usa: 'low', 'medium', 'high'
      */
-    async submitAllData(): Promise<DailyRoutineList> {
-      // --- Validación Preliminar ---
-      if (this.childId === null) {
-        console.error('submitAllData: childId es null')
-        throw new Error("No se ha proporcionado un ID de niño.")
+    mapFlexibilityToBackend(level: FlexibilityLevel | string): string {
+      const normalized = level?.toLowerCase() || 'medium'
+      
+      if (normalized.includes('low') || normalized === 'baja') {
+        return 'low'  // ✅ Backend acepta 'low'
       }
-      // Validar que todos los pasos requeridos sean válidos (opcional, defensa extra)
-      if (!this.isStep1Valid || !this.isStep3Valid) {
-         console.error('submitAllData: Pasos 1 o 3 no son válidos', {s1: this.isStep1Valid, s3: this.isStep3Valid})
-         throw new Error("Por favor, completa todos los campos obligatorios en los pasos anteriores.")
+      if (normalized.includes('medium') || normalized === 'media') {
+        return 'moderate'  // ✅ CRÍTICO: Backend espera 'moderate' NO 'medium'
+      }
+      if (normalized.includes('high') || normalized === 'alta') {
+        return 'high'  // ✅ Backend acepta 'high'
+      }
+      
+      return 'moderate'  // Default seguro
+    },
+
+    /**
+     * ✅ Limpia y valida el objeto de estrategias
+     */
+    sanitizeStrategiesForAPI(config: WizardStrategies): any {
+      // Validar warning_method
+      const validWarningMethods = ['verbal', 'timer', 'visual', 'song', 'countdown', 'mixed']
+      const safeWarningMethod = validWarningMethods.includes(config.warning_method) 
+        ? config.warning_method 
+        : 'verbal'
+
+      // Validar visual_support_type
+      const validVisualTypes = ['pictograms', 'written_list', 'checklist', 'timer_visual', 'sequence_board', 'video_model', 'mixed']
+      const safeVisualSupportType = validVisualTypes.includes(config.visual_support_type) 
+        ? config.visual_support_type 
+        : 'pictograms'
+
+      const sanitized = {
+        flexibility_level: this.mapFlexibilityToBackend(config.flexibility_level), // ✅ 'moderate'
+        change_tolerance_notes: config.change_tolerance_notes?.trim() || '',
+        needs_advance_warning: Boolean(config.needs_advance_warning),
+        warning_time_minutes: Math.max(0, Number(config.warning_time_minutes) || 5),
+        warning_method: safeWarningMethod,
+        transition_strategies: config.transition_strategies?.trim() || '',
+        calming_strategies: config.calming_strategies?.trim() || '',
+        visual_supports_needed: Boolean(config.visual_supports_needed),
+        visual_support_type: safeVisualSupportType
       }
 
-      // --- Inicio del Proceso ---
-      const childId = this.childId // Asegura que no sea null para TypeScript
+      console.log('🔍 [DEBUG] Payload de estrategias ANTES de enviar:', JSON.stringify(sanitized, null, 2))
+
+      return sanitized
+    },
+
+    /**
+     * ✅ saveFullRoutine: Orquesta la creación completa
+     */
+    async saveFullRoutine(childId: number) {
+      Swal.fire({
+        title: 'Sincronizando Routine AI...',
+        text: 'Estamos guardando la configuración de horarios y estrategias.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading()
+        }
+      });
+
       this.isLoading = true
       this.error = null
       const routinesStore = useRoutinesStore()
-      let createdRoutineId: number | null = null // Variable para guardar el ID de la rutina creada
+      let createdRoutineId: number | null = null
 
       try {
-        console.log('Wizard: Iniciando submitAllData...')
-        // --- 1. Crear la Rutina Principal ---
-        console.log('Wizard: Creando rutina principal...', this.basicInfo)
-        const routineResponse = await routinesApi.createRoutine(
-          childId,
-          // Asegúrate que el objeto enviado coincida con RoutineCreateData o WizardBasicInfo según routinesApi
-          {
-            ...this.basicInfo,
-            // El backend espera routine_type como string, no null
-            routine_type: this.basicInfo.routine_type || '', // Convierte null a string vacío si es necesario
-            description: this.basicInfo.description || '', // Envía string vacío si no hay descripción
-          }
-        )
-        createdRoutineId = routineResponse.data.id // Guarda el ID devuelto por la API
-        const newRoutine = routineResponse.data // Guarda el objeto completo
+        // --- Paso 1: Crear la Rutina Principal ---
+        console.log('📤 [PASO 1] Creando rutina base...')
+        const routineResponse = await routinesApi.createRoutine(childId, {
+          ...this.basicInfo,
+          routine_type: this.basicInfo.routine_type || '',
+          description: this.basicInfo.description || '',
+        })
 
-        // --- VERIFICACIÓN CRÍTICA ---
-        if (!createdRoutineId || typeof createdRoutineId !== 'number') {
-          console.error('Wizard: No se obtuvo un ID válido para la rutina creada:', createdRoutineId)
-          throw new Error("Error crítico: No se pudo obtener el ID de la rutina principal creada desde la API.");
+        const responseData = routineResponse.data as any
+        createdRoutineId = responseData?.id ?? responseData?.data?.id
+
+        if (!createdRoutineId) {
+          throw new Error("El servidor de Divermind no devolvió un ID válido.")
         }
-        console.log(`Wizard: Rutina principal creada con ID: ${createdRoutineId}`)
-
-        // --- 2. Crear Elementos Anidados (en paralelo) ---
+        
+        console.log(`✅ [PASO 1] Rutina creada con ID: ${createdRoutineId}`)
+        
+        const newRoutine = routineResponse.data
         const promises: Promise<any>[] = []
-        console.log('Wizard: Preparando creación de elementos anidados...')
 
-        // 2a. Horarios
-        if (this.schedules.length > 0) {
-          console.log(`Wizard: Añadiendo ${this.schedules.length} horarios a las promesas...`)
-          this.schedules.forEach(schedule => {
-            promises.push(
-              routinesApi.createSchedule(childId, createdRoutineId!, schedule)
-            )
-          })
-        }
+        // --- Paso 2: Preparar Detalles en Paralelo ---
+        
+        // 2a. Guardar Horarios
+        console.log(`📤 [PASO 2] Guardando ${this.schedules.length} horario(s)...`)
+        this.schedules.forEach(schedule => {
+          promises.push(routinesApi.createSchedule(childId, createdRoutineId!, schedule))
+        })
 
-        // 2b. Pasos (añadiendo el 'order')
-        if (this.steps.length > 0) {
-          console.log(`Wizard: Añadiendo ${this.steps.length} pasos a las promesas...`)
-          this.steps.forEach((step, index) => {
-            const stepDataWithOrder = { ...step, order: index + 1 }
-            promises.push(
-              routinesApi.createStep(childId, createdRoutineId!, stepDataWithOrder)
-            )
-          })
-        }
+        // 2b. Guardar Pasos
+        console.log(`📤 [PASO 3] Guardando ${this.steps.length} paso(s)...`)
+        this.steps.forEach((step, index) => {
+          const stepData = { 
+            ...step, 
+            order: index + 1,
+            visual_support: step.visual_support_description || ''
+          }
+          if (typeof stepData.id === 'string' && stepData.id.startsWith('temp-')) {
+            delete stepData.id
+          }
+          promises.push(routinesApi.createStep(childId, createdRoutineId!, stepData))
+        })
 
-        // 2c. Estrategias individuales (SI TU BACKEND LO SOPORTA)
-        if (this.strategies.length > 0) {
-           console.log(`Wizard: Añadiendo ${this.strategies.length} estrategias individuales a las promesas...`)
-           this.strategies.forEach(strategy => {
-             // Asegúrate que la API y el backend soporten esto
-             promises.push(
-               routinesApi.createIndividualStrategy(childId, createdRoutineId!, strategy)
-             )
-           })
-        }
+        // 2c. Guardar Estrategias
+        console.log('📤 [PASO 4] Preparando estrategias...')
+        console.log('🔍 [DEBUG] strategiesConfig RAW:', JSON.stringify(this.strategiesConfig, null, 2))
+        
+        const cleanStrategies = this.sanitizeStrategiesForAPI(this.strategiesConfig)
 
-        // 2d. Configuración general de estrategias
-        // Solo la enviamos si tiene datos o si siempre debe existir
-        // (Podrías añadir una comprobación si getDefaultStrategiesConfig() representa un estado "vacío")
-        console.log('Wizard: Añadiendo configuración general de estrategias a las promesas...')
         promises.push(
-          routinesApi.createStrategyConfig(childId, createdRoutineId!, this.strategiesConfig)
+          routinesApi.createStrategyConfig(childId, createdRoutineId!, cleanStrategies)
         )
 
-        // Esperar a que todas las promesas de creación de sub-elementos terminen
-        console.log(`Wizard: Ejecutando ${promises.length} promesas en paralelo...`)
+        // --- Paso 3: Ejecución ---
+        console.log(`⏳ Ejecutando ${promises.length} peticiones en paralelo...`)
         await Promise.all(promises)
-        console.log('Wizard: Elementos anidados creados exitosamente.')
-
-        // --- 3. Éxito Final ---
+        
+        console.log('✅ Todas las peticiones completadas exitosamente')
+        
         this.isLoading = false
+        routinesStore.addRoutineLocal(newRoutine as DailyRoutineList)
+        
+        await Swal.fire({
+          icon: 'success',
+          title: '¡Rutina Configurada!',
+          text: `Todo se guardó correctamente.`,
+          timer: 2000,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'rounded-3xl border-none'
+          }
+        });
 
-        // Añadir la nueva rutina (con datos básicos) al store principal localmente
-        // Esto actualiza la UI sin necesidad de un fetch completo inmediato
-        routinesStore.addRoutineLocal(newRoutine as DailyRoutineList) // Usa la acción local
-        console.log('Wizard: Rutina añadida al store principal localmente.')
-
-        return newRoutine // Devuelve la rutina creada
+        return { success: true, data: newRoutine }
 
       } catch (err: any) {
-        // --- Manejo de Errores ---
-        console.error('Wizard: Error durante submitAllData:', err)
         this.isLoading = false
-        // Intenta obtener un mensaje de error específico
-        this.error = err?.response?.data?.detail || err?.response?.data?.error || err?.message || "Ocurrió un error desconocido durante la creación."
+        
+        console.error('❌ Error capturado en saveFullRoutine:', err)
+        console.error('📋 Detalles del error:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          config: err.config
+        })
+        
+        this.error = err?.response?.data 
+          ? JSON.stringify(err.response.data) 
+          : (err.message || "Error desconocido")
 
-        // --- 4. ROLLBACK (Intentar eliminar la rutina base si se creó) ---
-        if (createdRoutineId !== null) {
-          console.warn(`Wizard: Intentando Rollback - Eliminando rutina base ID: ${createdRoutineId}`)
-          try {
-            await routinesApi.deleteRoutine(childId, createdRoutineId)
-            console.log(`Wizard: Rollback exitoso - Rutina ${createdRoutineId} eliminada.`)
-          } catch (deleteErr: any) {
-            console.error("Wizard: Error CRÍTICO durante el Rollback:", deleteErr)
-            // Informar al usuario que puede haber quedado una rutina incompleta
-            this.error = `Error al crear los detalles de la rutina. Es posible que se haya creado una rutina incompleta (${this.basicInfo.name}). Por favor, revísala o contacta a soporte. Detalle: ${this.error}`
+        Swal.fire({
+          icon: 'error',
+          title: 'Error de Sincronización',
+          html: `
+            <p class="mb-2">No pudimos guardar los detalles. Se ha cancelado la creación para evitar datos incompletos.</p>
+            <details class="mt-3 text-left">
+              <summary class="cursor-pointer text-sm font-bold text-red-600">Ver detalles técnicos</summary>
+              <pre class="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">${this.error}</pre>
+            </details>
+          `,
+          confirmButtonText: 'Revisar formulario',
+          confirmButtonColor: '#4f46e5',
+          customClass: {
+            confirmButton: 'rounded-xl px-6 py-2'
           }
+        });
+
+        if (createdRoutineId) {
+          console.warn(`🗑️ [ROLLBACK] Limpiando rutina incompleta ID: ${createdRoutineId}`)
+          await routinesApi.deleteRoutine(childId, createdRoutineId).catch((rollbackErr) => {
+            console.error('⚠️ Error en rollback (no crítico):', rollbackErr)
+          })
         }
 
-        // Relanzar el error para que el componente Wizard lo capture
-        throw new Error(this.error || 'An unknown error occurred')
+        return { success: false, error: this.error }
       }
-    }, // Fin de submitAllData
-  }, // Fin de actions
-}) // Fin de defineStore
+    },
+
+    /**
+     * ⚠️ DEPRECADO: Mantiene compatibilidad
+     */
+    mapFlexibility(level: string | null): FlexibilityLevel {
+      const normalized = level?.toLowerCase() || 'medium'
+      if (normalized.includes('low') || normalized === 'baja') return 'low' as FlexibilityLevel
+      if (normalized.includes('high') || normalized === 'alta') return 'high' as FlexibilityLevel
+      return 'medium' as FlexibilityLevel
+    }
+  },
+})
