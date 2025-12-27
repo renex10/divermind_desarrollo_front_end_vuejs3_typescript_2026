@@ -1,3 +1,5 @@
+<!-- src\views\dashboard\perfil_nino\RutinasView.vue
+ -->
 <template>
   <div class="rutinas-container min-h-screen bg-gray-50 flex flex-col">
     <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm flex-shrink-0">

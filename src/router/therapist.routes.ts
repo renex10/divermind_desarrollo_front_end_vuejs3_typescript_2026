@@ -63,12 +63,26 @@ export default [
             props: true,
             meta: { breadcrumb: 'Hitos y Logros' }
           },
+          // ✅ RUTA ACTUALIZADA: Estructura anidada para Rutinas
           {
             path: 'rutinas',
-            name: 'perfil-nino-rutinas',
-            component: () => import('@/views/dashboard/perfil_nino/RutinasView.vue'),
-            props: true,
-            meta: { breadcrumb: 'Rutinas' }
+            meta: { breadcrumb: 'Rutinas' },
+            component: RouteShell,
+            children: [
+              {
+                path: '',
+                name: 'perfil-nino-rutinas',
+                component: () => import('@/views/dashboard/perfil_nino/RutinasView.vue'),
+                props: true
+              },
+              {
+                path: ':routineId',
+                name: 'perfil-nino-rutina-detalle',
+                component: () => import('@/views/dashboard/perfil_nino/rutinas/RoutineDetailView.vue'),
+                props: true,
+                meta: { breadcrumb: 'Detalle de Rutina' }
+              }
+            ]
           },
           {
             path: 'cognitivo',
@@ -154,8 +168,7 @@ export default [
     component: () => import('@/views/dashboard/SessionesView.vue') 
   },
   
-  // ✅ RUTA ACTUALIZADA: Detalle de sesión específica
-  // Se cambia el nombre para que coincida con lo que el componente llama: "detalle-sesion-especifica"
+  // Detalle de sesión específica
   {
     path: 'ninos/:childId/sesiones/:sessionId', 
     name: 'detalle-sesion-especifica', 

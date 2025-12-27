@@ -1,9 +1,9 @@
-// src/type/rutinas.ts
+// src/type/rutinas/rutinas.ts
 // -------------------------------------------------------------
 // Definiciones de TypeScript para el Módulo de Rutinas
 //
-// ✅ ACTUALIZACIÓN CRÍTICA: FlexibilityLevel corregido a MAYÚSCULAS
-// El backend Django espera 'LOW', 'MEDIUM', 'HIGH' en MAYÚSCULAS
+// ✅ ACTUALIZACIÓN CRÍTICA: WizardStep incluye common_difficulties y strategies
+// Estos campos son obligatorios en PostgreSQL (NOT NULL sin default)
 // -------------------------------------------------------------
 
 // =============================================================
@@ -13,8 +13,7 @@
 /**
  * Nivel de flexibilidad aceptado por el backend.
  * ✅ CORRECCIÓN FINAL: El backend espera MAYÚSCULAS ('LOW', 'MEDIUM', 'HIGH')
- * 
- * Nota: En el frontend usamos minúsculas para mejor DX, pero la función
+ * * Nota: En el frontend usamos minúsculas para mejor DX, pero la función
  * mapFlexibilityToBackend() convierte a mayúsculas antes de enviar al API.
  */
 export type FlexibilityLevel = 'low' | 'medium' | 'high';
@@ -183,7 +182,13 @@ export interface DailyRoutineDetail extends DailyRoutineList {
   // Relaciones anidadas
   schedules: RoutineSchedule[]
   steps: RoutineStep[]
+  
+  // ✅ CORRECCIÓN ERROR TS2339:
+  // Se agrega strategies_config que es el nombre que devuelve el API de Django
+  strategies_config: RoutineStrategy | null
+  // Se mantiene strategies por compatibilidad con componentes existentes
   strategies: RoutineStrategy | null
+  
   motivation: RoutineMotivation | null
   independence_goal: RoutineIndependenceGoal | null
   coordination: RoutineCoordination | null
@@ -219,6 +224,11 @@ export interface WizardSchedule {
   days_of_week: string[]
 }
 
+/**
+ * ✅ CORRECCIÓN CRÍTICA: WizardStep ahora incluye common_difficulties y strategies
+ * Estos campos son obligatorios en la base de datos PostgreSQL (NOT NULL)
+ * aunque el modelo Django los define como blank=True
+ */
 export interface WizardStep {
   id?: number | string
   action: string
@@ -229,6 +239,8 @@ export interface WizardStep {
   visual_support: string 
   requires_supervision: boolean
   is_skippable: boolean
+  common_difficulties: string  // ✅ AGREGADO: Obligatorio en BD
+  strategies: string            // ✅ AGREGADO: Obligatorio en BD
 }
 
 export interface WizardStrategy {

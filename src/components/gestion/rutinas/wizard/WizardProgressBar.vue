@@ -1,4 +1,5 @@
 <template>
+  <!-- src\components\gestion\rutinas\wizard\WizardProgressBar.vue -->
   <nav aria-label="Progreso del asistente" class="w-full">
     <ol
       role="list"

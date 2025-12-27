@@ -4,7 +4,7 @@
       v-if="routine"
       :status="routine.status"
       :is-loading="isActionLoading"
-      @close="$emit('close')"
+      @close="handleClose"
       @edit="$emit('edit', routine)"
       @toggle-status="handleToggleStatus"
       @delete="handleDelete"
@@ -16,12 +16,12 @@
         <p class="mt-4 text-gray-500 font-medium">Cargando detalles de la rutina...</p>
       </div>
 
-      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center max-w-lg mx-auto">
         <p class="text-red-700 font-medium">{{ error }}</p>
-        <button @click="loadRoutineDetail" class="mt-4 text-sm text-red-600 underline">Reintentar</button>
+        <button @click="loadRoutineDetail" class="mt-4 text-sm text-red-600 underline font-bold">Reintentar</button>
       </div>
 
-      <div v-else-if="routine" class="max-w-3xl mx-auto space-y-8 animate-fade-in">
+      <div v-else-if="routine" class="max-w-4xl mx-auto space-y-8 animate-fade-in">
         
         <DetailHeader 
           :name="routine.name"
@@ -38,7 +38,13 @@
           <div class="space-y-8">
             <DetailSchedules :schedules="routine.schedules || []" />
 
-            <DetailStrategies :strategies="routine.strategies" />
+            <DetailStrategies 
+              v-if="hasStrategies"
+              :strategies="sanitizedStrategies" 
+            />
+            <div v-else class="p-6 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-gray-400">
+               <p class="text-xs italic">No hay estrategias de apoyo configuradas</p>
+            </div>
           </div>
         </div>
       </div>
@@ -47,21 +53,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { routinesApi } from '@/services/rutinas/routinesApi'
 import type { DailyRoutineDetail } from '@/type/rutinas/rutinas'
+import type { RoutineStrategy, FlexibilityLevel } from '@/type/rutinas/rutinas'
 
-// Importación de sub-componentes (Los crearemos uno a uno)
+// Sub-componentes
 import DetailHeader from '@/components/gestion/rutinas/components/DetailHeader.vue'
 import DetailSchedules from '@/components/gestion/rutinas/components/DetailSchedules.vue'
 import DetailTimeline from '@/components/gestion/rutinas/components/DetailTimeline.vue'
 import DetailStrategies from '@/components/gestion/rutinas/components/DetailStrategies.vue'
 import DetailActions from '@/components/gestion/rutinas/components/DetailActions.vue'
 
-
 const props = defineProps<{
-  routineId: number | string
-  childId: number | string
+  id: number | string        // ID del niño
+  routineId: number | string // ID de la rutina
 }>()
 
 const emit = defineEmits<{
@@ -70,40 +77,82 @@ const emit = defineEmits<{
   (e: 'edit', routine: DailyRoutineDetail): void
 }>()
 
-// Estados
+const router = useRouter()
 const routine = ref<DailyRoutineDetail | null>(null)
 const loading = ref(true)
 const isActionLoading = ref(false)
 const error = ref<string | null>(null)
 
+// === LÓGICA DE NORMALIZACIÓN PARA EVITAR ERRORES DE RENDERIZADO ===
+
 /**
- * Carga el detalle completo de la rutina desde el servidor
+ * Verifica si existen datos de estrategias para mostrar la sección
  */
+const hasStrategies = computed(() => {
+  return !!(routine.value?.strategies_config || routine.value?.strategies)
+})
+
+/**
+ * ✅ SOLUCIÓN AL TypeError: can't access property "container"
+ * Normaliza el objeto de estrategias antes de enviarlo al componente hijo.
+ * Convierte 'MEDIA' -> 'medium', 'BAJA' -> 'low', etc. para que coincida con los temas del hijo.
+ */
+const sanitizedStrategies = computed((): RoutineStrategy | null => {
+  const data = routine.value?.strategies_config || routine.value?.strategies
+  if (!data) return null
+  
+  // Normalizamos el nivel de flexibilidad a minúsculas y mapeamos términos de ser necesario
+  let level = (data.flexibility_level || 'medium').toLowerCase()
+  
+  // Mapeo de seguridad para asegurar compatibilidad con el mapa de temas del hijo
+  if (level.includes('med')) level = 'medium'
+  if (level.includes('low') || level.includes('baj')) level = 'low'
+  if (level.includes('hig') || level.includes('alt')) level = 'high'
+
+  return {
+    ...data,
+    flexibility_level: level as FlexibilityLevel
+  }
+})
+
+// === MÉTODOS DE DATOS ===
+
 async function loadRoutineDetail() {
+  const cId = Number(props.id)
+  const rId = Number(props.routineId)
+
+  if (isNaN(cId) || isNaN(rId)) {
+    error.value = "Identificadores de rutina inválidos."
+    loading.value = false
+    return
+  }
+
   loading.value = true
   error.value = null
   try {
-    const response = await routinesApi.getRoutineDetail(
-      Number(props.childId), 
-      Number(props.routineId)
-    )
+    const response = await routinesApi.getRoutineDetail(cId, rId)
+    // El backend puede enviar el objeto en strategies_config o strategies según el serializador
     routine.value = response.data
   } catch (err: any) {
-    error.value = "No se pudo cargar la información de la rutina."
-    console.error(err)
+    console.error("Error al cargar detalle:", err)
+    error.value = "No se pudo obtener la información de la rutina."
   } finally {
     loading.value = false
   }
 }
 
-/**
- * Maneja el cambio de estado (Activo/Pausado)
- */
+// === GESTIÓN DE ACCIONES ===
+
+function handleClose() {
+  router.push({ name: 'perfil-nino-rutinas', params: { id: props.id } })
+  emit('close')
+}
+
 async function handleToggleStatus() {
   isActionLoading.value = true
   try {
-    await routinesApi.toggleStatus(Number(props.childId), Number(props.routineId))
-    await loadRoutineDetail() // Recargar datos
+    await routinesApi.toggleStatus(Number(props.id), Number(props.routineId))
+    await loadRoutineDetail() 
     emit('updated')
   } catch (err) {
     console.error("Error al cambiar estado:", err)
@@ -112,17 +161,13 @@ async function handleToggleStatus() {
   }
 }
 
-/**
- * Maneja la eliminación de la rutina
- */
 async function handleDelete() {
-  if (!confirm('¿Estás seguro de que deseas eliminar esta rutina? Esta acción no se puede deshacer.')) return
-  
+  if (!confirm('¿Estás seguro de que deseas eliminar esta rutina?')) return
   isActionLoading.value = true
   try {
-    await routinesApi.deleteRoutine(Number(props.childId), Number(props.routineId))
+    await routinesApi.deleteRoutine(Number(props.id), Number(props.routineId))
     emit('updated')
-    emit('close')
+    handleClose()
   } catch (err) {
     console.error("Error al eliminar:", err)
   } finally {
@@ -130,11 +175,16 @@ async function handleDelete() {
   }
 }
 
+// === CICLO DE VIDA ===
+
 onMounted(() => {
   loadRoutineDetail()
 })
 
-
+// Recargar si el ID cambia sin destruir el componente (navegación entre rutinas)
+watch(() => props.routineId, () => {
+  loadRoutineDetail()
+})
 </script>
 
 <style scoped>

@@ -264,7 +264,8 @@
 import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useRoutineWizardStore } from '@/store/rutinas/routineWizardStore'
 import { storeToRefs } from 'pinia'
-import type { WizardStep } from '@/store/rutinas/routineWizardStore'
+// ✅ CORRECCIÓN CRÍTICA: Importar WizardStep desde el archivo de tipos, NO desde el store
+import type { WizardStep } from '@/type/rutinas/rutinas'
 import { Bars3Icon, ClockIcon, TrashIcon, PlusCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue'
 import Sortable from 'sortablejs'
@@ -277,15 +278,19 @@ const { steps } = storeToRefs(wizardStore)
 
 // Estado local y formulario
 let stepIdCounter = 0
+
+// ✅ CORRECCIÓN: Estado inicial con TODOS los campos obligatorios
 const initialStepState: WizardStep = {
   action: '',
   description: '',
   estimated_minutes: null,
-  visual_support_description: '', // ✅ Corregido para sincronizar con Backend
+  visual_support_description: '',
   visual_support_image_id: null,
   visual_support: '',
   requires_supervision: false,
   is_skippable: false,
+  common_difficulties: '',  // ✅ Campo obligatorio para PostgreSQL
+  strategies: ''             // ✅ Campo obligatorio para PostgreSQL
 }
 
 const newStepData = ref<WizardStep>({ ...initialStepState })
@@ -303,7 +308,7 @@ function getPictogramForStep(step: WizardStep): Pictogram | undefined {
 
 function onPictogramSelect(pictogram: Pictogram) {
   selectedPictogram.value = pictogram
-  newStepData.value.visual_support_description = pictogram.id // ✅ Corregido
+  newStepData.value.visual_support_description = pictogram.id
   showPictogramModal.value = false
 }
 
@@ -316,7 +321,10 @@ function clearPictogram() {
 function initializeStepIds() {
   const stepsWithIds = steps.value.map((step, index) => ({
     ...step,
-    id: step.id || `temp-${Date.now()}-${index}`
+    id: step.id || `temp-${Date.now()}-${index}`,
+    // ✅ Asegurar que los campos existan
+    common_difficulties: step.common_difficulties || '',
+    strategies: step.strategies || ''
   }))
   wizardStore.$patch({ steps: stepsWithIds })
   localSteps.value = [...stepsWithIds]
@@ -345,8 +353,19 @@ function initSortable() {
 
 function addStep() {
   const uniqueId = `temp-${Date.now()}-${stepIdCounter++}`
-  localSteps.value = [...localSteps.value, { ...newStepData.value, id: uniqueId }]
+  
+  // ✅ Asegurar que TODOS los campos estén presentes
+  const stepToAdd: WizardStep = {
+    ...newStepData.value,
+    id: uniqueId,
+    common_difficulties: newStepData.value.common_difficulties || '',
+    strategies: newStepData.value.strategies || ''
+  }
+  
+  localSteps.value = [...localSteps.value, stepToAdd]
   syncWithStore()
+  
+  // Resetear formulario
   newStepData.value = { ...initialStepState }
   selectedPictogram.value = null
 }

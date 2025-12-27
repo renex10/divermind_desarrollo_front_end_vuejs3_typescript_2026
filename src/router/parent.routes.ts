@@ -1,17 +1,11 @@
-// src/router/parent.routes.ts
-
 /**
  * RUTAS DEL PANEL DE PADRES/FAMILIA
  * Todas las rutas bajo /parent/
- * 
- * Estructura simplificada:
- * - Dashboard simple
- * - Mis hijos
- * - Registro diario
- * - Rutinas
- * - Medicación
- * - Mensajes
- * - Reportes
+ * * Estructura para el Piloto de Ejecución:
+ * - Dashboard: Resumen general y acceso rápido.
+ * - Rutinas: Agenda diaria donde se listan las actividades.
+ * - Ejecución (Modo Enfoque): Pantalla completa interactiva para el seguimiento.
+ * - Registro: Historial de Logs y reportes clínicos.
  */
 
 export default [
@@ -40,7 +34,7 @@ export default [
     meta: { breadcrumb: 'Detalle de mi Hijo' }
   },
 
-  // Registro diario
+  // Registro diario (Eventos aislados)
   {
     path: 'registro-diario',
     name: 'parent-registro-diario',
@@ -48,12 +42,34 @@ export default [
     component: () => import('@/views/dashboard/padres/RegistroDiarioView.vue')
   },
 
-  // Rutinas
+  /**
+   * 📅 RUTINAS Y AGENDA
+   * Vista donde el padre consulta qué actividades corresponden al día.
+   * En el Sidebar actualizado, tanto "Rutinas" como "Modo Enfoque" 
+   * pueden apuntar aquí para seleccionar la rutina a iniciar.
+   */
   {
     path: 'rutinas',
     name: 'parent-rutinas',
-    meta: { breadcrumb: 'Rutinas' },
+    meta: { breadcrumb: 'Agenda de Rutinas' },
     component: () => import('@/views/dashboard/padres/RutinasView.vue')
+  },
+
+  /**
+   * ✅ RUTA DE EJECUCIÓN (MODO ENFOQUE) - CORE DEL PILOTO
+   * Esta ruta es activada cuando el padre presiona "Iniciar" en una rutina.
+   * Utiliza :routineId para cargar el motor lógico useRoutineExecution.
+   */
+  {
+    path: 'rutinas/:routineId/ejecutar',
+    name: 'parent-rutina-ejecutar',
+    component: () => import('@/views/dashboard/padres/RutinaEjecucionView.vue'),
+    props: true, // Pasa routineId como prop automáticamente
+    meta: { 
+      breadcrumb: 'Ejecutando Rutina',
+      hideSidebar: true, // 🔥 Maximiza el espacio para el niño (Modo Enfoque)
+      requiresAuth: true
+    }
   },
 
   // Medicación
@@ -64,7 +80,7 @@ export default [
     component: () => import('@/views/dashboard/padres/MedicacionView.vue')
   },
 
-  // Mensajes/Feedback
+  // Mensajes/Feedback (Comunicación con Terapeuta)
   {
     path: 'mensajes',
     name: 'parent-mensajes',
@@ -72,15 +88,15 @@ export default [
     component: () => import('@/views/dashboard/padres/MensajesView.vue')
   },
 
-  // Reportes
+  // Reportes (Historial de Logs y Cumplimiento)
   {
     path: 'reportes',
     name: 'parent-reportes',
-    meta: { breadcrumb: 'Reportes' },
+    meta: { breadcrumb: 'Reportes de Progreso' },
     component: () => import('@/views/dashboard/padres/ReportesView.vue')
   },
 
-  // Configuración (opcional)
+  // Configuración (Perfil y Preferencias)
   {
     path: 'configuracion',
     name: 'parent-configuracion',

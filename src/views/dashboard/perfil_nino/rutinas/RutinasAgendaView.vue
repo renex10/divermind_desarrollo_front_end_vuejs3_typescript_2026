@@ -11,7 +11,6 @@
         </p>
       </div>
       
-      <!-- Botón de recarga manual para debug -->
       <button
         @click="fetchAgenda"
         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
@@ -20,7 +19,6 @@
       </button>
     </div>
 
-    <!-- Estado de Carga -->
     <div v-if="isLoading" class="flex items-center justify-center py-20 bg-white rounded-2xl shadow-soft">
       <div class="text-center">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
@@ -28,7 +26,6 @@
       </div>
     </div>
 
-    <!-- Estado de Error -->
     <div v-else-if="error" class="bg-red-50 p-6 rounded-2xl border border-red-200">
       <div class="flex items-center gap-3 mb-2">
         <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,7 +42,6 @@
       </button>
     </div>
     
-    <!-- Estado Vacío -->
     <div v-else-if="todaysRoutines.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-soft">
       <div class="flex flex-col items-center">
         <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -56,7 +52,6 @@
         <h3 class="text-lg font-semibold text-gray-900 mb-2">Sin rutinas programadas</h3>
         <p class="text-sm text-gray-500">No hay rutinas activas programadas para hoy.</p>
         
-        <!-- Info de Debug -->
         <div class="mt-6 p-4 bg-blue-50 rounded-lg text-left text-xs text-gray-600 max-w-md">
           <p class="font-semibold mb-2">ℹ️ Información de Debug:</p>
           <ul class="space-y-1">
@@ -69,16 +64,13 @@
       </div>
     </div>
 
-    <!-- Lista de Rutinas -->
     <div v-else class="space-y-4">
-      <!-- Info Header -->
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <p class="text-sm text-blue-800">
           📋 Mostrando <strong>{{ todaysRoutines.length }}</strong> rutina(s) programada(s) para hoy
         </p>
       </div>
 
-      <!-- Tarjetas de Rutinas -->
       <RoutineCard 
         v-for="routine in todaysRoutines" 
         :key="routine.id" 
@@ -91,7 +83,6 @@
       />
     </div>
 
-    <!-- Debug Panel (Solo en desarrollo) -->
     <div v-if="isDevelopment" class="mt-8 p-6 bg-gray-100 rounded-lg">
       <details class="cursor-pointer">
         <summary class="font-semibold text-gray-700 mb-2">🔧 Panel de Debug</summary>
@@ -112,6 +103,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useRouter } from 'vue-router' // ✅ Importar el router
 
 // Importar tipos y API
 import type { DailyRoutineList } from '@/type/rutinas/rutinas'
@@ -136,6 +128,7 @@ const emit = defineEmits<{
 }>()
 
 // === ESTADO ===
+const router = useRouter() // ✅ Inicializar el router
 const todaysRoutines = ref<DailyRoutineList[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
@@ -177,9 +170,6 @@ async function fetchAgenda() {
     const response = await routinesApi.getDailyAgenda(props.childId)
     
     console.log('✅ Respuesta recibida:', response)
-    console.log('📦 response.data:', response.data)
-    console.log('📊 Tipo de response.data:', Array.isArray(response.data) ? 'Array' : typeof response.data)
-    console.log('📏 Longitud:', Array.isArray(response.data) ? response.data.length : 'N/A')
     
     todaysRoutines.value = response.data
     loadTime.value = new Date().toLocaleTimeString()
@@ -192,12 +182,6 @@ async function fetchAgenda() {
     
   } catch (err: any) {
     console.error('❌ ERROR al cargar agenda:', err)
-    console.error('❌ Error completo:', {
-      message: err.message,
-      response: err.response,
-      status: err.response?.status,
-      data: err.response?.data
-    })
     
     error.value = err.response?.data?.error 
       || err.response?.data?.detail
@@ -210,7 +194,9 @@ async function fetchAgenda() {
   }
 }
 
-// ✅ SOLUCIÓN: Usar switch case para type-safety
+/**
+ * Maneja las acciones de la tarjeta de rutina
+ */
 function handleAction(
   actionName: 'view-detail' | 'edit' | 'clone' | 'toggle-status' | 'archive', 
   id: number
@@ -219,7 +205,14 @@ function handleAction(
   
   switch (actionName) {
     case 'view-detail':
-      emit('view-detail', id)
+      // ✅ Disparar el cambio de pantalla a la ruta de detalle
+      router.push({
+        name: 'perfil-nino-rutina-detalle',
+        params: { 
+          id: props.childId, 
+          routineId: id 
+        }
+      })
       break
     case 'edit':
       emit('edit', id)

@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useNotificationStore } from '@/store/notificationStore'
-import ToastNotification from '@/components/gestion/rutinas/shared/ToastNotification.vue'
+/* import ToastNotification from '@/components/gestion/rutinas/shared/ToastNotification.vue' */
 
 const notificationStore = useNotificationStore()
 const { notifications } = storeToRefs(notificationStore)

@@ -151,7 +151,7 @@
               <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
                 <TransitionChild as="template" enter="transform transition duration-500" enter-from="translate-x-full" enter-to="translate-x-0" leave="transform transition duration-500" leave-from="translate-x-0" leave-to="translate-x-full">
                   <DialogPanel class="pointer-events-auto w-screen max-w-2xl">
-                    <RoutineDetailView v-if="selectedRoutineId" :routine-id="selectedRoutineId" :child-id="numericChildId" @close="selectedRoutineId = null" @updated="handleRoutineUpdated" @edit="openEditModalFromDetail" />
+                    <RoutineDetailView v-if="selectedRoutineId" :id="selectedRoutineId" :routine-id="selectedRoutineId" :child-id="numericChildId" @close="selectedRoutineId = null" @updated="handleRoutineUpdated" @edit="openEditModalFromDetail" />
                   </DialogPanel>
                 </TransitionChild>
               </div>

@@ -1,21 +1,17 @@
-<!-- src/components/dashboard/padres/ParentSidebar.vue -->
 <template>
   <aside
     :class="[
       'fixed top-0 left-0 h-screen transition-all duration-300 ease-smooth z-40',
       isOpen ? 'w-64' : 'w-16',
-      // 🔥 GRADIENTE SUAVE (más claro y amigable)
       'bg-gradient-to-b from-sky-500 to-blue-600',
       'shadow-xl'
     ]"
   >
-    <!-- Header con Logo -->
     <div class="flex items-center justify-between p-4 border-b border-white/20">
       <div 
         v-if="isOpen"
         class="flex items-center space-x-3"
       >
-        <!-- Logo/Icono -->
         <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -27,7 +23,6 @@
         </div>
       </div>
       
-      <!-- Botón Collapse -->
       <button
         @click="$emit('toggle')"
         :class="[
@@ -43,7 +38,6 @@
       </button>
     </div>
 
-    <!-- Navigation Items -->
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
       <router-link
         v-for="item in menuItems"
@@ -55,7 +49,7 @@
         <div
           :class="[
             'flex items-center p-3 rounded-xl transition-all duration-200',
-            'hover:bg-white/15 group',
+            item.name === 'ejecucion' ? 'bg-amber-400/20 border border-amber-400/30' : 'hover:bg-white/15 group',
             isActive 
               ? 'bg-white/25 text-white shadow-md backdrop-blur-sm' 
               : 'text-blue-50 hover:text-white',
@@ -64,24 +58,22 @@
           ]"
           :title="!isOpen ? item.label : ''"
         >
-          <!-- Icon -->
           <component
             :is="item.icon"
             :class="[
               'w-6 h-6 flex-shrink-0 transition-transform duration-200',
+              item.name === 'ejecucion' ? 'text-amber-300' : '',
               isActive ? 'scale-110' : 'group-hover:scale-110'
             ]"
           />
           
-          <!-- Label -->
           <span
             v-if="isOpen"
-            class="font-medium text-sm flex-1"
+            :class="['font-medium text-sm flex-1', item.name === 'ejecucion' ? 'text-amber-100' : '']"
           >
             {{ item.label }}
           </span>
           
-          <!-- Badge -->
           <span
             v-if="isOpen && item.badge && item.badge > 0"
             class="ml-auto px-2 py-0.5 text-xs font-bold rounded-full bg-white text-blue-600 shadow-sm"
@@ -92,7 +84,6 @@
       </router-link>
     </nav>
 
-    <!-- Footer con Usuario -->
     <div class="p-4 border-t border-white/20">
       <div 
         :class="[
@@ -103,18 +94,15 @@
         ]"
         @click="toggleUserMenu"
       >
-        <!-- Avatar -->
         <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-blue-600 font-bold flex-shrink-0 shadow-md">
           {{ userInitials }}
         </div>
         
-        <!-- Info Usuario -->
         <div v-if="isOpen" class="flex-1 min-w-0">
           <p class="text-white text-sm font-medium truncate">{{ userName }}</p>
           <p class="text-blue-100 text-xs">Padre/Apoderado</p>
         </div>
         
-        <!-- Flecha -->
         <ChevronDownIcon
           v-if="isOpen"
           :class="[
@@ -124,7 +112,6 @@
         />
       </div>
       
-      <!-- Mini Menu (Logout) -->
       <transition name="fade-scale">
         <div
           v-if="showUserMenu && isOpen"
@@ -148,12 +135,13 @@ import { ref, computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
 
-// 🔥 IMPORTACIÓN CORRECTA DE HEROICONS V2
+// IMPORTACIÓN DE HEROICONS V2
 import {
   HomeIcon,
   UsersIcon,
   ClipboardDocumentListIcon,
   ClipboardDocumentCheckIcon,
+  PlayCircleIcon, // ✅ NUEVO: Icono para Ejecución
   BeakerIcon,
   ChatBubbleLeftRightIcon,
   DocumentTextIcon,
@@ -173,14 +161,10 @@ defineEmits<{
   toggle: []
 }>()
 
-// Composables
 const { user, logout } = useAuth()
 const router = useRouter()
-
-// Estado local
 const showUserMenu = ref(false)
 
-// Computed
 const userName = computed(() => user.value?.name || 'Usuario')
 const userInitials = computed(() => {
   const name = userName.value
@@ -188,7 +172,6 @@ const userInitials = computed(() => {
   return parts.map(p => p[0]).join('').slice(0, 2).toUpperCase()
 })
 
-// Métodos
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
 }
@@ -202,7 +185,7 @@ const handleLogout = async () => {
   }
 }
 
-// 🔥 CONFIGURACIÓN DE MENÚ (Iconos importados directamente)
+// CONFIGURACIÓN DE MENÚ ACTUALIZADA
 const menuItems = [
   {
     name: 'dashboard',
@@ -232,6 +215,18 @@ const menuItems = [
     icon: ClipboardDocumentCheckIcon,
     badge: 0
   },
+  /**
+   * ✅ NUEVO ELEMENTO: MODO ENFOQUE
+   * Este acceso directo lleva al padre a la lista de rutinas para iniciar una ejecución.
+   * Se le da un estilo visualmente distinto para resaltar la nueva funcionalidad.
+   */
+  {
+    name: 'ejecucion',
+    label: 'Modo Enfoque',
+    route: { name: 'parent-rutinas' }, // Redirige a la agenda para seleccionar qué ejecutar
+    icon: PlayCircleIcon,
+    badge: 0
+  },
   {
     name: 'medicacion',
     label: 'Medicación',
@@ -244,7 +239,7 @@ const menuItems = [
     label: 'Mensajes',
     route: { name: 'parent-mensajes' },
     icon: ChatBubbleLeftRightIcon,
-    badge: 3 // TODO: Hacer dinámico
+    badge: 3
   },
   {
     name: 'reportes',
@@ -264,54 +259,32 @@ const menuItems = [
 </script>
 
 <style scoped>
-/* Scrollbar personalizado (más suave) */
+/* Scrollbar personalizado */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 10px;
-  transition: background 0.2s;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Transiciones */
+/* Animaciones */
 .fade-scale-enter-active,
 .fade-scale-leave-active {
   transition: all 0.2s ease;
 }
-
-.fade-scale-enter-from {
+.fade-scale-enter-from, .fade-scale-leave-to {
   opacity: 0;
   transform: scale(0.95) translateY(-10px);
 }
-
-.fade-scale-leave-to {
-  opacity: 0;
-  transform: scale(0.95) translateY(-10px);
-}
-
-/* Animación slide up */
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 .animate-slide-up {
   animation: slideUp 0.3s ease-out;
 }

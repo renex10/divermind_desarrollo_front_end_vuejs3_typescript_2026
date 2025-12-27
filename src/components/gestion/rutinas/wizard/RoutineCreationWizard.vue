@@ -1,4 +1,5 @@
 <template>
+  <!-- src\components\gestion\rutinas\wizard\RoutineCreationWizard.vue -->
   <Teleport to="body">
     <TransitionRoot appear :show="true" as="template">
       <Dialog as="div" @close="handleClose" class="relative z-50">

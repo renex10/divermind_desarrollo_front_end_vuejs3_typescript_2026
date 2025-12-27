@@ -1,10 +1,15 @@
 // src/store/rutinas/routineWizardStore.ts
-// ✅ VERSIÓN FINAL - VALORES CORRECTOS DEL BACKEND
+// ✅ VERSIÓN CORREGIDA - WizardStep importado desde rutinas.ts
 
 import { defineStore } from 'pinia'
 import { routinesApi } from '@/services/rutinas/routinesApi'
 import { useRoutinesStore } from './routinesStore'
-import type { DailyRoutineList, FlexibilityLevel, WizardStrategies } from '@/type/rutinas/rutinas' 
+import type { 
+  DailyRoutineList, 
+  FlexibilityLevel, 
+  WizardStrategies,
+  WizardStep  // ✅ CORRECCIÓN: Importar WizardStep desde rutinas.ts
+} from '@/type/rutinas/rutinas' 
 import Swal from 'sweetalert2'
 
 // =============================================================================
@@ -24,17 +29,7 @@ export interface WizardSchedule {
   days_of_week: string[]
 }
 
-export interface WizardStep {
-  id?: number | string
-  action: string
-  description: string
-  estimated_minutes: number | null
-  visual_support_description: string 
-  visual_support_image_id: number | null
-  visual_support: string
-  requires_supervision: boolean
-  is_skippable: boolean
-}
+
 
 export interface WizardStrategy {
   id?: number | string
@@ -230,10 +225,14 @@ export const useRoutineWizardStore = defineStore('routineWizard', {
         // 2b. Guardar Pasos
         console.log(`📤 [PASO 3] Guardando ${this.steps.length} paso(s)...`)
         this.steps.forEach((step, index) => {
+          // ✅ CORRECCIÓN: Ahora step tiene common_difficulties y strategies
           const stepData = { 
             ...step, 
             order: index + 1,
-            visual_support: step.visual_support_description || ''
+            visual_support: step.visual_support_description || '',
+            // ✅ Asegurar que los campos obligatorios existan
+            common_difficulties: step.common_difficulties || '',
+            strategies: step.strategies || ''
           }
           if (typeof stepData.id === 'string' && stepData.id.startsWith('temp-')) {
             delete stepData.id

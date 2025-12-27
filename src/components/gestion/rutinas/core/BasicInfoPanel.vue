@@ -93,6 +93,7 @@ const routineData = ref<DailyRoutineDetail>({
   total_steps: 8,
   completion_rate_7days: 85.7, // Campo calculado por el serializer
   created_at: "2025-08-25T10:30:00Z",
+  strategies_config: null,
   // Relaciones anidadas (no usadas directamente en este panel, pero parte del tipo)
   schedules: [], 
   steps: [],
