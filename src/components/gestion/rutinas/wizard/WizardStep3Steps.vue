@@ -336,11 +336,13 @@ function syncWithStore() {
 
 function initSortable() {
   if (!stepsContainer.value || sortableInstance) return
+  
   sortableInstance = Sortable.create(stepsContainer.value, {
     animation: 150,
     handle: '.handle',
     ghostClass: 'ghost-step',
-    onEnd: (evt) => {
+    // CORRECCIÓN: Se añade ': any' al parámetro evt
+    onEnd: (evt: any) => {
       if (evt.oldIndex !== undefined && evt.newIndex !== undefined) {
         const movedItem = localSteps.value.splice(evt.oldIndex, 1)[0]
         localSteps.value.splice(evt.newIndex, 0, movedItem)

@@ -184,10 +184,13 @@ function initializeStrategyIds() {
 
 function initSortable() {
   if (!strategiesContainer.value || sortableInstance) return
+  
   sortableInstance = Sortable.create(strategiesContainer.value, {
     handle: '.drag-handle',
     animation: 150,
-    onEnd: (evt) => {
+    // CORRECCIÓN: Se añade ': any' al parámetro evt
+    onEnd: (evt: any) => {
+      // Usamos el operador '!' porque Sortable garantiza oldIndex y newIndex en onEnd
       const movedItem = localStrategies.value.splice(evt.oldIndex!, 1)[0]
       localStrategies.value.splice(evt.newIndex!, 0, movedItem)
       wizardStore.$patch({ strategies: [...localStrategies.value] })
