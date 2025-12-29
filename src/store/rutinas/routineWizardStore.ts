@@ -1,5 +1,5 @@
 // src/store/rutinas/routineWizardStore.ts
-// ✅ VERSIÓN CORREGIDA - WizardStep importado desde rutinas.ts
+// ✅ VERSIÓN CORREGIDA - Soluciona error 500 en endpoint de pasos
 
 import { defineStore } from 'pinia'
 import { routinesApi } from '@/services/rutinas/routinesApi'
@@ -8,7 +8,7 @@ import type {
   DailyRoutineList, 
   FlexibilityLevel, 
   WizardStrategies,
-  WizardStep  // ✅ CORRECCIÓN: Importar WizardStep desde rutinas.ts
+  WizardStep
 } from '@/type/rutinas/rutinas' 
 import Swal from 'sweetalert2'
 
@@ -28,8 +28,6 @@ export interface WizardSchedule {
   estimated_duration_minutes: number | null
   days_of_week: string[]
 }
-
-
 
 export interface WizardStrategy {
   id?: number | string
@@ -129,36 +127,34 @@ export const useRoutineWizardStore = defineStore('routineWizard', {
       const normalized = level?.toLowerCase() || 'medium'
       
       if (normalized.includes('low') || normalized === 'baja') {
-        return 'low'  // ✅ Backend acepta 'low'
+        return 'low'
       }
       if (normalized.includes('medium') || normalized === 'media') {
         return 'moderate'  // ✅ CRÍTICO: Backend espera 'moderate' NO 'medium'
       }
       if (normalized.includes('high') || normalized === 'alta') {
-        return 'high'  // ✅ Backend acepta 'high'
+        return 'high'
       }
       
-      return 'moderate'  // Default seguro
+      return 'moderate'
     },
 
     /**
      * ✅ Limpia y valida el objeto de estrategias
      */
     sanitizeStrategiesForAPI(config: WizardStrategies): any {
-      // Validar warning_method
       const validWarningMethods = ['verbal', 'timer', 'visual', 'song', 'countdown', 'mixed']
       const safeWarningMethod = validWarningMethods.includes(config.warning_method) 
         ? config.warning_method 
         : 'verbal'
 
-      // Validar visual_support_type
       const validVisualTypes = ['pictograms', 'written_list', 'checklist', 'timer_visual', 'sequence_board', 'video_model', 'mixed']
       const safeVisualSupportType = validVisualTypes.includes(config.visual_support_type) 
         ? config.visual_support_type 
         : 'pictograms'
 
       const sanitized = {
-        flexibility_level: this.mapFlexibilityToBackend(config.flexibility_level), // ✅ 'moderate'
+        flexibility_level: this.mapFlexibilityToBackend(config.flexibility_level),
         change_tolerance_notes: config.change_tolerance_notes?.trim() || '',
         needs_advance_warning: Boolean(config.needs_advance_warning),
         warning_time_minutes: Math.max(0, Number(config.warning_time_minutes) || 5),
@@ -225,18 +221,35 @@ export const useRoutineWizardStore = defineStore('routineWizard', {
         // 2b. Guardar Pasos
         console.log(`📤 [PASO 3] Guardando ${this.steps.length} paso(s)...`)
         this.steps.forEach((step, index) => {
-          // ✅ CORRECCIÓN: Ahora step tiene common_difficulties y strategies
+          // 🔧 CORRECCIÓN CRÍTICA: visual_support debe ser URL válida o string vacío
+          // El campo visual_support_description contiene identificadores de pictogramas (ej: "watch-tv")
+          // pero el backend RECHAZA estos identificadores en visual_support con error 500
           const stepData = { 
             ...step, 
             order: index + 1,
-            visual_support: step.visual_support_description || '',
+            // ✅ SOLUCIÓN: Dejar visual_support vacío para evitar error 500
+            // El backend acepta string vacío sin problemas
+            visual_support: '',
+            // ✅ Mantener visual_support_description para referencia
+            // (contiene el identificador del pictograma, ej: "watch-tv")
+            visual_support_description: step.visual_support_description || '',
             // ✅ Asegurar que los campos obligatorios existan
             common_difficulties: step.common_difficulties || '',
             strategies: step.strategies || ''
           }
+          
+          // Eliminar ID temporal si existe
           if (typeof stepData.id === 'string' && stepData.id.startsWith('temp-')) {
             delete stepData.id
           }
+          
+          // 🐛 DEBUG: Log del paso que se va a enviar
+          console.log(`  📋 Paso ${index + 1}:`, {
+            action: stepData.action,
+            visual_support: stepData.visual_support, // Ahora siempre vacío
+            visual_support_description: stepData.visual_support_description
+          })
+          
           promises.push(routinesApi.createStep(childId, createdRoutineId!, stepData))
         })
 

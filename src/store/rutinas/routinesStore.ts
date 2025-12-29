@@ -1,103 +1,25 @@
 // stores/routinesStore.ts
+// ✅ VERSIÓN ACTUALIZADA - Con tipos completos desde @/type/rutinas/rutinas
 
 import { defineStore } from 'pinia'
-// (Asumiendo que tu cliente de API también está tipado)
 import { routinesApi } from '@/services/rutinas/routinesApi'
+import type {
+  DailyRoutineList,
+  DailyRoutineDetail,
+  RoutineWriteData,
+  RoutineFilters,
+  ApiFilters,
+  ToggleStatusResponse
+} from '@/type/rutinas/rutinas'
 
 // =============================================================================
-// INTERFACES (Basadas en los Serializers de Django)
+// INTERFACES ADICIONALES DEL STORE
 // =============================================================================
 
-/**
- * Filtros de estado para el store.
- */
-export type RoutineStatusFilter = 'active' | 'paused' | 'archived' | 'draft' | 'all'
-
-/**
- * Objeto de filtros del store.
- */
-export interface RoutineFilters {
-  status: RoutineStatusFilter
-  routineType: string | null
-  search: string
-}
-
-/**
- * Objeto para la API de listado (DailyRoutineListSerializer)
- [cite_start]* [cite: 54, 55]
- */
-export interface DailyRoutineList {
-  id: number
-  name: string
-  routine_type: string
-  routine_type_display: string
-  status: string
-  status_display: string
-  is_active: boolean
-  child_name: string
-  total_steps: number
-  completion_rate_7days: number | null
-  date_started: string
-  created_at: string
-}
-
-/**
- * Objeto para la API de detalle (DailyRoutineDetailSerializer)
- * Es un superconjunto de 'DailyRoutineList'.
- [cite_start]* [cite: 58, 59, 60, 61, 62]
- */
-export interface DailyRoutineDetail extends DailyRoutineList {
-  description: string
-  // (Aquí se tiparían los objetos anidados si se definieran)
-  schedules: any[] // Debería ser RoutineSchedule[]
-  steps: any[] // Debería ser RoutineStep[]
-  strategies: any | null // Debería ser RoutineStrategy | null
-  motivation: any | null // Debería ser RoutineMotivation | null
-  independence_goal: any | null // Debería ser RoutineIndependenceGoal | null
-  coordination: any | null // Debería ser RoutineCoordination | null
-  challenges: any | null // Debería ser RoutineChallenge | null
-  evaluations: any[] // Debería ser RoutineEvaluation[]
-}
-
-/**
- * Datos para crear una rutina (DailyRoutineWriteSerializer)
- [cite_start]* [cite: 63]
- */
-// Reemplaza la interfaz RoutineCreateData en routinesStore.ts:
-
-/**
- * Datos para crear una rutina (DailyRoutineWriteSerializer)
- */
-export interface RoutineCreateData {
-  name: string
-  routine_type: string
-  description?: string  // Ahora es opcional
-  status: 'active' | 'draft'  // Ahora es requerido
-  is_active?: boolean
-  date_started?: string | null
-  date_ended?: string | null
-}
 /**
  * Datos para actualizar una rutina (PATCH)
  */
-export type RoutineUpdateData = Partial<RoutineCreateData>
-
-/**
- * Parámetros de filtro para la API.
- */
-export interface ApiFilters {
-  status?: string
-  routine_type?: string
-  is_active?: boolean
-}
-
-/**
- * Respuesta de la API para 'toggleStatus'.
- */
-export interface ToggleStatusResponse {
-  status: string
-  message: string
-}
+export type RoutineUpdateData = Partial<RoutineWriteData>
 
 /**
  * Tipado del estado del store de Pinia.
@@ -128,26 +50,35 @@ export const useRoutinesStore = defineStore('routines', {
   }),
 
   getters: {
+    /**
+     * Rutinas activas
+     */
     activeRoutines: (state: RoutinesState): DailyRoutineList[] =>
       state.routines.filter(r => r.is_active && r.status === 'active'),
 
+    /**
+     * Rutinas archivadas
+     */
     archivedRoutines: (state: RoutinesState): DailyRoutineList[] =>
       state.routines.filter(r => r.status === 'archived'),
 
     /**
-     * Devuelve rutinas filtradas según los filtros locales del store.
+     * Rutinas filtradas según los filtros locales del store
      */
     filteredRoutines: (state: RoutinesState): DailyRoutineList[] => {
       let filtered = state.routines
 
+      // Filtro por estado
       if (state.filters.status !== 'all') {
         filtered = filtered.filter(r => r.status === state.filters.status)
       }
 
+      // Filtro por tipo de rutina
       if (state.filters.routineType) {
         filtered = filtered.filter(r => r.routine_type === state.filters.routineType)
       }
 
+      // Filtro por búsqueda de texto
       if (state.filters.search) {
         const search = state.filters.search.toLowerCase()
         filtered = filtered.filter(r =>
@@ -158,6 +89,9 @@ export const useRoutinesStore = defineStore('routines', {
       return filtered
     },
 
+    /**
+     * Obtiene una rutina por ID
+     */
     getRoutineById: (state: RoutinesState) => 
       (id: number): DailyRoutineList | undefined =>
         state.routines.find(r => r.id === id)
@@ -165,18 +99,18 @@ export const useRoutinesStore = defineStore('routines', {
 
   actions: {
     /**
-     * Carga la lista de rutinas para un niño.
+     * Carga la lista de rutinas para un niño
      */
     async fetchRoutines(childId: number, filters: ApiFilters = {}): Promise<void> {
       this.loading = true
       this.error = null
 
       try {
-        // (Asumiendo que routinesApi.getRoutines devuelve { data: DailyRoutineList[] })
         const response = await routinesApi.getRoutines(childId, filters)
         this.routines = response.data
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al cargar rutinas'
+        console.error('Error en fetchRoutines:', err)
         throw err
       } finally {
         this.loading = false
@@ -184,18 +118,19 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * Carga el detalle completo de una rutina.
+     * Carga el detalle completo de una rutina
      */
     async fetchRoutineDetail(childId: number, routineId: number): Promise<DailyRoutineDetail> {
       this.loading = true
+      this.error = null
 
       try {
-        // (Asumiendo que routinesApi.getRoutineDetail devuelve { data: DailyRoutineDetail })
         const response = await routinesApi.getRoutineDetail(childId, routineId)
         this.currentRoutine = response.data
         return response.data
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al cargar detalle de rutina'
+        console.error('Error en fetchRoutineDetail:', err)
         throw err
       } finally {
         this.loading = false
@@ -203,18 +138,19 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * Crea una nueva rutina.
+     * Crea una nueva rutina
      */
-    async createRoutine(childId: number, data: RoutineCreateData): Promise<DailyRoutineList> {
+    async createRoutine(childId: number, data: RoutineWriteData): Promise<DailyRoutineList> {
       this.loading = true
+      this.error = null
 
       try {
-        // (Asumiendo que la API devuelve el objeto 'DailyRoutineList' al crear)
         const response = await routinesApi.createRoutine(childId, data)
         this.routines.push(response.data)
         return response.data
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al crear rutina'
+        console.error('Error en createRoutine:', err)
         throw err
       } finally {
         this.loading = false
@@ -222,21 +158,34 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * Actualiza una rutina existente.
+     * Actualiza una rutina existente
      */
-    async updateRoutine(childId: number, routineId: number, data: RoutineUpdateData): Promise<DailyRoutineList> {
+    async updateRoutine(
+      childId: number, 
+      routineId: number, 
+      data: RoutineUpdateData
+    ): Promise<DailyRoutineList> {
       this.loading = true
+      this.error = null
 
       try {
         const response = await routinesApi.updateRoutine(childId, routineId, data)
+        
+        // Actualiza el objeto en el listado local
         const index = this.routines.findIndex(r => r.id === routineId)
         if (index !== -1) {
-          // Actualiza el objeto en el listado
           this.routines[index] = { ...this.routines[index], ...response.data }
         }
+        
+        // Si es la rutina actual, también la actualiza
+        if (this.currentRoutine?.id === routineId) {
+          this.currentRoutine = { ...this.currentRoutine, ...response.data }
+        }
+        
         return response.data
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al actualizar rutina'
+        console.error('Error en updateRoutine:', err)
         throw err
       } finally {
         this.loading = false
@@ -244,27 +193,30 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * "Elimina" (archiva) una rutina.
+     * Elimina (archiva) una rutina
+     * La API no borra físicamente, sino que cambia status a 'archived'
      */
     async deleteRoutine(childId: number, routineId: number): Promise<void> {
       this.loading = true
+      this.error = null
 
       try {
         await routinesApi.deleteRoutine(childId, routineId)
-        // La API (views.py) no borra, sino que archiva.
-        // Por consistencia, actualizamos el estado local o recargamos.
-        // Opción 1: Filtrar (como en el JS)
-        // this.routines = this.routines.filter(r => r.id !== routineId)
         
-        // Opción 2: Actualizar estado (más preciso)
+        // Actualizar estado local
         const index = this.routines.findIndex(r => r.id === routineId)
         if (index !== -1) {
           this.routines[index].status = 'archived'
           this.routines[index].is_active = false
         }
         
+        // Si es la rutina actual, limpiarla
+        if (this.currentRoutine?.id === routineId) {
+          this.currentRoutine = null
+        }
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al eliminar rutina'
+        console.error('Error en deleteRoutine:', err)
         throw err
       } finally {
         this.loading = false
@@ -272,10 +224,15 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * Clona una rutina existente.
+     * Clona una rutina existente
      */
-    async cloneRoutine(childId: number, routineId: number, newName: string): Promise<DailyRoutineList> {
+    async cloneRoutine(
+      childId: number, 
+      routineId: number, 
+      newName: string
+    ): Promise<DailyRoutineList> {
       this.loading = true
+      this.error = null
 
       try {
         const response = await routinesApi.cloneRoutine(childId, routineId, {
@@ -283,10 +240,14 @@ export const useRoutinesStore = defineStore('routines', {
           copy_steps: true,
           copy_strategies: true
         })
-        this.routines.push(response.data) // Añade la nueva rutina clonada
+        
+        // Añade la nueva rutina clonada al listado
+        this.routines.push(response.data)
+        
         return response.data
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al clonar rutina'
+        console.error('Error en cloneRoutine:', err)
         throw err
       } finally {
         this.loading = false
@@ -294,21 +255,35 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * Alterna el estado de una rutina (activa/pausada).
+     * Alterna el estado de una rutina (activa/pausada)
      */
-    async toggleStatus(childId: number, routineId: number): Promise<ToggleStatusResponse> {
+    async toggleStatus(
+      childId: number, 
+      routineId: number
+    ): Promise<ToggleStatusResponse> {
       this.loading = true
+      this.error = null
 
       try {
         const response = await routinesApi.toggleStatus(childId, routineId)
+        
+        // Actualizar estado local
         const index = this.routines.findIndex(r => r.id === routineId)
         if (index !== -1) {
           this.routines[index].status = response.data.status
           this.routines[index].is_active = response.data.status === 'active'
         }
+        
+        // Si es la rutina actual, también actualizarla
+        if (this.currentRoutine?.id === routineId) {
+          this.currentRoutine.status = response.data.status
+          this.currentRoutine.is_active = response.data.status === 'active'
+        }
+        
         return response.data
       } catch (err: any) {
-        this.error = err.message
+        this.error = err.message || 'Error al cambiar estado de rutina'
+        console.error('Error en toggleStatus:', err)
         throw err
       } finally {
         this.loading = false
@@ -316,34 +291,81 @@ export const useRoutinesStore = defineStore('routines', {
     },
 
     /**
-     * Actualiza los filtros del store.
+     * Actualiza los filtros del store
      */
     setFilters(filters: Partial<RoutineFilters>): void {
       this.filters = { ...this.filters, ...filters }
     },
 
     /**
-     * Limpia el estado de error.
+     * Limpia el estado de error
      */
-clearError(): void {
-  this.error = null
-},
+    clearError(): void {
+      this.error = null
+    },
 
-    
-// Agregar este método en la sección de actions del routinesStore.ts
-// Justo después del método clearError()
+    /**
+     * Limpia la rutina actual
+     */
+    clearCurrentRoutine(): void {
+      this.currentRoutine = null
+    },
 
-/**
- * Añade una rutina directamente al estado local sin hacer petición a la API.
- * Útil cuando ya tienes el objeto de rutina (ej: después de crearla en el wizard).
- */
-addRoutineLocal(routine: DailyRoutineList): void {
-  // Verificar que no exista ya en el array
-  const exists = this.routines.some(r => r.id === routine.id)
-  if (!exists) {
-    this.routines.push(routine)
-  }
-}
+    /**
+     * Resetea todos los filtros a sus valores por defecto
+     */
+    resetFilters(): void {
+      this.filters = {
+        status: 'active',
+        routineType: null,
+        search: ''
+      }
+    },
+
+    /**
+     * Añade una rutina directamente al estado local sin hacer petición a la API.
+     * Útil cuando ya tienes el objeto de rutina (ej: después de crearla en el wizard).
+     */
+    addRoutineLocal(routine: DailyRoutineList): void {
+      // Verificar que no exista ya en el array
+      const exists = this.routines.some(r => r.id === routine.id)
+      if (!exists) {
+        this.routines.push(routine)
+        console.log(`✅ Rutina ${routine.id} añadida al store local`)
+      } else {
+        console.log(`⚠️ Rutina ${routine.id} ya existe en el store, no se añade duplicada`)
+      }
+    },
+
+    /**
+     * Actualiza una rutina en el estado local
+     * Útil cuando recibes una rutina actualizada de otra fuente
+     */
+    updateRoutineLocal(routine: Partial<DailyRoutineList> & { id: number }): void {
+      const index = this.routines.findIndex(r => r.id === routine.id)
+      if (index !== -1) {
+        this.routines[index] = { ...this.routines[index], ...routine }
+        console.log(`✅ Rutina ${routine.id} actualizada en el store local`)
+      } else {
+        console.log(`⚠️ Rutina ${routine.id} no encontrada en el store`)
+      }
+    },
+
+    /**
+     * Elimina una rutina del estado local
+     * Útil para remover rutinas del listado sin hacer petición
+     */
+    removeRoutineLocal(routineId: number): void {
+      const index = this.routines.findIndex(r => r.id === routineId)
+      if (index !== -1) {
+        this.routines.splice(index, 1)
+        console.log(`✅ Rutina ${routineId} eliminada del store local`)
+        
+        // Si era la rutina actual, limpiarla
+        if (this.currentRoutine?.id === routineId) {
+          this.currentRoutine = null
+        }
+      }
+    }
   }
 })
-
