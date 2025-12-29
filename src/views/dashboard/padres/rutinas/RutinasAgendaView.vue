@@ -6,10 +6,13 @@
 
     <div v-else-if="routines.length === 0" class="text-center py-16 bg-white rounded-3xl border-2 border-dashed border-gray-200">
       <p class="text-gray-500 font-bold text-lg">No hay rutinas programadas para hoy.</p>
+
       <p class="text-gray-400 text-sm mt-2">Consulta con tu terapeuta si deberías tener actividades asignadas.</p>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    
+
       <div 
         v-for="rutina in routines" 
         :key="rutina.id" 

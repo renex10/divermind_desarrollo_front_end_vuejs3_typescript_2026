@@ -75,6 +75,53 @@ onMounted(async () => {
     ninoActivoId: ninoStore.ninoActivoId,
     nombreCompleto: ninoStore.nombreCompleto
   })
+
+  onMounted(async () => {
+  console.log('🎬 RutinasView montada')
+  console.log('📊 Estado inicial:', {
+    hasData: ninoStore.hasData,
+    ninoActivoId: ninoStore.ninoActivoId,
+    nombreCompleto: ninoStore.nombreCompleto,
+    localStorage: localStorage.getItem('nino_activo_id')
+  })
+  
+  // ✅ PRIMERO: Verificar si ya hay datos cargados
+  if (ninoStore.hasData) {
+    console.log('✅ Ya hay datos del niño cargados, usando datos existentes')
+    await loadData()
+    return
+  }
+  
+  // ✅ SEGUNDO: Verificar localStorage antes de intentar cargar
+  const storedId = localStorage.getItem('nino_activo_id')
+  if (!storedId) {
+    console.warn('⚠️ No hay niño guardado en localStorage, redirigiendo...')
+    router.push({ name: 'parent-mis-hijos' })
+    return
+  }
+  
+  // ✅ TERCERO: Intentar cargar desde localStorage
+  console.log('📂 Cargando niño desde localStorage...')
+  
+  try {
+    await ninoStore.initializeFromStorage()
+    
+    // Verificar si se cargó exitosamente
+    if (ninoStore.hasData) {
+      console.log('✅ Niño cargado exitosamente:', {
+        id: ninoStore.ninoActivoId,
+        nombre: ninoStore.nombreCompleto
+      })
+      await loadData()
+    } else {
+      console.warn('⚠️ initializeFromStorage no cargó datos, redirigiendo...')
+      router.push({ name: 'parent-mis-hijos' })
+    }
+  } catch (error) {
+    console.error('❌ Error al inicializar:', error)
+    // NO redirigir aquí, el store ya maneja el error con SweetAlert
+  }
+})
   
   /**
    * ✅ MEJORADO: Solo intenta cargar desde localStorage si NO hay datos

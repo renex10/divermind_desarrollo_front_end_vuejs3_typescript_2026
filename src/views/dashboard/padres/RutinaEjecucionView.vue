@@ -1,9 +1,10 @@
 <script setup>
+/* src\views\dashboard\padres\RutinaEjecucionView.vue */
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutineExecution } from '@/composables/padres/useRoutineExecution';
 import { useNinoActivoStore } from '@/store/ninoActivoStore';
-import Swal from 'sweetalert2'; // ✅ Importar SweetAlert2
+import Swal from 'sweetalert2';
 
 // Componentes de la interfaz
 import ExecutionHeader from '@/components/dashboard/padres/rutinas/ejecucion/ExecutionHeader.vue';
@@ -21,12 +22,14 @@ const props = defineProps({
 const router = useRouter();
 const ninoStore = useNinoActivoStore();
 
-const childId = computed(() => ninoStore.ninoId);
+// ✅ CORREGIDO: Usar ninoActivoId en lugar de ninoId
+const childId = computed(() => ninoStore.ninoActivoId);
 
 // Referencias para controlar la visibilidad de modales
 const showStrategies = ref(false);
 const showSummary = ref(false);
 
+// ✅ CORREGIDO: Usar computed childId que ya es reactivo
 const {
   routine,
   currentStep,
@@ -39,23 +42,57 @@ const {
   startRoutine,
   completeStep,
   saveExecutionReport
-} = useRoutineExecution(Number(ninoStore.ninoId), Number(props.routineId));
+} = useRoutineExecution(childId, Number(props.routineId));
 
 onMounted(async () => {
-  console.log("🔍 [Ejecución] Validando datos para el piloto...");
+  console.log("🔍 [Ejecución] Validando datos...");
+  console.log("📊 Estado del store:", {
+    hasData: ninoStore.hasData,
+    ninoActivoId: ninoStore.ninoActivoId,
+    nombreCompleto: ninoStore.nombreCompleto
+  });
 
-  if (!childId.value) {
-    console.log("⏳ [Ejecución] Store vacío, intentando recuperar perfil...");
-    await ninoStore.fetchNinoActivo('13'); 
+  // ✅ CORREGIDO: Verificar si ya hay datos cargados
+  if (!ninoStore.hasData) {
+    console.log("📂 [Ejecución] No hay datos, intentando cargar desde localStorage...");
+    
+    try {
+      await ninoStore.initializeFromStorage();
+      
+      if (!ninoStore.hasData) {
+        console.error("❌ [Ejecución] No se pudo cargar niño activo");
+        
+        await Swal.fire({
+          icon: 'warning',
+          title: 'No hay niño seleccionado',
+          text: 'Por favor, selecciona un niño antes de ejecutar una rutina.',
+          confirmButtonText: 'Ir a Mis Hijos',
+          confirmButtonColor: '#3b82f6'
+        });
+        
+        router.push({ name: 'parent-mis-hijos' });
+        return;
+      }
+    } catch (error) {
+      console.error("❌ [Ejecución] Error al cargar niño:", error);
+      router.push({ name: 'parent-rutinas' });
+      return;
+    }
   }
 
+  // ✅ Verificación final
   if (!childId.value) {
-    console.error("❌ [Ejecución] No se encontró un ID de niño válido. Redirigiendo...");
-    router.push({ name: 'parent-dashboard' });
+    console.error("❌ [Ejecución] childId es null después de cargar");
+    router.push({ name: 'parent-rutinas' });
     return;
   }
 
-  console.log("✅ [Ejecución] ID detectado:", childId.value, "Cargando rutina...");
+  console.log("✅ [Ejecución] Niño activo:", {
+    id: childId.value,
+    nombre: ninoStore.nombreCompleto
+  });
+  
+  console.log("🔄 [Ejecución] Cargando rutina ID:", props.routineId);
   await loadRoutine();
 });
 
@@ -74,7 +111,6 @@ const handleStepAction = (data) => {
 
 const handleFinalSubmit = async (finalData) => {
   try {
-    // ✅ Mostrar loading mientras se guarda
     Swal.fire({
       title: 'Guardando reporte...',
       html: 'Espera un momento mientras procesamos la información',
@@ -91,7 +127,6 @@ const handleFinalSubmit = async (finalData) => {
       finalData.supportLevel
     );
 
-    // ✅ Cerrar loading y mostrar éxito
     await Swal.fire({
       icon: 'success',
       title: '¡Rutina Completada!',
@@ -115,13 +150,11 @@ const handleFinalSubmit = async (finalData) => {
       }
     });
 
-    // Redirigir después del éxito
     router.push({ name: 'parent-rutinas' });
 
   } catch (error) {
     console.error("❌ [Ejecución] Error al guardar reporte final:", error);
     
-    // ✅ Mostrar error con detalles
     Swal.fire({
       icon: 'error',
       title: 'Error al Guardar',
@@ -140,7 +173,6 @@ const handleFinalSubmit = async (finalData) => {
       cancelButtonColor: '#64748b'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Reabrir el modal para que el usuario pueda intentar de nuevo
         showSummary.value = true;
       }
     });
@@ -152,7 +184,9 @@ const handleFinalSubmit = async (finalData) => {
   <div class="execution-mode-container">
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
-      <p class="mt-4 text-gray-500 font-bold">Cargando plan de Pangal...</p>
+      <p class="mt-4 text-gray-500 font-bold">
+        Cargando plan de {{ ninoStore.nombreCompleto || 'niño' }}...
+      </p>
     </div>
 
     <template v-else-if="routine">
@@ -166,7 +200,7 @@ const handleFinalSubmit = async (finalData) => {
       <main class="execution-content">
         <div v-if="!isExecuting && !isFinished" class="start-screen">
           <div class="welcome-card">
-            <span class="child-tag">Pangal Eluney</span>
+            <span class="child-tag">{{ ninoStore.nombreCompleto }}</span>
             <h1 class="text-2xl font-black text-gray-900 mt-4">¿Cómo está el ánimo de hoy?</h1>
             <p class="text-gray-500 mt-2">Selecciona un estado para iniciar el cronómetro.</p>
             
