@@ -1,7 +1,8 @@
 <template>
   <div class="perfil-nino-layout">
 
-    <div v-if="ninoStore.isLoading" class="flex justify-center items-center py-20">
+    <!-- ✅ CORREGIDO: Usa isLoadingData en lugar de isLoading -->
+    <div v-if="ninoStore.isLoadingData" class="flex justify-center items-center py-20">
       <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -9,7 +10,8 @@
       <p class="text-gray-600 ml-4">Cargando perfil del niño...</p>
     </div>
 
-    <div v-else-if="ninoStore.error" class="bg-red-50 border-l-4 border-red-400 p-4">
+    <!-- ✅ CORREGIDO: Usa errorMessage en lugar de error -->
+    <div v-else-if="ninoStore.errorMessage" class="bg-red-50 border-l-4 border-red-400 p-4">
       <div class="flex">
         <div class="flex-shrink-0">
           <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -18,16 +20,17 @@
         </div>
         <div class="ml-3">
           <h3 class="text-sm font-medium text-red-800">Error al cargar</h3>
-          <p class="text-sm text-red-700 mt-1">{{ ninoStore.error }}</p>
+          <p class="text-sm text-red-700 mt-1">{{ ninoStore.errorMessage }}</p>
         </div>
       </div>
     </div>
 
     <div v-else-if="ninoStore.hasData">
       
-   <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-  {{ ninoStore.nombreNino }}
-</h1>
+      <!-- ✅ CORREGIDO: Usa nombreCompleto en lugar de nombreNino -->
+      <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+        {{ ninoStore.nombreCompleto }}
+      </h1>
 
       <nav class="flex flex-wrap space-x-2 sm:space-x-4 border-b border-gray-200 mb-6">
         <router-link
@@ -68,7 +71,7 @@ const tabs = [
   { name: 'perfil-nino-hitos', label: 'Hitos y Logros' },
   { name: 'perfil-nino-rutinas', label: 'Rutinas' },
   { name: 'perfil-nino-cognitivo', label: 'P. Cognitivo' },
-  { name: 'perfil-nino-habilidades', label: 'H. Sociales' }, // Asegúrate de que este 'name' coincida con tu router
+  { name: 'perfil-nino-habilidades', label: 'H. Sociales' },
   { name: 'perfil-nino-sensorial', label: 'Sensorial' },
   { name: 'perfil-nino-comunicacion', label: 'Comunicación' },
   { name: 'perfil-nino-autonomia', label: 'Autonomía' },
@@ -80,15 +83,26 @@ const tabs = [
 
 // 4. Ciclo de vida: Al montar el componente
 onMounted(async () => {
-  // Le pedimos al store que cargue los datos usando el ID de la prop
-  await ninoStore.fetchNinoActivo(props.id)
+  // ✅ CORREGIDO: Convertir string a number
+  const childId = parseInt(props.id)
+  
+  if (isNaN(childId)) {
+    console.error('❌ ID de niño inválido:', props.id)
+    return
+  }
+  
+  console.log('🎬 PerfilNinoLayout montado para niño ID:', childId)
+  
+  // Le pedimos al store que cargue los datos usando el ID convertido a number
+  await ninoStore.fetchNinoActivo(childId)
 })
 
 // 5. Ciclo de vida: Al desmontar el componente (cuando el usuario sale del perfil)
 onUnmounted(() => {
-  // Limpiamos el store para que no se muestren datos incorrectos
-  // la próxima vez que se entre al perfil de otro niño.
-  ninoStore.limpiarNinoActivo()
+  console.log('👋 PerfilNinoLayout desmontado, limpiando store')
+  
+  // ✅ CORREGIDO: Usa clearNinoActivo en lugar de limpiarNinoActivo
+  ninoStore.clearNinoActivo()
 })
 </script>
 

@@ -40,7 +40,7 @@ export default [
           breadcrumb: () => {
             const ninoStore = useNinoActivoStore()
             return ninoStore.hasData 
-              ? ninoStore.nombreNino
+              ? `${ninoStore.perfil?.header.first_name || ''} ${ninoStore.perfil?.header.last_name || ''}`.trim() || 'Perfil del Niño'
               : 'Perfil del Niño'
           }
         },

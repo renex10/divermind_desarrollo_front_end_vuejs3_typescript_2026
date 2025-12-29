@@ -9,6 +9,19 @@
       <p class="text-gray-600 ml-4">Cargando datos de autonomía...</p>
     </div>
 
+    <!-- ✅ Estado de Error -->
+    <div v-else-if="!ninoStore.hasData" class="flex flex-col items-center justify-center py-20">
+      <div class="text-6xl mb-4">⚠️</div>
+      <h3 class="text-xl font-bold text-gray-900 mb-2">No hay niño seleccionado</h3>
+      <p class="text-gray-600 mb-4">Por favor, selecciona un niño para continuar.</p>
+      <button 
+        @click="$router.push({ name: 'parent-mis-hijos' })"
+        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+      >
+        Seleccionar niño
+      </button>
+    </div>
+
     <form v-else @submit.prevent="handleSubmit">
       <h2 class="text-2xl font-semibold text-gray-800 mb-6">
         Seguimiento de Habilidades de Autonomía
@@ -86,6 +99,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useNinoActivoStore } from '@/store/ninoActivoStore'
 import { useAlertModalStore } from '@/store/alertModalStore' // Para notificaciones
 
@@ -93,16 +107,16 @@ import { useAlertModalStore } from '@/store/alertModalStore' // Para notificacio
 
 // Definición de la escala de apoyo (ideal para ML)
 interface SupportLevel {
-  value: number;
-  label: string;
+  value: number
+  label: string
 }
 
 // Definición de la habilidad de autonomía
 interface AutonomySkill {
-  id: string; // ID único de la habilidad (ej: 'higiene_manos')
-  name: string; // Nombre legible (ej: 'Higiene: Lavado de Manos')
-  currentLevel: number | null; // Valor actual de la escala (ej: 3)
-  notes: string; // Contexto cualitativo
+  id: string // ID único de la habilidad (ej: 'higiene_manos')
+  name: string // Nombre legible (ej: 'Higiene: Lavado de Manos')
+  currentLevel: number | null // Valor actual de la escala (ej: 3)
+  notes: string // Contexto cualitativo
 }
 
 // --- CONSTANTES ---
@@ -119,6 +133,7 @@ const supportLevels: SupportLevel[] = [
 
 // --- ESTADO ---
 
+const router = useRouter()
 const isLoading = ref(true)
 const isSubmitting = ref(false)
 const skillsData = ref<AutonomySkill[]>([])
@@ -129,8 +144,27 @@ const alertModal = useAlertModalStore()
 
 // --- CICLO DE VIDA ---
 
-onMounted(() => {
-  fetchAutonomyData()
+onMounted(async () => {
+  // ✅ Inicializar niño activo si no hay datos
+  if (!ninoStore.hasData) {
+    console.log('📂 Inicializando niño activo desde localStorage...')
+    try {
+      await ninoStore.initializeFromStorage()
+      
+      if (!ninoStore.hasData) {
+        console.warn('⚠️ No hay niño activo, redirigiendo...')
+        router.push({ name: 'parent-mis-hijos' })
+        isLoading.value = false
+        return
+      }
+    } catch (error) {
+      console.error('❌ Error al inicializar niño activo:', error)
+      isLoading.value = false
+      return
+    }
+  }
+  
+  await fetchAutonomyData()
 })
 
 // --- MÉTODOS ---
@@ -140,7 +174,9 @@ onMounted(() => {
  */
 async function fetchAutonomyData() {
   isLoading.value = true
-  const childId = ninoStore.ninoId
+  
+  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
+  const childId = ninoStore.ninoActivoId
   
   if (!childId) {
     alertModal.error('Error', 'No se pudo identificar al niño activo.')
@@ -148,7 +184,7 @@ async function fetchAutonomyData() {
     return
   }
 
-  console.log(`Buscando datos de autonomía para el niño ID: ${childId}...`)
+  console.log(`🔍 Buscando datos de autonomía para el niño ID: ${childId}...`)
   
   // --- INICIO DE SIMULACIÓN DE API ---
   // Reemplaza esto con tu llamada real:
@@ -188,6 +224,7 @@ async function fetchAutonomyData() {
   skillsData.value = mockData
   // --- FIN DE SIMULACIÓN DE API ---
   
+  console.log(`✅ Datos de autonomía cargados para ${ninoStore.nombreCompleto}`)
   isLoading.value = false
 }
 
@@ -196,9 +233,17 @@ async function fetchAutonomyData() {
  */
 async function handleSubmit() {
   isSubmitting.value = true
-  const childId = ninoStore.ninoId
   
-  console.log(`Guardando datos de autonomía para el niño ID: ${childId}:`, skillsData.value)
+  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
+  const childId = ninoStore.ninoActivoId
+  
+  if (!childId) {
+    alertModal.error('Error', 'No se pudo identificar al niño activo.')
+    isSubmitting.value = false
+    return
+  }
+  
+  console.log(`💾 Guardando datos de autonomía para el niño ID: ${childId}:`, skillsData.value)
 
   // --- INICIO DE SIMULACIÓN DE API ---
   // Reemplaza esto con tu llamada real:
@@ -212,6 +257,7 @@ async function handleSubmit() {
   await new Promise(resolve => setTimeout(resolve, 1000)) // Simula espera
   
   alertModal.success('Progreso Guardado', 'Los datos de autonomía se actualizaron correctamente.')
+  console.log('✅ Datos de autonomía guardados exitosamente')
   // --- FIN DE SIMULACIÓN DE API ---
 
   isSubmitting.value = false

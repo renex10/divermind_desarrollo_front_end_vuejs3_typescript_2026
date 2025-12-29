@@ -207,7 +207,13 @@ const wizardStore = useRoutineWizardStore()
 const ninoStore = useNinoActivoStore()
 
 const { basicInfo, schedules, steps, strategiesConfig } = storeToRefs(wizardStore)
-const childName = computed(() => ninoStore.nombreNino || 'el niño')
+const childName = computed(() => {
+  if (ninoStore.perfil?.header) {
+    const { first_name, last_name } = ninoStore.perfil.header
+    return `${first_name} ${last_name}`.trim() || 'el niño'
+  }
+  return 'el niño'
+})
 
 // FORMATEADORES DE DATOS
 function formatTime(time: string | null): string {

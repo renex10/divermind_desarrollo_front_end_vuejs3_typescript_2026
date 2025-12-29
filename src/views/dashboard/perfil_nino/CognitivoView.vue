@@ -294,7 +294,11 @@ const isLoading = ref(true)
 
 // === COMPUTED ===
 const childId = computed(() => Number(props.id))
-const childName = computed(() => ninoStore.nombreNino || 'el niño')
+
+/**
+ * ✅ CORREGIDO: Usa nombreCompleto en lugar de nombreNino
+ */
+const childName = computed(() => ninoStore.nombreCompleto || 'el niño')
 
 // === METHODS ===
 
@@ -314,7 +318,7 @@ async function fetchCognitiveMilestones() {
     
     cognitiveMilestones.value = response.data
     
-    console.log(`✅ ${cognitiveMilestones.value.length} hitos cognitivos cargados`)
+    console.log(`✅ ${cognitiveMilestones.value.length} hitos cognitivos cargados para ${childName.value}`)
     
   } catch (error: any) {
     const apiError = parseApiError(error)

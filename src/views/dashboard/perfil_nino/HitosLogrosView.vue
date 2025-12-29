@@ -136,33 +136,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { useNinoActivoStore } from '@/store/ninoActivoStore';
-import { useAlertModalStore } from '@/store/alertModalStore';
-import MilestoneHistoryList from '@/components/gestion/hitosLogros/MilestoneHistoryList.vue';
-import ConfirmModal from '@/components/ui/ConfirmModal.vue';
-import MilestoneForm from '@/components/gestion/hitosLogros/MilestoneForm.vue';
-import MilestonesMetrics from '@/components/gestion/hitosLogros/MilestonesMetrics.vue';
-import { reset } from '@formkit/core'; 
+import { ref, onMounted, computed} from 'vue'
+import { useRouter } from 'vue-router'
+import { useNinoActivoStore } from '@/store/ninoActivoStore'
+import { useAlertModalStore } from '@/store/alertModalStore'
+import MilestoneHistoryList from '@/components/gestion/hitosLogros/MilestoneHistoryList.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import MilestoneForm from '@/components/gestion/hitosLogros/MilestoneForm.vue'
+import MilestonesMetrics from '@/components/gestion/hitosLogros/MilestonesMetrics.vue'
+import { reset } from '@formkit/core'
 
 // --- Importar Servicio e Interfaces ---
-import { hitosService } from '@/services/hitosService'; 
-import type { Milestone, MilestoneFormData } from '@/type/hitoServiceInterface';
+import { hitosService } from '@/services/hitosService'
+import type { Milestone, MilestoneFormData } from '@/type/hitoServiceInterface'
 
 // --- Stores ---
-const ninoStore = useNinoActivoStore();
-const alertModal = useAlertModalStore();
+const router = useRouter()
+const ninoStore = useNinoActivoStore()
+const alertModal = useAlertModalStore()
 
 // --- Estado del Componente ---
-const isLoading = ref(true);
-const isSubmitting = ref(false);
-const isLoadingHistory = ref(false);
-const milestones = ref<Milestone[]>([]);
-const editingMilestoneId = ref<number | string | null>(null);
-const showConfirmDeleteModal = ref(false);
-const milestoneToDeleteId = ref<number | string | null>(null);
-const showForm = ref(false); 
-
+const isLoading = ref(true)
+const isSubmitting = ref(false)
+const isLoadingHistory = ref(false)
+const milestones = ref<Milestone[]>([])
+const editingMilestoneId = ref<number | string | null>(null)
+const showConfirmDeleteModal = ref(false)
+const milestoneToDeleteId = ref<number | string | null>(null)
+const showForm = ref(false)
 
 // --- Datos del Formulario ---
 const initialFormData: MilestoneFormData = {
@@ -174,207 +175,229 @@ const initialFormData: MilestoneFormData = {
   context: 'therapy',
   support_level: 'verbal_cue',
   functional_impact: '',
-};
-const formData = ref<MilestoneFormData>({ ...initialFormData });
-
+}
+const formData = ref<MilestoneFormData>({ ...initialFormData })
 
 // --- Propiedades Computadas ---
 const buttonToggleText = computed(() => {
   if (editingMilestoneId.value) {
-    return 'Modo Edición';
+    return 'Modo Edición'
   }
-  return showForm.value ? 'Ocultar Formulario' : 'Registrar Nuevo Hito';
-});
-
+  return showForm.value ? 'Ocultar Formulario' : 'Registrar Nuevo Hito'
+})
 
 // --- Ciclo de Vida ---
 onMounted(async () => {
-  if (!ninoStore.ninoId) {
-      const unwatch = watch(() => ninoStore.ninoId, async (newId) => {
-          if (newId) {
-              await initializeComponent(newId);
-              unwatch();
-          }
-      }, { immediate: true });
-  } else {
-      await initializeComponent(ninoStore.ninoId);
+  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
+  if (!ninoStore.ninoActivoId) {
+    console.log('📂 Intentando cargar niño activo desde localStorage...')
+    
+    try {
+      await ninoStore.initializeFromStorage()
+      
+      if (!ninoStore.ninoActivoId) {
+        console.warn('⚠️ No hay niño activo, redirigiendo...')
+        router.push({ name: 'parent-mis-hijos' })
+        isLoading.value = false
+        return
+      }
+    } catch (error) {
+      console.error('❌ Error al inicializar niño activo:', error)
+      isLoading.value = false
+      return
+    }
   }
-});
+  
+  await initializeComponent(ninoStore.ninoActivoId)
+})
 
-async function initializeComponent(childId: string | number) {
-    isLoading.value = true;
-    await loadMilestones(childId);
-    isLoading.value = false;
+async function initializeComponent(childId: number | null) {
+  if (!childId) {
+    console.warn('⚠️ initializeComponent: No se proporcionó ID de niño')
+    isLoading.value = false
+    return
+  }
+  
+  isLoading.value = true
+  await loadMilestones(childId)
+  isLoading.value = false
 }
 
 // --- Funciones de Interacción con API ---
 
-async function loadMilestones(childId: string | number | null = ninoStore.ninoId) {
+/**
+ * ✅ CORREGIDO: Acepta number | null y usa ninoActivoId por defecto
+ */
+async function loadMilestones(childId: number | null = ninoStore.ninoActivoId) {
   if (!childId) {
-    console.warn("loadMilestones: No se proporcionó ID de niño.");
-    milestones.value = [];
-    return;
+    console.warn('⚠️ loadMilestones: No se proporcionó ID de niño')
+    milestones.value = []
+    return
   }
-  isLoadingHistory.value = true;
+  
+  isLoadingHistory.value = true
   try {
-    milestones.value = await hitosService.getMilestones(childId); 
+    console.log(`🔍 Cargando hitos para niño ID: ${childId}`)
+    milestones.value = await hitosService.getMilestones(childId)
+    console.log(`✅ ${milestones.value.length} hitos cargados`)
   } catch (error) {
-    alertModal.error('Error de Carga', 'No se pudo cargar el historial de hitos.');
-    milestones.value = [];
+    console.error('❌ Error al cargar hitos:', error)
+    alertModal.error('Error de Carga', 'No se pudo cargar el historial de hitos.')
+    milestones.value = []
   } finally {
-    isLoadingHistory.value = false;
+    isLoadingHistory.value = false
   }
 }
 
 // Maneja el evento @submitForm del componente hijo
 async function handleSubmit(submittedData: MilestoneFormData) {
-  if (!ninoStore.ninoId) {
-    alertModal.warning('Error', 'ID de niño no encontrado.');
-    return;
+  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
+  if (!ninoStore.ninoActivoId) {
+    alertModal.warning('Error', 'ID de niño no encontrado.')
+    return
   }
 
-  isSubmitting.value = true;
-  const childId = ninoStore.ninoId;
+  isSubmitting.value = true
+  const childId = ninoStore.ninoActivoId
 
   const payload: MilestoneFormData = {
-      ...submittedData,
-      observations: submittedData.observations?.trim() || null,
-      functional_impact: submittedData.functional_impact?.trim() || null,
-  };
+    ...submittedData,
+    observations: submittedData.observations?.trim() || null,
+    functional_impact: submittedData.functional_impact?.trim() || null,
+  }
 
   try {
-    let savedMilestone: Milestone;
+    let savedMilestone: Milestone
     if (editingMilestoneId.value) { // --- ACTUALIZAR ---
-      savedMilestone = await hitosService.updateMilestone(childId, editingMilestoneId.value, payload);
-      alertModal.success('Hito Actualizado', 'Cambios guardados correctamente.');
-      const index = milestones.value.findIndex(m => m.id === editingMilestoneId.value);
-      if (index !== -1) milestones.value[index] = savedMilestone;
-      else await loadMilestones(childId);
+      savedMilestone = await hitosService.updateMilestone(childId, editingMilestoneId.value, payload)
+      alertModal.success('Hito Actualizado', 'Cambios guardados correctamente.')
+      const index = milestones.value.findIndex(m => m.id === editingMilestoneId.value)
+      if (index !== -1) milestones.value[index] = savedMilestone
+      else await loadMilestones(childId)
       
     } else { // --- CREAR ---
-      savedMilestone = await hitosService.createMilestone(childId, payload);
-      alertModal.success('Hito Guardado', 'Nuevo hito registrado.');
-      milestones.value.unshift(savedMilestone);
+      savedMilestone = await hitosService.createMilestone(childId, payload)
+      alertModal.success('Hito Guardado', 'Nuevo hito registrado.')
+      milestones.value.unshift(savedMilestone)
     }
     
     // Reordenar para que el nuevo/editado aparezca correctamente
-    milestones.value.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    milestones.value.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     
-    resetForm();
-    showForm.value = false; // Ocultar formulario al guardar uno nuevo
+    resetForm()
+    showForm.value = false // Ocultar formulario al guardar uno nuevo
 
   } catch (error: any) { // --- MANEJO DE ERRORES ---
-    let errorMessage = editingMilestoneId.value ? 'Error al actualizar.' : 'Error al guardar.';
+    let errorMessage = editingMilestoneId.value ? 'Error al actualizar.' : 'Error al guardar.'
     if (error.response?.data) {
-        const errors = error.response.data;
-        const fieldErrors = Object.entries(errors)
-            .map(([field, messages]) => `${field}: ${(Array.isArray(messages) ? messages.join(', ') : messages)}`)
-            .join('; ');
-        if (fieldErrors) errorMessage = `Error de validación: ${fieldErrors}`;
-        else if (errors.detail) errorMessage = errors.detail;
+      const errors = error.response.data
+      const fieldErrors = Object.entries(errors)
+        .map(([field, messages]) => `${field}: ${(Array.isArray(messages) ? messages.join(', ') : messages)}`)
+        .join('; ')
+      if (fieldErrors) errorMessage = `Error de validación: ${fieldErrors}`
+      else if (errors.detail) errorMessage = errors.detail
     }
-    alertModal.error('Error', errorMessage);
+    alertModal.error('Error', errorMessage)
   } finally {
-    isSubmitting.value = false;
+    isSubmitting.value = false
   }
 }
 
 // --- Funciones para Borrado (usando ConfirmModal.vue) ---
 
 function handleDeleteRequest(milestoneId: number | string) {
-  milestoneToDeleteId.value = milestoneId;
-  showConfirmDeleteModal.value = true;
+  milestoneToDeleteId.value = milestoneId
+  showConfirmDeleteModal.value = true
 }
 
 async function confirmDelete() {
-  if (!ninoStore.ninoId || milestoneToDeleteId.value === null) {
-      showConfirmDeleteModal.value = false;
-      milestoneToDeleteId.value = null;
-      return;
+  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
+  if (!ninoStore.ninoActivoId || milestoneToDeleteId.value === null) {
+    showConfirmDeleteModal.value = false
+    milestoneToDeleteId.value = null
+    return
   }
-  const childId = ninoStore.ninoId;
-  const idToDelete = milestoneToDeleteId.value;
+  
+  const childId = ninoStore.ninoActivoId
+  const idToDelete = milestoneToDeleteId.value
 
-  showConfirmDeleteModal.value = false;
+  showConfirmDeleteModal.value = false
 
   try {
-    await hitosService.deleteMilestone(childId, idToDelete);
-    alertModal.success('Hito Eliminado', 'El hito se eliminó correctamente.');
-    milestones.value = milestones.value.filter(m => m.id !== idToDelete);
+    await hitosService.deleteMilestone(childId, idToDelete)
+    alertModal.success('Hito Eliminado', 'El hito se eliminó correctamente.')
+    milestones.value = milestones.value.filter(m => m.id !== idToDelete)
   } catch (error) {
-    alertModal.error('Error al Eliminar', 'No se pudo eliminar el hito.');
+    alertModal.error('Error al Eliminar', 'No se pudo eliminar el hito.')
   } finally {
-    milestoneToDeleteId.value = null;
+    milestoneToDeleteId.value = null
     if (editingMilestoneId.value === idToDelete) {
-        resetForm();
-        showForm.value = false;
+      resetForm()
+      showForm.value = false
     }
   }
 }
 
 function cancelDelete() {
-  showConfirmDeleteModal.value = false;
-  milestoneToDeleteId.value = null;
+  showConfirmDeleteModal.value = false
+  milestoneToDeleteId.value = null
 }
-
 
 // --- Funciones de UI y Formulario ---
 
 function handleEdit(milestoneToEdit: Milestone) {
-  const dataToEdit = milestones.value.find(m => m.id === milestoneToEdit.id);
+  const dataToEdit = milestones.value.find(m => m.id === milestoneToEdit.id)
   if (dataToEdit) {
     // 1. Poblar el ref() formData.value con los datos
     formData.value = {
-        date: dataToEdit.date.includes('T') ? dataToEdit.date.split('T')[0] : dataToEdit.date, // Asegurar YYYY-MM-DD
-        category: dataToEdit.category,
-        description: dataToEdit.description,
-        observations: dataToEdit.observations ?? '', // Convertir null a ''
-        proficiency_level: dataToEdit.proficiency_level,
-        context: dataToEdit.context,
-        support_level: dataToEdit.support_level,
-        functional_impact: dataToEdit.functional_impact ?? '' // Convertir null a ''
-    };
+      date: dataToEdit.date.includes('T') ? dataToEdit.date.split('T')[0] : dataToEdit.date, // Asegurar YYYY-MM-DD
+      category: dataToEdit.category,
+      description: dataToEdit.description,
+      observations: dataToEdit.observations ?? '', // Convertir null a ''
+      proficiency_level: dataToEdit.proficiency_level,
+      context: dataToEdit.context,
+      support_level: dataToEdit.support_level,
+      functional_impact: dataToEdit.functional_impact ?? '' // Convertir null a ''
+    }
 
-    editingMilestoneId.value = dataToEdit.id;
-    showForm.value = true; // Desplegar formulario
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    alertModal.info('Modo Edición', 'Modifica los campos necesarios y presione "Actualizar Hito".');
+    editingMilestoneId.value = dataToEdit.id
+    showForm.value = true // Desplegar formulario
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    alertModal.info('Modo Edición', 'Modifica los campos necesarios y presione "Actualizar Hito".')
   } else {
-    alertModal.error('Error', 'No se encontró el hito para editar.');
+    alertModal.error('Error', 'No se encontró el hito para editar.')
   }
 }
 
 // Resetea el formulario y sale del modo edición
 function resetForm() {
-  editingMilestoneId.value = null; // Salir modo edición
-  formData.value = { ...initialFormData };
+  editingMilestoneId.value = null // Salir modo edición
+  formData.value = { ...initialFormData }
   // reset('hitoForm') limpia el estado *interno* de FormKit
-  reset('hitoForm'); 
+  reset('hitoForm')
 }
 
 // Se llama al presionar "Cancelar Edición" o después de guardar
 function cancelEdit() {
-    resetForm();
-    showForm.value = false; // Ocultar formulario al cancelar
+  resetForm()
+  showForm.value = false // Ocultar formulario al cancelar
 }
 
 // Alternar visibilidad
 function toggleFormVisibility() {
-    if (editingMilestoneId.value) {
-        // Si estamos editando, al presionar el botón cancelamos edición y lo ocultamos
-        cancelEdit(); 
-    } else {
-        // Si no estamos editando, simplemente alternamos visibilidad
-        showForm.value = !showForm.value;
-        // Si se abre para un nuevo registro, asegurarse de que el formulario esté limpio
-        if (showForm.value) {
-            resetForm(); 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+  if (editingMilestoneId.value) {
+    // Si estamos editando, al presionar el botón cancelamos edición y lo ocultamos
+    cancelEdit()
+  } else {
+    // Si no estamos editando, simplemente alternamos visibilidad
+    showForm.value = !showForm.value
+    // Si se abre para un nuevo registro, asegurarse de que el formulario esté limpio
+    if (showForm.value) {
+      resetForm()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
 }
-
-
 </script>
 
 <style scoped>
