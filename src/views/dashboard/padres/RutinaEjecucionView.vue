@@ -2,8 +2,8 @@
 /* src\views\dashboard\padres\RutinaEjecucionView.vue */
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useRoutineExecution } from '@/composables/padres/useRoutineExecution';
 import { useNinoActivoStore } from '@/store/ninoActivoStore';
+import { routinesApi } from '@/services/rutinas/routinesApi';
 import Swal from 'sweetalert2';
 
 // Componentes de la interfaz
@@ -22,28 +22,150 @@ const props = defineProps({
 const router = useRouter();
 const ninoStore = useNinoActivoStore();
 
-// ✅ CORREGIDO: Usar ninoActivoId
-const childId = computed(() => ninoStore.ninoActivoId);
+// ✅ Estado local
+const routine = ref(null);
+const currentStepIndex = ref(0);
+const loading = ref(true);
+const isExecuting = ref(false);
+const isFinished = ref(false);
 
-// Referencias para controlar la visibilidad de modales
+const startTime = ref(null);
+const endTime = ref(null);
+const totalElapsedSeconds = ref(0);
+const stepStartTime = ref(0);
+let timerInterval = null;
+
+const stepCompletions = ref([]);
+const emotionalStateStart = ref('neutral');
+
 const showStrategies = ref(false);
 const showSummary = ref(false);
 
-// ✅ CRÍTICO: Pasar childId.value (número) en lugar del computed
-const {
-  routine,
-  currentStep,
-  loading,
-  isExecuting,
-  isFinished,
-  progressPercentage,
-  totalElapsedSeconds,
-  loadRoutine,
-  startRoutine,
-  completeStep,
-  saveExecutionReport
-} = useRoutineExecution(childId.value || 0, Number(props.routineId));
+// ✅ Computed
+const childId = computed(() => ninoStore.ninoActivoId);
 
+const currentStep = computed(() => {
+  if (!routine.value?.steps || currentStepIndex.value >= routine.value.steps.length) {
+    return null;
+  }
+  return routine.value.steps[currentStepIndex.value];
+});
+
+const progressPercentage = computed(() => {
+  if (!routine.value?.steps) return 0;
+  return Math.round((currentStepIndex.value / routine.value.steps.length) * 100);
+});
+
+// ✅ Métodos
+async function loadRoutine() {
+  if (!childId.value) {
+    console.error('❌ No hay childId para cargar rutina');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    console.log(`🔄 Cargando rutina ${props.routineId} para niño ${childId.value}`);
+    const response = await routinesApi.getRoutineDetail(childId.value, Number(props.routineId));
+    routine.value = response.data;
+    
+    if (routine.value.steps) {
+      routine.value.steps.sort((a, b) => a.order - b.order);
+    }
+    
+    console.log(`✅ Rutina cargada con ${routine.value.steps?.length || 0} pasos`);
+  } catch (error) {
+    console.error('❌ Error al cargar rutina:', error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function startRoutine(initialMood = 'neutral') {
+  startTime.value = new Date();
+  stepStartTime.value = 0;
+  emotionalStateStart.value = initialMood;
+  isExecuting.value = true;
+  currentStepIndex.value = 0;
+  
+  timerInterval = window.setInterval(() => {
+    totalElapsedSeconds.value++;
+  }, 1000);
+  
+  console.log('⏱️ Timer iniciado');
+}
+
+function completeStep(data) {
+  if (!routine.value?.steps) return;
+  
+  const step = routine.value.steps[currentStepIndex.value];
+  if (!step) return;
+
+  const timeInThisStep = totalElapsedSeconds.value - stepStartTime.value;
+
+  stepCompletions.value.push({
+    step_id: step.id,
+    completed: data.completed,
+    had_difficulty: data.had_difficulty,
+    support_needed: data.support_needed,
+    time_taken_seconds: timeInThisStep,
+    notes: data.notes || ''
+  });
+
+  console.log(`✅ Paso ${currentStepIndex.value + 1} completado`);
+
+  stepStartTime.value = totalElapsedSeconds.value;
+
+  if (currentStepIndex.value < routine.value.steps.length - 1) {
+    currentStepIndex.value++;
+  } else {
+    isFinished.value = true;
+    stopTimer();
+    console.log('🏁 Rutina finalizada');
+  }
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  endTime.value = new Date();
+}
+
+async function saveExecutionReport(finalMood, generalNotes, generalSupport) {
+  if (!childId.value) {
+    throw new Error('No hay niño activo');
+  }
+
+  if (!startTime.value || !endTime.value) {
+    throw new Error('No hay tiempos registrados');
+  }
+
+  const allCompleted = stepCompletions.value.every(s => s.completed);
+  const completionStatus = allCompleted ? 'completed' : 'partial';
+
+  const logData = {
+    date: new Date().toISOString().split('T')[0],
+    start_time: startTime.value.toTimeString().split(' ')[0],
+    end_time: endTime.value.toTimeString().split(' ')[0],
+    actual_duration_minutes: Math.ceil(totalElapsedSeconds.value / 60),
+    emotional_state_start: emotionalStateStart.value,
+    emotional_state_end: finalMood,
+    notes: generalNotes,
+    step_completions: stepCompletions.value,
+    completion_status: completionStatus,
+    support_level_needed: generalSupport,
+    independence_rating: allCompleted ? 5 : 3,
+    crisis_occurred: false
+  };
+
+  console.log(`💾 Guardando reporte para niño ${childId.value}`);
+  await routinesApi.createLog(childId.value, Number(props.routineId), logData);
+  console.log('✅ Reporte guardado');
+}
+
+// ✅ Lifecycle
 onMounted(async () => {
   console.log("🔍 [Ejecución] Validando datos...");
   console.log("📊 Estado del store:", {
@@ -52,7 +174,6 @@ onMounted(async () => {
     nombreCompleto: ninoStore.nombreCompleto
   });
 
-  // ✅ Verificar si ya hay datos cargados
   if (!ninoStore.hasData) {
     console.log("📂 [Ejecución] No hay datos, intentando cargar desde localStorage...");
     
@@ -80,7 +201,6 @@ onMounted(async () => {
     }
   }
 
-  // ✅ Verificación final
   if (!childId.value) {
     console.error("❌ [Ejecución] childId es null después de cargar");
     router.push({ name: 'parent-rutinas' });
