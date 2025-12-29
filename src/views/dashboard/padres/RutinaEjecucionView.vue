@@ -22,14 +22,14 @@ const props = defineProps({
 const router = useRouter();
 const ninoStore = useNinoActivoStore();
 
-// ✅ CORREGIDO: Usar ninoActivoId en lugar de ninoId
+// ✅ CORREGIDO: Usar ninoActivoId
 const childId = computed(() => ninoStore.ninoActivoId);
 
 // Referencias para controlar la visibilidad de modales
 const showStrategies = ref(false);
 const showSummary = ref(false);
 
-// ✅ CORREGIDO: Usar computed childId que ya es reactivo
+// ✅ CRÍTICO: Pasar childId.value (número) en lugar del computed
 const {
   routine,
   currentStep,
@@ -42,7 +42,7 @@ const {
   startRoutine,
   completeStep,
   saveExecutionReport
-} = useRoutineExecution(childId, Number(props.routineId));
+} = useRoutineExecution(childId.value || 0, Number(props.routineId));
 
 onMounted(async () => {
   console.log("🔍 [Ejecución] Validando datos...");
@@ -52,7 +52,7 @@ onMounted(async () => {
     nombreCompleto: ninoStore.nombreCompleto
   });
 
-  // ✅ CORREGIDO: Verificar si ya hay datos cargados
+  // ✅ Verificar si ya hay datos cargados
   if (!ninoStore.hasData) {
     console.log("📂 [Ejecución] No hay datos, intentando cargar desde localStorage...");
     
@@ -205,7 +205,9 @@ const handleFinalSubmit = async (finalData) => {
             <p class="text-gray-500 mt-2">Selecciona un estado para iniciar el cronómetro.</p>
             
             <div class="mood-selector">
-              <button @click="handleStart('happy')" class="mood-btn">😊 Feliz / Motivado</button>
+              <button @click="handleStart('happy')" class="mood-btn">😊 Feliz / Motiv
+
+ado</button>
               <button @click="handleStart('calm')" class="mood-btn">😌 Tranquilo / Estable</button>
               <button @click="handleStart('frustrated')" class="mood-btn">😫 Irritable / Sensible</button>
             </div>
