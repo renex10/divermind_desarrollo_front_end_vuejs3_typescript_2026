@@ -1,5 +1,6 @@
 // src/store/ninoActivoStore.ts
 // ✅ Store de Pinia para gestionar el perfil del niño activo con validación de permisos
+// 🔧 VERSIÓN CORREGIDA: NO limpia localStorage cuando el error viene de otros componentes
 
 import { defineStore } from 'pinia'
 import { profileService } from '@/services/profileService'
@@ -152,8 +153,8 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
   // --- ACCIONES ---
   actions: {
     /**
-     * Inicializa el niño activo desde localStorage
-     * Valida que el niño exista y el usuario tenga acceso
+     * ✅ MODIFICADO: Inicializa el niño activo desde localStorage
+     * Marca que la carga viene de localStorage para manejar errores apropiadamente
      */
     async initializeFromStorage() {
       const storedId = localStorage.getItem(STORAGE_KEY)
@@ -174,7 +175,8 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
       console.log('🔄 Intentando cargar niño ID:', childId, 'desde localStorage')
 
       try {
-        await this.fetchNinoActivo(childId)
+        // ✅ IMPORTANTE: Marcar que viene de localStorage
+        await this.fetchNinoActivo(childId, true)
       } catch (error: any) {
         const status = error.response?.status
         
@@ -191,10 +193,11 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
     },
 
     /**
-     * Carga el perfil completo de un niño por su ID
+     * ✅ MODIFICADO: Carga el perfil completo de un niño por su ID
      * @param childId - ID del niño a cargar
+     * @param fromLocalStorage - Indica si la llamada viene de initializeFromStorage (default: false)
      */
-    async fetchNinoActivo(childId: number) {
+    async fetchNinoActivo(childId: number, fromLocalStorage: boolean = false) {
       // Evitar recargas innecesarias
       if (this.isLoading) {
         console.log('⏳ Ya hay una carga en progreso, esperando...')
@@ -206,7 +209,8 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
         return
       }
 
-      console.log(`🚀 fetchNinoActivo: Iniciando carga para niño ID: ${childId}`)
+      console.log(`🚀 fetchNinoActivo: Iniciando carga para niño ID: ${childId}`, 
+        fromLocalStorage ? '(desde localStorage)' : '(llamada directa)')
       
       this.isLoading = true
       this.error = null
@@ -236,25 +240,46 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
         
         const status = err.response?.status
         
-        // Manejo específico de errores
+        // ✅ MANEJO MEJORADO DE ERRORES
         if (status === 403) {
           this.error = 'No tienes permisos para acceder a este perfil'
-          this.clearNinoActivo()
-          throw err // Re-lanzar para que initializeFromStorage pueda manejarlo
+          
+          // 🔧 CRÍTICO: Solo limpiar localStorage si el error viene de localStorage
+          if (fromLocalStorage) {
+            console.warn('⚠️ Error 403 desde localStorage, limpiando...')
+            this.clearNinoActivo()
+          } else {
+            console.warn('⚠️ Error 403 de otro componente, NO limpiamos localStorage')
+            // Solo limpiar el perfil en memoria, NO el localStorage
+            this.perfil = null
+          }
+          
+          throw err
+          
         } else if (status === 404) {
           this.error = 'El perfil del niño no fue encontrado'
-          this.clearNinoActivo()
+          
+          // También aplicar la misma lógica para 404
+          if (fromLocalStorage) {
+            console.warn('⚠️ Error 404 desde localStorage, limpiando...')
+            this.clearNinoActivo()
+          } else {
+            console.warn('⚠️ Error 404 de otro componente, NO limpiamos localStorage')
+            this.perfil = null
+          }
+          
           throw err
+          
         } else if (status === 401) {
           this.error = 'Tu sesión ha expirado, por favor inicia sesión nuevamente'
+          this.perfil = null
+          throw err
+          
         } else {
           this.error = err.message || 'No se pudo cargar la información del niño'
+          this.perfil = null
+          throw err
         }
-
-        // Limpiar perfil en caso de error
-        this.perfil = null
-
-        throw err
 
       } finally {
         this.isLoading = false
@@ -270,8 +295,8 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
       console.log(`📌 Estableciendo niño activo: ID ${childId}`)
       
       try {
-        // Cargar el perfil completo
-        await this.fetchNinoActivo(childId)
+        // ✅ Esta es una llamada directa, NO viene de localStorage
+        await this.fetchNinoActivo(childId, false)
         
         console.log('✅ Niño activo establecido correctamente')
       } catch (error) {
@@ -299,7 +324,7 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
      * Maneja el caso de acceso denegado (403)
      */
     handleAccessDenied() {
-      this.clearNinoActivo()
+      // Ya no limpiamos localStorage aquí, se hace en fetchNinoActivo solo si fromLocalStorage = true
       
       Swal.fire({
         icon: 'warning',
@@ -321,7 +346,7 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
      * Maneja el caso de niño no encontrado (404)
      */
     handleNotFound() {
-      this.clearNinoActivo()
+      // Ya no limpiamos localStorage aquí, se hace en fetchNinoActivo solo si fromLocalStorage = true
       
       Swal.fire({
         icon: 'error',
@@ -354,7 +379,8 @@ export const useNinoActivoStore = defineStore('ninoActivo', {
       this.perfil = null
       
       try {
-        await this.fetchNinoActivo(currentId)
+        // Esta es una llamada directa, NO viene de localStorage
+        await this.fetchNinoActivo(currentId, false)
         console.log('✅ Perfil recargado exitosamente')
       } catch (error) {
         console.error('❌ Error al recargar perfil:', error)
