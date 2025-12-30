@@ -1,18 +1,23 @@
 <template>
   <div class="agenda-padre-container">
+    <!-- ✅ DEBUG: Panel de depuración -->
+    <div v-if="routines.length > 0" class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <details class="cursor-pointer">
+        <summary class="font-bold text-yellow-900">🔍 DEBUG: Ver estructura de datos</summary>
+        <pre class="mt-2 text-xs bg-white p-2 rounded overflow-auto max-h-64">{{ JSON.stringify(routines[0], null, 2) }}</pre>
+      </details>
+    </div>
+
     <div v-if="loading" class="flex justify-center py-12">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
     </div>
 
     <div v-else-if="routines.length === 0" class="text-center py-16 bg-white rounded-3xl border-2 border-dashed border-gray-200">
       <p class="text-gray-500 font-bold text-lg">No hay rutinas programadas para hoy.</p>
-
       <p class="text-gray-400 text-sm mt-2">Consulta con tu terapeuta si deberías tener actividades asignadas.</p>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    
-
       <div 
         v-for="rutina in routines" 
         :key="rutina.id" 
@@ -24,7 +29,8 @@
           </span>
           <div class="flex items-center text-gray-400 font-bold text-sm">
             <ClockIcon class="w-5 h-5 mr-1.5 text-blue-400" />
-            <span>{{ rutina.schedules?.[0]?.start_time || 'Sin hora' }}</span>
+            <!-- ✅ MEJORADO: Múltiples intentos de acceso -->
+            <span>{{ formatearHora(rutina) }}</span>
           </div>
         </div>
 
@@ -48,13 +54,9 @@
 </template>
 
 <script setup lang="ts">
-/**
- * COMPONENTE: RutinasAgendaView (Versión Padre)
- */
 import { useRouter } from 'vue-router'
 import { ClockIcon, PlayIcon } from '@heroicons/vue/24/solid'
 
-// Define las props sin asignarlas a una variable (son automáticamente disponibles en el template)
 defineProps<{
   routines: any[],
   loading: boolean,
@@ -63,22 +65,67 @@ defineProps<{
 
 const router = useRouter()
 
-// FUNCIÓN DE DEPURACIÓN
+// ✅ FUNCIÓN para formatear la hora con múltiples intentos
+const formatearHora = (rutina: any) => {
+  console.log('🔍 Estructura de rutina:', rutina)
+  
+  // Intento 1: schedules[0].start_time
+  if (rutina.schedules && rutina.schedules.length > 0 && rutina.schedules[0].start_time) {
+    const hora = rutina.schedules[0].start_time
+    console.log('✅ Hora encontrada en schedules[0].start_time:', hora)
+    return formatTime(hora)
+  }
+  
+  // Intento 2: schedule.start_time (singular)
+  if (rutina.schedule && rutina.schedule.start_time) {
+    const hora = rutina.schedule.start_time
+    console.log('✅ Hora encontrada en schedule.start_time:', hora)
+    return formatTime(hora)
+  }
+  
+  // Intento 3: start_time directo
+  if (rutina.start_time) {
+    const hora = rutina.start_time
+    console.log('✅ Hora encontrada en start_time:', hora)
+    return formatTime(hora)
+  }
+  
+  // Intento 4: next_scheduled_time
+  if (rutina.next_scheduled_time) {
+    const hora = rutina.next_scheduled_time
+    console.log('✅ Hora encontrada en next_scheduled_time:', hora)
+    return hora
+  }
+  
+  console.warn('⚠️ No se encontró hora en la rutina:', rutina)
+  return 'Sin hora'
+}
+
+// Función auxiliar para formatear hora HH:MM:SS a HH:MM
+const formatTime = (timeString: string): string => {
+  if (!timeString) return 'Sin hora'
+  
+  // Si viene como "08:00:00", extraer solo "08:00"
+  if (timeString.includes(':')) {
+    const parts = timeString.split(':')
+    return `${parts[0]}:${parts[1]}`
+  }
+  
+  return timeString
+}
+
 const iniciarNavegacionSegura = (rutina: any) => {
-  // 1. LOG DE CONTROL
   console.log('🚀 [Navegación] Intentando iniciar ejecución:', {
     routineId: rutina.id,
     routineName: rutina.name,
     fullData: rutina
   })
 
-  // 2. VERIFICACIÓN DE ID
   if (!rutina.id) {
-    console.error('❌ ERROR: La rutina no tiene un ID válido. Redirección abortada para evitar error 404.')
+    console.error('❌ ERROR: La rutina no tiene un ID válido.')
     return
   }
 
-  // 3. NAVEGACIÓN PROGRAMÁTICA
   router.push({ 
     name: 'parent-rutina-ejecutar', 
     params: { routineId: rutina.id } 

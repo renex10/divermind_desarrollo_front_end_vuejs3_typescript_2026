@@ -1,9 +1,5 @@
 <script setup lang="ts">
 /* src\views\dashboard\padres\RutinasView.vue */
-/**
- * VISTA: RutinasView (Padres)
- * Lista de rutinas diarias del niño activo
- */
 import { ref, computed, onMounted, defineAsyncComponent, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNinoActivoStore } from '@/store/ninoActivoStore'
@@ -26,21 +22,13 @@ const tabs = [
 ]
 
 // --- PROPIEDADES COMPUTADAS ---
-
-const childId = computed(() => {
-  return ninoStore.ninoActivoId
-})
-
-const childName = computed(() => {
-  return ninoStore.nombreCompleto || 'Selecciona un niño'
-})
-
+const childId = computed(() => ninoStore.ninoActivoId)
+const childName = computed(() => ninoStore.nombreCompleto || 'Selecciona un niño')
 const currentTabComponent = computed(() => {
   return activeTab.value === 'agenda' ? RutinasAgendaView : RutinasListView
 })
 
 // --- MÉTODOS DE CARGA ---
-
 const loadData = async () => {
   if (!childId.value) {
     console.warn('[RutinasView] No hay niño activo seleccionado')
@@ -52,13 +40,13 @@ const loadData = async () => {
   try {
     await routinesStore.fetchRoutines(childId.value, { status: 'active' })
     console.log(`✅ Rutinas cargadas:`, routinesStore.routines.length)
+    console.log('📊 Primera rutina:', routinesStore.routines[0]) // ← DEBUG
   } catch (err) {
     console.error("❌ Error al cargar rutinas:", err)
   }
 }
 
 // --- OBSERVADORES ---
-
 watch(() => childId.value, (newId, oldId) => {
   if (newId && newId !== oldId) {
     console.log(`🔄 Niño activo cambió a ID: ${newId}`)
@@ -67,16 +55,7 @@ watch(() => childId.value, (newId, oldId) => {
 }, { immediate: true })
 
 // --- LIFECYCLE HOOKS ---
-
 onMounted(async () => {
-  console.log('🎬 RutinasView montada')
-  console.log('📊 Estado inicial del store:', {
-    hasData: ninoStore.hasData,
-    ninoActivoId: ninoStore.ninoActivoId,
-    nombreCompleto: ninoStore.nombreCompleto
-  })
-
-  onMounted(async () => {
   console.log('🎬 RutinasView montada')
   console.log('📊 Estado inicial:', {
     hasData: ninoStore.hasData,
@@ -87,74 +66,37 @@ onMounted(async () => {
   
   // ✅ PRIMERO: Verificar si ya hay datos cargados
   if (ninoStore.hasData) {
-    console.log('✅ Ya hay datos del niño cargados, usando datos existentes')
+    console.log('✅ Ya hay datos del niño cargados')
     await loadData()
     return
   }
   
-  // ✅ SEGUNDO: Verificar localStorage antes de intentar cargar
+  // ✅ SEGUNDO: Verificar localStorage
   const storedId = localStorage.getItem('nino_activo_id')
   if (!storedId) {
-    console.warn('⚠️ No hay niño guardado en localStorage, redirigiendo...')
+    console.warn('⚠️ No hay niño en localStorage, redirigiendo...')
     router.push({ name: 'parent-mis-hijos' })
     return
   }
   
-  // ✅ TERCERO: Intentar cargar desde localStorage
-  console.log('📂 Cargando niño desde localStorage...')
-  
+  // ✅ TERCERO: Cargar desde localStorage
+  console.log('📂 Cargando desde localStorage...')
   try {
     await ninoStore.initializeFromStorage()
     
-    // Verificar si se cargó exitosamente
     if (ninoStore.hasData) {
-      console.log('✅ Niño cargado exitosamente:', {
+      console.log('✅ Niño cargado:', {
         id: ninoStore.ninoActivoId,
         nombre: ninoStore.nombreCompleto
       })
       await loadData()
     } else {
-      console.warn('⚠️ initializeFromStorage no cargó datos, redirigiendo...')
+      console.warn('⚠️ No se pudo cargar, redirigiendo...')
       router.push({ name: 'parent-mis-hijos' })
     }
   } catch (error) {
-    console.error('❌ Error al inicializar:', error)
-    // NO redirigir aquí, el store ya maneja el error con SweetAlert
+    console.error('❌ Error:', error)
   }
-})
-  
-  /**
-   * ✅ MEJORADO: Solo intenta cargar desde localStorage si NO hay datos
-   * Si ya hay datos cargados, los usa directamente
-   */
-  if (!ninoStore.hasData) {
-    console.log('📂 No hay datos, intentando cargar desde localStorage...')
-    
-    try {
-      await ninoStore.initializeFromStorage()
-      
-      // Verificar nuevamente después de intentar cargar
-      if (!ninoStore.hasData) {
-        console.warn('⚠️ No se pudo cargar niño activo, redirigiendo a Mis Hijos...')
-        router.push({ name: 'parent-mis-hijos' })
-        return
-      }
-      
-      console.log('✅ Niño activo cargado desde localStorage:', {
-        id: ninoStore.ninoActivoId,
-        nombre: ninoStore.nombreCompleto
-      })
-    } catch (error) {
-      console.error('❌ Error al inicializar niño activo:', error)
-      // El store ya maneja el error y redirige si es necesario
-      return
-    }
-  } else {
-    console.log('✅ Ya hay datos del niño cargados, usando datos existentes')
-  }
-  
-  // Cargar rutinas
-  await loadData()
 })
 </script>
 
