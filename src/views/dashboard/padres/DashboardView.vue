@@ -131,11 +131,13 @@ import PhotoUploadButton from '@/components/common/PhotoUploadButton.vue'
 import PhotoUploadModal from '@/components/dashboard/padres/PhotoUploadModal.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useAlertStore } from '@/store/alertStore'
+import { useNinoActivoStore } from '@/store/ninoActivoStore'
 import { childService, type ChildInfo } from '@/services/childService'
 import SessionUltimaNotificacion from '@/components/dashboard/padres/sesiones/SessionUltimaNotificacion.vue'
 
 const { user } = useAuth()
 const alert = useAlertStore()
+const ninoStore = useNinoActivoStore()
 
 // Estado
 const showPhotoModal = ref(false)
@@ -179,6 +181,45 @@ const childInitials = computed(() => {
   return parts.map(p => p[0]).join('').slice(0, 2).toUpperCase()
 })
 
+// ✅ NUEVO: Auto-selección de niño
+const autoSelectChild = async () => {
+  console.log('🔍 Verificando niño activo...')
+  
+  // Si ya hay un niño activo en el store, usarlo
+  if (ninoStore.hasData) {
+    console.log('✅ Ya hay niño activo en el store:', ninoStore.ninoActivoId)
+    return
+  }
+  
+  // Si no hay niño activo, intentar cargar desde localStorage
+  const storedId = localStorage.getItem('nino_activo_id')
+  if (storedId) {
+    console.log('📂 Niño encontrado en localStorage:', storedId)
+    try {
+      await ninoStore.initializeFromStorage()
+      if (ninoStore.hasData) {
+        console.log('✅ Niño cargado desde localStorage')
+        return
+      }
+    } catch (error) {
+      console.error('❌ Error cargando desde localStorage:', error)
+    }
+  }
+  
+  // Si no hay niño en localStorage, seleccionar el primero automáticamente
+  if (children.value.length > 0) {
+    const primerNino = children.value[0]
+    console.log('🎯 Auto-seleccionando primer niño:', primerNino.id)
+    
+    try {
+      await ninoStore.setNinoActivo(primerNino.id)
+      console.log('✅ Niño activo establecido:', ninoStore.ninoActivoId)
+    } catch (error) {
+      console.error('❌ Error al establecer niño activo:', error)
+    }
+  }
+}
+
 // Métodos
 const fetchChildren = async () => {
   try {
@@ -190,6 +231,9 @@ const fetchChildren = async () => {
     
     if (children.value.length > 0) {
       selectedChild.value = children.value[0]
+      
+      // ✅ Auto-seleccionar niño activo
+      await autoSelectChild()
     } else {
       console.warn('[DashboardView] ⚠️ No hay hijos registrados')
     }
@@ -223,7 +267,7 @@ const handlePhotoSuccess = (photoUrl: string) => {
     }
     
     selectedChild.value = updatedChild
-    photoKey.value++ // Forzar actualización visual
+    photoKey.value++
   }
   showPhotoModal.value = false
 }
