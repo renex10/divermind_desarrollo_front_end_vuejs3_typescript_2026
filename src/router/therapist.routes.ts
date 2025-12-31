@@ -153,12 +153,12 @@ export default [
   },
 
   // Hitos
-  { 
-    path: 'histos', 
-    name: 'histos', 
-    meta: { breadcrumb: 'Histos' },
-    component: () => import('@/views/dashboard/HistosView.vue') 
-  },
+{ 
+  path: 'histos', // Debería ser 'hitos'
+  name: 'histos', 
+  meta: { breadcrumb: 'Histos' },
+  component: () => import('@/views/dashboard/HistosView.vue') 
+},
 
   // Sesiones (General)
   { 

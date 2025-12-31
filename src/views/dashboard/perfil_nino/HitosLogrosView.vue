@@ -136,8 +136,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed} from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router' // ✅ Se añade useRoute
 import { useNinoActivoStore } from '@/store/ninoActivoStore'
 import { useAlertModalStore } from '@/store/alertModalStore'
 import MilestoneHistoryList from '@/components/gestion/hitosLogros/MilestoneHistoryList.vue'
@@ -150,8 +150,9 @@ import { reset } from '@formkit/core'
 import { hitosService } from '@/services/hitosService'
 import type { Milestone, MilestoneFormData } from '@/type/hitoServiceInterface'
 
-// --- Stores ---
+// --- Stores & Router ---
 const router = useRouter()
+const route = useRoute() // ✅ Instancia para acceder a params
 const ninoStore = useNinoActivoStore()
 const alertModal = useAlertModalStore()
 
@@ -188,32 +189,41 @@ const buttonToggleText = computed(() => {
 
 // --- Ciclo de Vida ---
 onMounted(async () => {
-  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
-  if (!ninoStore.ninoActivoId) {
-    console.log('📂 Intentando cargar niño activo desde localStorage...')
-    
+  // 1. Priorizamos el ID que viene en la URL para evitar redirecciones falsas
+  const childIdFromRoute = Number(route.params.id)
+  
+  if (!childIdFromRoute) {
+    console.error('❌ No se encontró ID en la ruta')
+    router.push({ name: 'lista-nna' }) // Redirigir a la lista de terapeutas
+    isLoading.value = false
+    return
+  }
+
+  // 2. Sincronizar Store si está vacío o tiene a otro niño
+  if (!ninoStore.ninoActivoId || ninoStore.ninoActivoId !== childIdFromRoute) {
     try {
-      await ninoStore.initializeFromStorage()
+      console.log('🔄 Sincronizando store con ID de ruta:', childIdFromRoute)
+      await ninoStore.fetchNinoActivo(childIdFromRoute)
       
       if (!ninoStore.ninoActivoId) {
-        console.warn('⚠️ No hay niño activo, redirigiendo...')
-        router.push({ name: 'parent-mis-hijos' })
+        console.warn('⚠️ No se pudo activar el perfil, redirigiendo...')
+        router.push({ name: 'lista-nna' })
         isLoading.value = false
         return
       }
     } catch (error) {
-      console.error('❌ Error al inicializar niño activo:', error)
-      isLoading.value = false
+      console.error('❌ Error al inicializar:', error)
+      router.push({ name: 'lista-nna' })
       return
     }
   }
   
+  // 3. Cargar los hitos del niño confirmado
   await initializeComponent(ninoStore.ninoActivoId)
 })
 
 async function initializeComponent(childId: number | null) {
   if (!childId) {
-    console.warn('⚠️ initializeComponent: No se proporcionó ID de niño')
     isLoading.value = false
     return
   }
@@ -225,21 +235,15 @@ async function initializeComponent(childId: number | null) {
 
 // --- Funciones de Interacción con API ---
 
-/**
- * ✅ CORREGIDO: Acepta number | null y usa ninoActivoId por defecto
- */
 async function loadMilestones(childId: number | null = ninoStore.ninoActivoId) {
   if (!childId) {
-    console.warn('⚠️ loadMilestones: No se proporcionó ID de niño')
     milestones.value = []
     return
   }
   
   isLoadingHistory.value = true
   try {
-    console.log(`🔍 Cargando hitos para niño ID: ${childId}`)
     milestones.value = await hitosService.getMilestones(childId)
-    console.log(`✅ ${milestones.value.length} hitos cargados`)
   } catch (error) {
     console.error('❌ Error al cargar hitos:', error)
     alertModal.error('Error de Carga', 'No se pudo cargar el historial de hitos.')
@@ -249,9 +253,7 @@ async function loadMilestones(childId: number | null = ninoStore.ninoActivoId) {
   }
 }
 
-// Maneja el evento @submitForm del componente hijo
 async function handleSubmit(submittedData: MilestoneFormData) {
-  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
   if (!ninoStore.ninoActivoId) {
     alertModal.warning('Error', 'ID de niño no encontrado.')
     return
@@ -268,26 +270,24 @@ async function handleSubmit(submittedData: MilestoneFormData) {
 
   try {
     let savedMilestone: Milestone
-    if (editingMilestoneId.value) { // --- ACTUALIZAR ---
+    if (editingMilestoneId.value) {
       savedMilestone = await hitosService.updateMilestone(childId, editingMilestoneId.value, payload)
       alertModal.success('Hito Actualizado', 'Cambios guardados correctamente.')
       const index = milestones.value.findIndex(m => m.id === editingMilestoneId.value)
       if (index !== -1) milestones.value[index] = savedMilestone
       else await loadMilestones(childId)
       
-    } else { // --- CREAR ---
+    } else {
       savedMilestone = await hitosService.createMilestone(childId, payload)
       alertModal.success('Hito Guardado', 'Nuevo hito registrado.')
       milestones.value.unshift(savedMilestone)
     }
     
-    // Reordenar para que el nuevo/editado aparezca correctamente
     milestones.value.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    
     resetForm()
-    showForm.value = false // Ocultar formulario al guardar uno nuevo
+    showForm.value = false 
 
-  } catch (error: any) { // --- MANEJO DE ERRORES ---
+  } catch (error: any) {
     let errorMessage = editingMilestoneId.value ? 'Error al actualizar.' : 'Error al guardar.'
     if (error.response?.data) {
       const errors = error.response.data
@@ -303,7 +303,7 @@ async function handleSubmit(submittedData: MilestoneFormData) {
   }
 }
 
-// --- Funciones para Borrado (usando ConfirmModal.vue) ---
+// --- Funciones para Borrado ---
 
 function handleDeleteRequest(milestoneId: number | string) {
   milestoneToDeleteId.value = milestoneId
@@ -311,7 +311,6 @@ function handleDeleteRequest(milestoneId: number | string) {
 }
 
 async function confirmDelete() {
-  // ✅ CORREGIDO: Usa ninoActivoId en lugar de ninoId
   if (!ninoStore.ninoActivoId || milestoneToDeleteId.value === null) {
     showConfirmDeleteModal.value = false
     milestoneToDeleteId.value = null
@@ -320,7 +319,6 @@ async function confirmDelete() {
   
   const childId = ninoStore.ninoActivoId
   const idToDelete = milestoneToDeleteId.value
-
   showConfirmDeleteModal.value = false
 
   try {
@@ -348,50 +346,42 @@ function cancelDelete() {
 function handleEdit(milestoneToEdit: Milestone) {
   const dataToEdit = milestones.value.find(m => m.id === milestoneToEdit.id)
   if (dataToEdit) {
-    // 1. Poblar el ref() formData.value con los datos
     formData.value = {
-      date: dataToEdit.date.includes('T') ? dataToEdit.date.split('T')[0] : dataToEdit.date, // Asegurar YYYY-MM-DD
+      date: dataToEdit.date.includes('T') ? dataToEdit.date.split('T')[0] : dataToEdit.date,
       category: dataToEdit.category,
       description: dataToEdit.description,
-      observations: dataToEdit.observations ?? '', // Convertir null a ''
+      observations: dataToEdit.observations ?? '',
       proficiency_level: dataToEdit.proficiency_level,
       context: dataToEdit.context,
       support_level: dataToEdit.support_level,
-      functional_impact: dataToEdit.functional_impact ?? '' // Convertir null a ''
+      functional_impact: dataToEdit.functional_impact ?? ''
     }
 
     editingMilestoneId.value = dataToEdit.id
-    showForm.value = true // Desplegar formulario
+    showForm.value = true 
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    alertModal.info('Modo Edición', 'Modifica los campos necesarios y presione "Actualizar Hito".')
+    alertModal.info('Modo Edición', 'Modifica los campos y presiona "Actualizar Hito".')
   } else {
     alertModal.error('Error', 'No se encontró el hito para editar.')
   }
 }
 
-// Resetea el formulario y sale del modo edición
 function resetForm() {
-  editingMilestoneId.value = null // Salir modo edición
+  editingMilestoneId.value = null 
   formData.value = { ...initialFormData }
-  // reset('hitoForm') limpia el estado *interno* de FormKit
   reset('hitoForm')
 }
 
-// Se llama al presionar "Cancelar Edición" o después de guardar
 function cancelEdit() {
   resetForm()
-  showForm.value = false // Ocultar formulario al cancelar
+  showForm.value = false 
 }
 
-// Alternar visibilidad
 function toggleFormVisibility() {
   if (editingMilestoneId.value) {
-    // Si estamos editando, al presionar el botón cancelamos edición y lo ocultamos
     cancelEdit()
   } else {
-    // Si no estamos editando, simplemente alternamos visibilidad
     showForm.value = !showForm.value
-    // Si se abre para un nuevo registro, asegurarse de que el formulario esté limpio
     if (showForm.value) {
       resetForm()
       window.scrollTo({ top: 0, behavior: 'smooth' })
