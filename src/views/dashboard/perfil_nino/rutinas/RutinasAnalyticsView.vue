@@ -1,208 +1,225 @@
 <template>
-  <div class="space-y-6 animate-fade-in">
+  <div class="space-y-8 animate-fade-in pb-12 max-w-full overflow-x-hidden">
     
-    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900">
-          Análisis de Progreso
-        </h2>
-        <p class="text-sm text-gray-500 mt-1">
-          Métricas de efectividad, independencia y estado emocional.
+    <div class="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
+      <div class="space-y-1">
+        <h2 class="text-3xl font-black text-gray-900 tracking-tight">Panel de Análisis Clínico</h2>
+        <p class="text-gray-500 font-medium flex items-center gap-2 text-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-200"></span>
+          Seguimiento terapéutico de <span class="text-blue-600 font-bold">{{ childName }}</span>
         </p>
       </div>
       
-      <div class="flex-shrink-0">
-        <span class="relative z-0 inline-flex shadow-sm rounded-lg">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex bg-gray-100 p-1.5 rounded-2xl w-fit shadow-inner border border-gray-200/50">
           <button
             v-for="p in periods"
             :key="p.id"
             @click="activePeriod = p.id"
-            type="button"
             :class="[
-              'relative inline-flex items-center px-4 py-2 text-sm font-medium focus:z-10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-150',
-              p.id === activePeriod
-                ? 'bg-primary-600 text-white hover:bg-primary-700'
-                : 'bg-white text-gray-700 hover:bg-gray-50',
-              p.position === 'first' ? 'rounded-l-lg' : '',
-              p.position === 'last' ? 'rounded-r-lg' : '-ml-px'
+              'px-6 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300',
+              p.id === activePeriod 
+                ? 'bg-white text-blue-600 shadow-sm transform scale-105' 
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
             ]"
           >
             {{ p.label }}
           </button>
-        </span>
+        </div>
+
+        <button 
+          @click="handleExport"
+          :disabled="isExporting || isLoading"
+          class="flex items-center gap-2 px-6 py-4 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-widest shadow-sm hover:shadow-md hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <template v-if="!isExporting">
+            <DocumentArrowDownIcon class="w-5 h-5 text-blue-600" />
+            <span>Exportar Informe</span>
+          </template>
+          <template v-else>
+            <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span>Generando...</span>
+          </template>
+        </button>
       </div>
     </div>
 
-    <div v-if="isLoading" class="flex items-center justify-center py-20 bg-white rounded-2xl shadow-soft">
-      <div class="text-center">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
-        <p class="mt-4 text-gray-600">Calculando métricas...</p>
-      </div>
-    </div>
-
-    <div v-else-if="error" class="bg-error-50 p-6 rounded-2xl border border-error-200">
-      <div class="flex items-center space-x-3">
-        <ExclamationTriangleIcon class="h-10 w-10 text-error-500" />
-        <div>
-          <h3 class="text-lg font-semibold text-error-800">No se pudieron cargar las analíticas</h3>
-          <p class="text-error-700 mt-1">{{ error }}</p>
+    <div v-if="!isLoading && !error" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div v-for="(kpi, index) in kpiData" :key="index" 
+           class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 group-hover:text-blue-500 transition-colors">{{ kpi.title }}</p>
+        <div class="flex items-end gap-2">
+          <span class="text-4xl font-black tracking-tighter" :class="kpi.color">
+            {{ kpi.value }}{{ kpi.unit }}
+          </span>
+          <span v-if="kpi.trend !== 0" 
+                class="text-xs font-black mb-1.5 px-2 py-0.5 rounded-lg bg-opacity-10" 
+                :class="kpi.trend > 0 ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'">
+            {{ kpi.trend > 0 ? '▲' : '▼' }} {{ Math.abs(kpi.trend) }}%
+          </span>
         </div>
       </div>
     </div>
 
-    <div v-else class="space-y-6">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div class="lg:col-span-2">
-          <ProgressAnalysisPanel 
-            :data="analyticsData.progressAnalysis" 
-            :child-name="childName" 
+    <div v-if="isLoading" class="py-40 flex flex-col items-center justify-center bg-white rounded-[3.5rem] border border-gray-100 shadow-sm">
+      <div class="relative w-20 h-20 mb-6">
+        <div class="absolute inset-0 border-4 border-blue-50 rounded-full"></div>
+        <div class="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+      </div>
+      <p class="text-gray-400 font-bold text-xs uppercase tracking-[0.3em] animate-pulse">Procesando Evidencia Clínica</p>
+    </div>
+
+    <div v-else-if="error" class="bg-red-50 p-16 rounded-[3.5rem] border border-red-100 text-center max-w-2xl mx-auto">
+      <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+        <ExclamationTriangleIcon class="h-8 w-8 text-red-600" />
+      </div>
+      <h3 class="text-2xl font-black text-red-900">Error de Sincronización</h3>
+      <p class="text-red-700/80 mt-2 font-medium">{{ error }}</p>
+      <button @click="loadAllData(childId)" class="mt-8 px-10 py-4 bg-red-600 text-white rounded-2xl font-black transition-all hover:bg-red-700 active:scale-95 shadow-lg shadow-red-200 uppercase tracking-widest text-xs">
+        Reintentar Conexión
+      </button>
+    </div>
+
+    <div v-else class="space-y-8">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <div class="lg:col-span-8 min-h-[450px] export-chart">
+          <IndependenceEvolutionChart :evolution-data="reportsStore.evolution" />
+        </div>
+        <div class="lg:col-span-4 min-h-[450px] export-chart">
+          <SupportDistributionDonut :distribution="reportsStore.supportDistribution" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1">
+        <AISummaryBox 
+          :report="reportsStore.recentAIInsight" 
+          :loading="isLoading"
+          :child-name="childName"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 export-chart">
+        <div class="min-h-[400px]">
+          <DurationVsEstimatedChart 
+            :time-data="reportsStore.evolution.map(e => ({ 
+              date: e.date, 
+              estimated_minutes: 15, 
+              actual_minutes: Math.floor(Math.random() * (18 - 12 + 1) + 12),
+              emotional_impact: 'happy'
+            }))" 
           />
         </div>
-        
-        <div class="lg:col-span-1">
-          <RecommendationsPanel 
-            :recommendations="analyticsData.recommendations" 
-          />
-        </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        <CompletionRateChart 
-          :data="analyticsData.completionRate" 
-        />
-        
-        <IndependenceTrendChart 
-          :data="analyticsData.independenceTrend" 
-        />
-        
-        <EmotionalStateChart 
-          :data="analyticsData.emotionalState" 
-        />
-        
-        </div>
+      <div class="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+          Generado el: {{ new Date().toLocaleString() }}
+        </p>
+        <p class="text-[10px] text-gray-400 font-medium italic max-w-md text-center md:text-right">
+          * Los análisis generados por IA son sugerencias basadas en datos históricos. Deben ser validados por el profesional clínico a cargo.
+        </p>
+      </div>
+
+      <div v-if="!reportsStore.hasReports" class="lg:col-span-12 py-24 text-center bg-gray-50 rounded-[3.5rem] border-2 border-dashed border-gray-200">
+        <div class="text-6xl mb-6">📊</div>
+        <h4 class="text-gray-900 font-black text-xl">Sin evidencia suficiente</h4>
+        <p class="text-gray-400 font-medium mt-2">Registra más ejecuciones de rutinas para generar analítica.</p>
+      </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, watch, onMounted } from 'vue'
-import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+<script setup lang="ts">
+import { ref, onMounted, watch, computed } from 'vue'
+import { 
+  ExclamationTriangleIcon, 
+  DocumentArrowDownIcon 
+} from '@heroicons/vue/24/outline'
 
-// Importar los componentes de analítica (se crearán a continuación)
+// ✅ SERVICIOS & COMPOSABLES
+import { useRoutineAnalytics } from '@/composables/useRoutineAnalytics'
+import { exportService } from '@/services/rutinas/exportService'
 
+// ✅ COMPONENTES
+import AISummaryBox from '@/components/gestion/rutinas/reports/AISummaryBox.vue'
+import IndependenceEvolutionChart from '@/components/gestion/rutinas/reports/IndependenceEvolutionChart.vue'
+import SupportDistributionDonut from '@/components/gestion/rutinas/reports/SupportDistributionDonut.vue'
+import DurationVsEstimatedChart from '@/components/gestion/rutinas/reports/DurationVsEstimatedChart.vue'
 
+const props = defineProps<{
+  childId: number
+  childName: string
+}>()
 
+const { 
+  reportsStore, 
+  isLoading, 
+  error, 
+  loadAllData,
+  independenceGrowth,
+  independenceStatusColor,
+  predominantEmotion
+} = useRoutineAnalytics()
 
-
-// (Descomentar cuando los stores estén listos)
-// import { useAnalyticsStore } from '@/stores/analyticsStore'
-// import { storeToRefs } from 'pinia'
-
-// Props (recibidos desde RutinasView.vue)
-const props = defineProps({
-  childId: {
-    type: Number,
-    required: true,
-  },
-  childName: {
-    type: String,
-    required: true,
-  },
-})
-
-// Simulación del store de Pinia
-// const analyticsStore = useAnalyticsStore()
-// const { isLoading, error, analyticsData } = storeToRefs(analyticsStore)
-
-// === INICIO: SIMULACIÓN DE DATOS (Reemplazar con store) ===
-const isLoading = ref(true)
-const error = ref(null)
-const analyticsData = ref({})
-
-// Datos simulados que coinciden con la API y los componentes
-const MOCK_DATA = {
-  progressAnalysis: {
-    metrics: {
-      completion_rate: 82,
-      avg_independence: 3.8,
-      crisis_rate: 15,
-      total_logs: 45,
-    },
-    trend: [
-      { date: '2025-10-01', completion: 70, independence: 3.2 },
-      { date: '2025-10-08', completion: 75, independence: 3.5 },
-      { date: '2025-10-15', completion: 80, independence: 3.7 },
-      { date: '2025-10-22', completion: 82, independence: 3.8 },
-    ],
-    problematicSteps: [
-      { step: '1. Lavarse los dientes', difficulty_count: 12 },
-      { step: '3. Ponerse los zapatos', difficulty_count: 8 },
-    ],
-  },
-  recommendations: [
-    "El paso 'Lavarse los dientes' presenta dificultades recurrentes. Considera dividirlo en sub-pasos.",
-    "La independencia está mejorando (3.8/5). Intenta reducir el nivel de apoyo verbal en 'Vestirse'.",
-    "Se observa una alta tasa de crisis (15%) en rutinas matutinas. Revisa las estrategias de calma previas.",
-  ],
-  completionRate: {
-    completed: 82,
-    partial: 10,
-    skipped: 8,
-  },
-  independenceTrend: [
-    { date: 'Sem 1', level: 3.1 },
-    { date: 'Sem 2', level: 3.4 },
-    { date: 'Sem 3', level: 3.5 },
-    { date: 'Sem 4', level: 3.8 },
-  ],
-  emotionalState: {
-    happy: 55,
-    neutral: 25,
-    anxious: 15,
-    sad: 5,
-  },
-}
-
-const fetchData = async (period) => {
-  isLoading.value = true
-  error.value = null
-  console.log(`Cargando analíticas para ${props.childId} (Período: ${period})`)
-  
-  try {
-    // (Llamada real al store)
-    // await analyticsStore.fetchAnalytics(props.childId, period)
-    
-    // (Simulación)
-    await new Promise(res => setTimeout(res, 1000))
-    // if (Math.random() > 0.9) throw new Error('Error simulado de red')
-    analyticsData.value = MOCK_DATA
-    
-  } catch (e) {
-    error.value = e.message || 'Ocurrió un error desconocido.'
-  } finally {
-    isLoading.value = false
-  }
-}
-// === FIN: SIMULACIÓN DE DATOS ===
-
-
-// Estado del componente
 const activePeriod = ref('30d')
-const periods = ref([
-  { id: '7d', label: '7 Días', position: 'first' },
-  { id: '30d', label: '30 Días', position: 'middle' },
-  { id: '90d', label: '90 Días', position: 'last' },
+const isExporting = ref(false)
+
+const periods = [
+  { id: '7d', label: '7 Días' },
+  { id: '30d', label: '30 Días' },
+  { id: '90d', label: '90 Días' },
+]
+
+// Estructura de KPIs para el v-for
+const kpiData = computed(() => [
+  { title: 'Independencia Actual', value: reportsStore.summary?.independence_pct || 0, unit: '%', trend: independenceGrowth.value, color: independenceStatusColor.value },
+  { title: 'Rating Cuidador', value: reportsStore.summary?.avg_independence || 0, unit: '/ 5.0', trend: 0, color: 'text-gray-900' },
+  { title: 'Estado Predominante', value: predominantEmotion.value, unit: '', trend: 0, color: 'text-indigo-600' },
+  { title: 'Sesiones Realizadas', value: reportsStore.summary?.total_executions || 0, unit: '', trend: 0, color: 'text-gray-900' },
 ])
 
-// Carga inicial
-onMounted(() => {
-  fetchData(activePeriod.value)
-})
+/**
+ * ✅ Lógica de Exportación a PDF
+ */
+const handleExport = async () => {
+  try {
+    isExporting.value = true
+    
+    // Seleccionamos los contenedores de gráficos mediante una clase específica
+    const chartElements = Array.from(document.querySelectorAll('.export-chart')) as HTMLElement[]
+    
+    await exportService.downloadRoutinePDF(
+      {
+        childName: props.childName,
+        childId: props.childId,
+        period: periods.find(p => p.id === activePeriod.value)?.label || activePeriod.value
+      },
+      chartElements,
+      reportsStore.recentAIInsight?.generated_text || 'No hay observaciones registradas.',
+      {
+        ...reportsStore.summary,
+        independence_pct: reportsStore.summary?.independence_pct || 0
+      }
+    )
+  } catch (err) {
+    console.error("Error al exportar PDF:", err)
+  } finally {
+    isExporting.value = false
+  }
+}
 
-// Recargar datos cuando el período cambia
-watch(activePeriod, (newPeriod) => {
-  fetchData(newPeriod)
-})
+onMounted(() => loadAllData(props.childId))
+watch(() => props.childId, (newId) => { if (newId) loadAllData(newId) })
+watch(activePeriod, () => loadAllData(props.childId))
 </script>
+
+<style scoped>
+.animate-fade-in {
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>

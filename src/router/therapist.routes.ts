@@ -1,5 +1,3 @@
-// src/router/therapist.routes.ts
-
 /**
  * RUTAS DEL PANEL DE TERAPEUTAS
  * Todas las rutas bajo /therapist/
@@ -63,7 +61,7 @@ export default [
             props: true,
             meta: { breadcrumb: 'Hitos y Logros' }
           },
-          // ✅ RUTA ACTUALIZADA: Estructura anidada para Rutinas
+          // ✅ RUTA ACTUALIZADA: Estructura anidada para Rutinas con integración de Análisis
           {
             path: 'rutinas',
             meta: { breadcrumb: 'Rutinas' },
@@ -74,6 +72,13 @@ export default [
                 name: 'perfil-nino-rutinas',
                 component: () => import('@/views/dashboard/perfil_nino/RutinasView.vue'),
                 props: true
+              },
+              {
+                path: 'analisis',
+                name: 'perfil-nino-rutinas-analisis',
+                component: () => import('@/views/dashboard/perfil_nino/rutinas/RutinasAnalyticsView.vue'),
+                props: true,
+                meta: { breadcrumb: 'Análisis Clínico' }
               },
               {
                 path: ':routineId',
