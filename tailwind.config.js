@@ -1,4 +1,4 @@
-/* tailwind.config.js */
+/* tailwind.config.js - OPTIMIZADO PARA RESPONSIVE */
 import formkitTheme from '@formkit/themes/tailwindcss'
 import forms from '@tailwindcss/forms'
 
@@ -19,7 +19,6 @@ export default {
     'text-yellow-800',
     'bg-green-100',
     'text-green-800',
-    // 🔥 Safelist para clases dinámicas por rol
     'from-parent-600',
     'to-parent-800',
     'from-therapist-600',
@@ -34,60 +33,73 @@ export default {
     'text-admin-600',
   ],
   theme: {
+    // ========================================
+    // 🔥 BREAKPOINTS PERSONALIZADOS
+    // ========================================
+    screens: {
+      'xs': '375px',    // Móviles muy pequeños (iPhone SE)
+      'sm': '640px',    // Móviles grandes / Tablets pequeñas
+      'md': '768px',    // Tablets
+      'lg': '1024px',   // Laptops pequeñas
+      'xl': '1280px',   // Desktops
+      '2xl': '1536px',  // Pantallas grandes
+      
+      // 🎯 Breakpoints personalizados por dispositivo
+      'mobile-sm': {'max': '374px'},  // Móviles muy pequeños
+      'mobile': {'max': '639px'},     // Solo móviles
+      'tablet': {'min': '640px', 'max': '1023px'}, // Solo tablets
+      'desktop': {'min': '1024px'},   // Solo desktop
+    },
+    
     extend: {
       // ====================
-      // 🔥 COLORES POR ROL
+      // COLORES (sin cambios)
       // ====================
       colors: {
-        // Colores legacy (mantener compatibilidad)
         'sidebar': '#132441',
         'color3': '#3c5690',
         'color4': '#708fea',
         'color5': '#adceff',
 
-        // 🔥 NUEVO: Colores para PADRES
-            parent: {
-          50: '#f0f9ff',   // Azul muy claro (casi blanco)
-          100: '#e0f2fe',  // Azul cielo claro
-          200: '#bae6fd',  // Azul cielo
-          300: '#7dd3fc',  // Azul claro
-          400: '#38bdf8',  // Azul medio-claro
-          500: '#0ea5e9',  // Azul principal
-          600: '#0284c7',  // Azul medio
-          700: '#0369a1',  // Azul medio-oscuro
-          800: '#075985',  // Azul oscuro
-          900: '#0c4a6e',  // Azul muy oscuro
+        parent: {
+          50: '#f0f9ff',
+          100: '#e0f2fe',
+          200: '#bae6fd',
+          300: '#7dd3fc',
+          400: '#38bdf8',
+          500: '#0ea5e9',
+          600: '#0284c7',
+          700: '#0369a1',
+          800: '#075985',
+          900: '#0c4a6e',
         },
 
-        // 🔥 COLORES PARA TERAPEUTAS (profesional)
         therapist: {
-          50: '#eff6ff',   // Azul muy claro
-          100: '#dbeafe',  // Azul claro
-          200: '#bfdbfe',  // Azul suave
-          300: '#93c5fd',  // Azul medio
-          400: '#60a5fa',  // Azul vibrante
-          500: '#3b82f6',  // Azul principal
-          600: '#2563eb',  // Azul oscuro
-          700: '#1d4ed8',  // Azul muy oscuro
-          800: '#1e40af',  // Azul marino
-          900: '#1e3a8a',  // Azul profundo
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
         },
 
-        // 🔥 NUEVO: Colores para ADMIN (autoridad)
         admin: {
-          50: '#faf5ff',   // Púrpura muy claro
-          100: '#f3e8ff',  // Púrpura claro
-          200: '#e9d5ff',  // Púrpura suave
-          300: '#d8b4fe',  // Púrpura medio
-          400: '#c084fc',  // Púrpura vibrante
-          500: '#a855f7',  // Púrpura principal
-          600: '#9333ea',  // Púrpura oscuro
-          700: '#7e22ce',  // Púrpura muy oscuro
-          800: '#6b21a8',  // Violeta oscuro
-          900: '#581c87',  // Violeta profundo
+          50: '#faf5ff',
+          100: '#f3e8ff',
+          200: '#e9d5ff',
+          300: '#d8b4fe',
+          400: '#c084fc',
+          500: '#a855f7',
+          600: '#9333ea',
+          700: '#7e22ce',
+          800: '#6b21a8',
+          900: '#581c87',
         },
 
-        // Colores principales (alias para therapist - compatibilidad)
         primary: {
           50: '#eff6ff',
           100: '#dbeafe',
@@ -101,7 +113,6 @@ export default {
           900: '#1e3a8a',
         },
         
-        // Colores semánticos (sin cambios)
         success: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -156,37 +167,72 @@ export default {
       },
 
       // ====================
-      // 🔥 GRADIENTES POR ROL
+      // GRADIENTES (sin cambios)
       // ====================
       backgroundImage: {
-        // Gradientes para padres
         'gradient-parent': 'linear-gradient(135deg, #0891b2 0%, #164e63 100%)',
         'gradient-parent-soft': 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)',
-        
-        // Gradientes para terapeutas
         'gradient-therapist': 'linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%)',
         'gradient-therapist-soft': 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-        
-        // Gradientes para admin
         'gradient-admin': 'linear-gradient(135deg, #9333ea 0%, #581c87 100%)',
         'gradient-admin-soft': 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)',
       },
 
       // ====================
-      // TIPOGRAFÍA
+      // TIPOGRAFÍA RESPONSIVA
       // ====================
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['Inter', 'system-ui', 'sans-serif'],
       },
+      
+      // 🔥 TAMAÑOS DE FUENTE OPTIMIZADOS
+      fontSize: {
+        // Móvil pequeño
+        'xs': ['0.65rem', { lineHeight: '1rem' }],      // 10.4px
+        'sm': ['0.75rem', { lineHeight: '1.25rem' }],   // 12px
+        'base': ['0.875rem', { lineHeight: '1.5rem' }], // 14px
+        'lg': ['1rem', { lineHeight: '1.75rem' }],      // 16px
+        'xl': ['1.125rem', { lineHeight: '1.75rem' }],  // 18px
+        '2xl': ['1.25rem', { lineHeight: '2rem' }],     // 20px
+        '3xl': ['1.5rem', { lineHeight: '2.25rem' }],   // 24px
+        '4xl': ['1.875rem', { lineHeight: '2.5rem' }],  // 30px
+        '5xl': ['2.25rem', { lineHeight: '2.75rem' }],  // 36px
+      },
 
       // ====================
-      // ESPACIADO
+      // 🔥 ESPACIADO RESPONSIVO
       // ====================
       spacing: {
+        // Espaciado estándar (mantener)
         '18': '4.5rem',
         '88': '22rem',
         '128': '32rem',
+        
+        // 🎯 Nuevos espaciados móvil
+        'mobile-sm': '0.5rem',   // 8px
+        'mobile-md': '0.75rem',  // 12px
+        'mobile-lg': '1rem',     // 16px
+        'tablet-sm': '1.5rem',   // 24px
+        'tablet-md': '2rem',     // 32px
+        'desktop-sm': '2.5rem',  // 40px
+        'desktop-md': '3rem',    // 48px
+      },
+
+      // ====================
+      // 🔥 CONTENEDORES MÁXIMOS RESPONSIVOS
+      // ====================
+      maxWidth: {
+        // Móviles
+        'mobile': '100%',
+        'mobile-content': '343px',  // 375px - 32px padding
+        
+        // Tablets
+        'tablet': '608px',          // 640px - 32px padding
+        
+        // Desktop
+        'desktop': '1200px',
+        'desktop-wide': '1400px',
       },
 
       // ====================
@@ -194,6 +240,10 @@ export default {
       // ====================
       borderRadius: {
         '4xl': '2rem',
+        // 🎯 Bordes responsivos
+        'mobile': '0.75rem',   // 12px en móvil
+        'tablet': '1rem',      // 16px en tablet
+        'desktop': '1.5rem',   // 24px en desktop
       },
       
       boxShadow: {
@@ -201,10 +251,13 @@ export default {
         'medium': '0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         'parent': '0 4px 25px -5px rgba(8, 145, 178, 0.2), 0 10px 10px -5px rgba(8, 145, 178, 0.1)',
         'admin': '0 4px 25px -5px rgba(147, 51, 234, 0.2), 0 10px 10px -5px rgba(147, 51, 234, 0.1)',
+        // 🎯 Sombras móvil (más sutiles)
+        'mobile': '0 1px 3px rgba(0, 0, 0, 0.1)',
+        'mobile-md': '0 2px 8px rgba(0, 0, 0, 0.08)',
       },
 
       // ====================
-      // 🔥 ANIMACIONES Y TRANSICIONES MEJORADAS
+      // ANIMACIONES (sin cambios)
       // ====================
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
@@ -254,7 +307,7 @@ export default {
       },
 
       // ====================
-      // TRANSICIONES SUAVES
+      // TRANSICIONES (sin cambios)
       // ====================
       transitionDuration: {
         '400': '400ms',
@@ -269,6 +322,137 @@ export default {
   },
   plugins: [
     forms,
-    formkitTheme
+    formkitTheme,
+    
+    // 🔥 PLUGIN PERSONALIZADO PARA UTILIDADES RESPONSIVAS
+    function({ addComponents, theme }) {
+      addComponents({
+        // Contenedor responsivo global
+        '.container-responsive': {
+          width: '100%',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          paddingLeft: theme('spacing.4'),
+          paddingRight: theme('spacing.4'),
+          
+          '@screen xs': {
+            maxWidth: '343px',
+            paddingLeft: theme('spacing.3'),
+            paddingRight: theme('spacing.3'),
+          },
+          
+          '@screen sm': {
+            maxWidth: '608px',
+            paddingLeft: theme('spacing.4'),
+            paddingRight: theme('spacing.4'),
+          },
+          
+          '@screen md': {
+            maxWidth: '736px',
+            paddingLeft: theme('spacing.6'),
+            paddingRight: theme('spacing.6'),
+          },
+          
+          '@screen lg': {
+            maxWidth: '992px',
+            paddingLeft: theme('spacing.8'),
+            paddingRight: theme('spacing.8'),
+          },
+          
+          '@screen xl': {
+            maxWidth: '1200px',
+          },
+          
+          '@screen 2xl': {
+            maxWidth: '1400px',
+          },
+        },
+        
+        // Card responsiva
+        '.card-responsive': {
+          backgroundColor: theme('colors.white'),
+          borderRadius: theme('borderRadius.lg'),
+          padding: theme('spacing.3'),
+          boxShadow: theme('boxShadow.mobile'),
+          
+          '@screen sm': {
+            borderRadius: theme('borderRadius.xl'),
+            padding: theme('spacing.4'),
+            boxShadow: theme('boxShadow.soft'),
+          },
+          
+          '@screen lg': {
+            borderRadius: theme('borderRadius.2xl'),
+            padding: theme('spacing.6'),
+          },
+        },
+        
+        // Texto responsivo
+        '.text-responsive-sm': {
+          fontSize: theme('fontSize.xs[0]'),
+          lineHeight: theme('fontSize.xs[1].lineHeight'),
+          
+          '@screen sm': {
+            fontSize: theme('fontSize.sm[0]'),
+            lineHeight: theme('fontSize.sm[1].lineHeight'),
+          },
+        },
+        
+        '.text-responsive-base': {
+          fontSize: theme('fontSize.sm[0]'),
+          lineHeight: theme('fontSize.sm[1].lineHeight'),
+          
+          '@screen sm': {
+            fontSize: theme('fontSize.base[0]'),
+            lineHeight: theme('fontSize.base[1].lineHeight'),
+          },
+        },
+        
+        '.text-responsive-lg': {
+          fontSize: theme('fontSize.base[0]'),
+          lineHeight: theme('fontSize.base[1].lineHeight'),
+          
+          '@screen sm': {
+            fontSize: theme('fontSize.lg[0]'),
+            lineHeight: theme('fontSize.lg[1].lineHeight'),
+          },
+          
+          '@screen lg': {
+            fontSize: theme('fontSize.xl[0]'),
+            lineHeight: theme('fontSize.xl[1].lineHeight'),
+          },
+        },
+        
+        '.text-responsive-xl': {
+          fontSize: theme('fontSize.lg[0]'),
+          lineHeight: theme('fontSize.lg[1].lineHeight'),
+          
+          '@screen sm': {
+            fontSize: theme('fontSize.xl[0]'),
+            lineHeight: theme('fontSize.xl[1].lineHeight'),
+          },
+          
+          '@screen lg': {
+            fontSize: theme('fontSize.2xl[0]'),
+            lineHeight: theme('fontSize.2xl[1].lineHeight'),
+          },
+        },
+        
+        '.text-responsive-2xl': {
+          fontSize: theme('fontSize.xl[0]'),
+          lineHeight: theme('fontSize.xl[1].lineHeight'),
+          
+          '@screen sm': {
+            fontSize: theme('fontSize.2xl[0]'),
+            lineHeight: theme('fontSize.2xl[1].lineHeight'),
+          },
+          
+          '@screen lg': {
+            fontSize: theme('fontSize.3xl[0]'),
+            lineHeight: theme('fontSize.3xl[1].lineHeight'),
+          },
+        },
+      })
+    }
   ],
 }

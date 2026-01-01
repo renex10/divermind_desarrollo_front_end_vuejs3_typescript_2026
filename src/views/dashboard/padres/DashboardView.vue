@@ -1,29 +1,36 @@
 <template>
-  <div class="dashboard-main-container">
-    <div class="space-y-6">
+  <div class="container-responsive">
+    <div class="space-y-3 sm:space-y-4 lg:space-y-6">
       
-      <div v-if="isLoading" class="flex items-center justify-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
-        <p class="ml-4 text-gray-600">Cargando información...</p>
+      <!-- Loading State -->
+      <div v-if="isLoading" class="flex flex-col items-center justify-center py-8 sm:py-12">
+        <div class="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-sky-500"></div>
+        <p class="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-600">Cargando información...</p>
       </div>
       
-      <div v-else-if="!currentChild" class="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-        <div class="flex items-start gap-4">
-          <div class="text-4xl">⚠️</div>
-          <div>
-            <h3 class="text-lg font-semibold text-yellow-900">No tienes hijos registrados</h3>
-            <p class="text-sm text-yellow-700 mt-1">
+      <!-- No Children State -->
+      <div v-else-if="!currentChild" class="card-responsive bg-yellow-50 border border-yellow-200">
+        <div class="flex items-start gap-3 sm:gap-4">
+          <div class="text-2xl sm:text-3xl lg:text-4xl flex-shrink-0">⚠️</div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-responsive-lg font-semibold text-yellow-900">
+              No tienes hijos registrados
+            </h3>
+            <p class="text-responsive-sm text-yellow-700 mt-1">
               Por favor contacta al administrador para registrar a tu hijo en el sistema.
             </p>
           </div>
         </div>
       </div>
       
-      <div v-else class="bg-white rounded-xl shadow-soft p-6">
-        <div class="flex items-start gap-6">
+      <!-- Main Content -->
+      <div v-else class="card-responsive">
+        <!-- Header with Photo -->
+        <div class="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
           
-          <div class="relative group" :key="photoKey">
-            <div class="w-32 h-32 rounded-full overflow-hidden ring-4 ring-sky-100 shadow-md">
+          <!-- Photo Container -->
+          <div class="relative group mx-auto sm:mx-0" :key="photoKey">
+            <div class="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full overflow-hidden ring-2 sm:ring-4 ring-sky-100 shadow-md">
               <img
                 v-if="childPhotoUrl"
                 :src="childPhotoUrl"
@@ -33,18 +40,15 @@
               />
               <div
                 v-else
-                :class="[
-                  'w-full h-full flex items-center justify-center',
-                  'bg-gradient-to-br from-sky-400 to-blue-500 text-white',
-                  'text-4xl font-bold'
-                ]"
+                class="w-full h-full flex items-center justify-center bg-gradient-to-br from-sky-400 to-blue-500 text-white text-xl sm:text-2xl lg:text-4xl font-bold"
               >
                 {{ childInitials }}
               </div>
             </div>
 
+            <!-- Hover Overlay (solo desktop) -->
             <div
-              class="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
+              class="hidden sm:flex absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-center justify-center"
             >
               <PhotoUploadButton
                 variant="icon"
@@ -55,65 +59,88 @@
             </div>
           </div>
 
-          <div class="flex-1">
-            <div class="flex items-start justify-between">
-              <div>
-                <h1 class="text-3xl font-bold text-gray-900">
+          <!-- Info Container -->
+          <div class="flex-1 w-full sm:w-auto min-w-0">
+            <div class="flex flex-col sm:flex-row items-start sm:justify-between gap-2 sm:gap-4">
+              <!-- Text Info -->
+              <div class="w-full sm:flex-1 min-w-0 text-center sm:text-left">
+                <h1 class="text-responsive-2xl font-bold text-gray-900 truncate">
                   👋 ¡Bienvenido/a, {{ parentName }}!
                 </h1>
-                <div class="mt-2 space-y-1">
-                  <p class="text-xl font-semibold text-gray-700">
+                <div class="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
+                  <p class="text-responsive-lg font-semibold text-gray-700 truncate">
                     {{ childName }}
                   </p>
-                  <p class="text-sm text-gray-500">
+                  <p class="text-responsive-sm text-gray-500">
                     {{ childAge }} años
                   </p>
                 </div>
               </div>
 
+              <!-- Upload Button (desktop) -->
               <PhotoUploadButton
                 variant="secondary"
                 size="sm"
                 label="Cambiar foto"
-                class="hidden md:flex"
+                class="hidden lg:flex flex-shrink-0"
                 @click="openPhotoModal"
               />
             </div>
 
-            <div class="mt-4 flex items-center gap-4">
-              <div class="flex items-center gap-2">
-                <span class="text-2xl">💚</span>
-                <span class="text-sm font-medium text-gray-700">
-                  Estado hoy: <span class="text-green-600">Tranquilo</span>
+            <!-- Upload Button (mobile) -->
+            <button
+              @click="openPhotoModal"
+              class="mt-3 sm:hidden w-full px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-medium hover:bg-sky-200 transition-colors"
+            >
+              📸 Cambiar foto
+            </button>
+
+            <!-- Status Pills -->
+            <div class="mt-3 sm:mt-4 flex flex-col xs:flex-row items-start xs:items-center gap-2 xs:gap-3 sm:gap-4">
+              <div class="flex items-center gap-1.5 sm:gap-2">
+                <span class="text-lg sm:text-xl lg:text-2xl">💚</span>
+                <span class="text-responsive-sm font-medium text-gray-700">
+                  Estado hoy: <span class="text-green-600 font-semibold">Tranquilo</span>
                 </span>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="text-2xl">😊</span>
-                <span class="text-sm font-medium text-gray-700">
-                  Ánimo: <span class="text-blue-600">Contento</span>
+              <div class="flex items-center gap-1.5 sm:gap-2">
+                <span class="text-lg sm:text-xl lg:text-2xl">😊</span>
+                <span class="text-responsive-sm font-medium text-gray-700">
+                  Ánimo: <span class="text-blue-600 font-semibold">Contento</span>
                 </span>
               </div>
             </div>
 
-            <div class="mt-4 p-3 bg-sky-50 border border-sky-200 rounded-lg">
-              <p class="text-sm font-medium text-sky-900">
-                🏥 Próxima sesión: <span class="font-bold">Mañana 10:00 AM</span>
+            <!-- Next Session -->
+            <div class="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-sky-50 border border-sky-200 rounded-lg sm:rounded-xl">
+              <p class="text-responsive-sm font-medium text-sky-900">
+                🏥 Próxima sesión: 
+                <span class="font-bold">Mañana 10:00 AM</span>
               </p>
             </div>
           </div>
         </div>
 
-        <SessionUltimaNotificacion />
+        <!-- Last Notification -->
+        <div class="mt-4 sm:mt-6">
+          <SessionUltimaNotificacion />
+        </div>
       </div>
 
-      <div v-if="currentChild" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-xl shadow-soft p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Próximas actividades</h3>
-          <p class="text-sm text-gray-600">No hay actividades programadas.</p>
+      <!-- Activities Card -->
+      <div v-if="currentChild" class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+        <div class="card-responsive">
+          <h3 class="text-responsive-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+            Próximas actividades
+          </h3>
+          <p class="text-responsive-sm text-gray-600">
+            No hay actividades programadas.
+          </p>
         </div>
       </div>
     </div>
 
+    <!-- Photo Upload Modal -->
     <PhotoUploadModal
       v-if="currentChild"
       v-model:visible="showPhotoModal"
@@ -139,28 +166,23 @@ const { user } = useAuth()
 const alert = useAlertStore()
 const ninoStore = useNinoActivoStore()
 
-// Estado
 const showPhotoModal = ref(false)
 const children = ref<ChildInfo[]>([])
 const selectedChild = ref<ChildInfo | null>(null)
 const isLoading = ref(true)
 const photoKey = ref(0) 
 
-// Datos del padre
 const parentName = computed(() => {
   if (!user.value) return 'Usuario'
   const userName = user.value.name || user.value.username || 'Usuario'
   return userName.split(' ')[0]
 })
 
-// Datos del hijo seleccionado
 const currentChild = computed(() => selectedChild.value || children.value[0] || null)
-
 const childId = computed(() => currentChild.value?.id || 0)
 const childName = computed(() => currentChild.value?.nombre_completo || 'Sin nombre')
 const childAge = computed(() => currentChild.value?.edad || 0)
 
-// URL de la foto con timestamp para evitar caché
 const childPhotoUrl = computed(() => {
   const url = currentChild.value?.photo_url
   if (!url) return null
@@ -171,8 +193,7 @@ const childPhotoUrl = computed(() => {
     fullUrl = `${baseURL.replace('/api', '')}${url}`
   }
   
-  const timestamp = Date.now()
-  return `${fullUrl}?t=${timestamp}`
+  return `${fullUrl}?t=${Date.now()}`
 })
 
 const childInitials = computed(() => {
@@ -181,64 +202,40 @@ const childInitials = computed(() => {
   return parts.map(p => p[0]).join('').slice(0, 2).toUpperCase()
 })
 
-// ✅ NUEVO: Auto-selección de niño
 const autoSelectChild = async () => {
-  console.log('🔍 Verificando niño activo...')
+  if (ninoStore.hasData) return
   
-  // Si ya hay un niño activo en el store, usarlo
-  if (ninoStore.hasData) {
-    console.log('✅ Ya hay niño activo en el store:', ninoStore.ninoActivoId)
-    return
-  }
-  
-  // Si no hay niño activo, intentar cargar desde localStorage
   const storedId = localStorage.getItem('nino_activo_id')
   if (storedId) {
-    console.log('📂 Niño encontrado en localStorage:', storedId)
     try {
       await ninoStore.initializeFromStorage()
-      if (ninoStore.hasData) {
-        console.log('✅ Niño cargado desde localStorage')
-        return
-      }
+      if (ninoStore.hasData) return
     } catch (error) {
-      console.error('❌ Error cargando desde localStorage:', error)
+      console.error('❌ Error:', error)
     }
   }
   
-  // Si no hay niño en localStorage, seleccionar el primero automáticamente
   if (children.value.length > 0) {
-    const primerNino = children.value[0]
-    console.log('🎯 Auto-seleccionando primer niño:', primerNino.id)
-    
     try {
-      await ninoStore.setNinoActivo(primerNino.id)
-      console.log('✅ Niño activo establecido:', ninoStore.ninoActivoId)
+      await ninoStore.setNinoActivo(children.value[0].id)
     } catch (error) {
-      console.error('❌ Error al establecer niño activo:', error)
+      console.error('❌ Error:', error)
     }
   }
 }
 
-// Métodos
 const fetchChildren = async () => {
   try {
     isLoading.value = true
-    console.log('[DashboardView] 🔍 Obteniendo hijos...')
-    
     const response = await childService.getMyChildren()
     children.value = response.children
     
     if (children.value.length > 0) {
       selectedChild.value = children.value[0]
-      
-      // ✅ Auto-seleccionar niño activo
       await autoSelectChild()
-    } else {
-      console.warn('[DashboardView] ⚠️ No hay hijos registrados')
     }
   } catch (error: any) {
-    console.error('[DashboardView] ❌ Error cargando hijos:', error)
+    console.error('[DashboardView] ❌ Error:', error)
     alert.error('Error', 'No se pudieron cargar los datos de tu hijo.')
   } finally {
     isLoading.value = false
@@ -273,7 +270,7 @@ const handlePhotoSuccess = (photoUrl: string) => {
 }
 
 const handleImageError = (event: Event) => {
-  console.error('[DashboardView] ❌ Error cargando imagen:', event)
+  console.error('[DashboardView] ❌ Error:', event)
 }
 
 onMounted(() => {
