@@ -18,8 +18,6 @@ interface CreateTherapySessionPayload {
 
 /**
  * Representa el objeto completo de una sesión de terapia, tal como lo devuelve la API.
- * Proporciona un tipado estricto para una mayor seguridad y autocompletado en el código.
- * ✅ Se ha añadido 'child_name' como opcional para la vista de lista.
  */
 export interface TherapySession {
   id: number
@@ -49,8 +47,7 @@ export interface TherapySession {
   collaborative_team: number[]
   created_at: string
   updated_at: string
-  child_name?: string // Necesario para la vista de lista general
-  // Campos display opcionales según respuesta del Serializer
+  child_name?: string 
   therapist_name?: string
   session_type_display?: string
   modality_display?: string
@@ -58,9 +55,7 @@ export interface TherapySession {
 }
 
 /**
- * ✅ NUEVA INTERFAZ: Representa los datos detallados de una sesión
- * según TherapySessionDetailSerializer del backend.
- * Incluye información contextual del niño y apoderado.
+ * Representa los datos detallados de una sesión con contexto del niño.
  */
 export interface TherapySessionDetail extends TherapySession {
   child_name: string
@@ -70,19 +65,36 @@ export interface TherapySessionDetail extends TherapySession {
   total_sessions: number
 }
 
-// --- INTERFACES PARA OBJETIVOS DE SESIÓN ---
+// --- INTERFACES PARA RUTINAS (NUEVO) ---
 
 /**
- * Define la estructura para crear un nuevo objetivo dentro de una sesión.
+ * ✅ NUEVA INTERFAZ: Representa un paso individual de la rutina.
+ * Basado en RoutineStepSerializer del backend.
  */
+export interface RoutineStep {
+  id: number;
+  routine: number;
+  order: number;
+  action: string;
+  description: string;
+  estimated_minutes: number;
+  visual_support_description?: string;
+  visual_support_image?: string;
+  requires_supervision: boolean;
+  is_skippable: boolean;
+  common_difficulties?: string;
+  strategies?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// --- INTERFACES PARA OBJETIVOS DE SESIÓN ---
+
 export interface CreateGoalPayload {
   description: string;
   priority: 'alta' | 'media' | 'baja';
 }
 
-/**
- * Representa el objeto completo de un objetivo de sesión.
- */
 export interface SessionGoal {
   id: number;
   session: number;
@@ -95,11 +107,8 @@ export interface SessionGoal {
   updated_at: string;
 }
 
+// --- INTERFACES PARA MÉTRICAS Y DIAGNÓSTICOS ---
 
-/**
- * ✅ NUEVA INTERFAZ: Representa las métricas de terapia
- * que devuelve el endpoint /metricas/ del backend.
- */
 export interface TherapyMetrics {
   sessions_count: number;
   completed_sessions: number;
@@ -111,29 +120,20 @@ export interface TherapyMetrics {
   avg_session_duration: number;
 }
 
-
-/**
- * ✅ NUEVA INTERFAZ: Representa la respuesta completa
- * de MeasurableDataAPIView (la vista de /metricas/)
- */
 export interface MetricsApiResponse {
   child_info: any;
   development_metrics: any;
-  therapy_metrics: TherapyMetrics; // <-- Esto es lo que nos importa
+  therapy_metrics: TherapyMetrics;
   timeline_data: any;
 }
-
-
-
-// --- INTERFACES PARA DIAGNÓSTICOS ---
 
 export interface Diagnosis {
   id: number;
   child: number;
-  diagnosis_type: string; // 'primary', 'secondary', 'comorbidity' etc.
+  diagnosis_type: string;
   description: string;
-  diagnosis_date: string; // Formato YYYY-MM-DD
-  diagnosed_by: number | null; // ID del usuario que diagnosticó (si aplica)
+  diagnosis_date: string;
+  diagnosed_by: number | null;
   severity: string | null;
   notes: string | null;
   is_active: boolean;
@@ -143,65 +143,43 @@ export interface Diagnosis {
 export interface CreateDiagnosisPayload {
   diagnosis_type: string;
   description: string;
-  diagnosis_date: string; // Formato YYYY-MM-DD
+  diagnosis_date: string;
   severity?: string;
-  // ✅ AÑADIR/CORREGIR ESTOS:
-  cie10_code?: string | null; // Hacerlos opcionales
-  observations?: string | null; // Corregir 'notes' a 'observations'
+  cie10_code?: string | null;
+  observations?: string | null;
   notes?: string;
   is_active?: boolean;
 }
 
+// --- INTERFACES PARA INTERESES ---
 
-// --- INTERFACES PARA INTERESES --- (NUEVO BLOQUE)
-
-/**
- * Representa el objeto completo de un interés estable, tal como lo devuelve la API.
- */
 export interface Interest {
   id: number;
   child: number;
-  // ✅ CORREGIDO: Usar 'category' en lugar de 'interest_type' para coincidir con el modelo
-  category: string; // 'food', 'games', 'music', etc.
+  category: string;
   description: string;
-  intensity: string; // 'mild', 'moderate', 'strong', 'obsessive'
-  // ✅ CORREGIDO: Usar 'therapeutic_utility' en lugar de 'notes' para coincidir con el modelo
+  intensity: string;
   therapeutic_utility: string | null;
   created_at: string;
 }
 
-/**
- * Define la estructura de datos necesaria para crear un nuevo interés estable.
- */
 export interface CreateInterestPayload {
   description: string;
   category: string;
   intensity: string;
-  therapeutic_utility?: string | null; // Opcional y permite null
+  therapeutic_utility?: string | null;
 }
-
-
-
 
 // ===============================================
 // FUNCIONES PARA GESTIONAR SESIONES (TherapySession)
 // ===============================================
 
-/**
- * ✅ NUEVA FUNCIÓN: Obtiene una lista de TODAS las sesiones a las que el terapeuta tiene acceso.
- * Ideal para la vista principal de "Gestión de Sesiones".
- * @returns Un array con todas las sesiones.
- */
 export async function getAllTherapySessions(): Promise<TherapySession[]> {
   const endpoint = `/seguimiento/sesiones-terapia/all/`;
   const { data } = await http.get(endpoint);
   return data;
 }
 
-/**
- * Crea una nueva sesión de terapia para un niño específico.
- * Llama al endpoint: POST /seguimiento/ninos/{childId}/sesiones-terapia/
- */
 export async function createTherapySession(
   childId: number,
   sessionData: CreateTherapySessionPayload
@@ -211,37 +189,22 @@ export async function createTherapySession(
   return data
 }
 
-/**
- * Obtiene la lista de todas las sesiones de terapia para un niño específico.
- * Llama al endpoint: GET /seguimiento/ninos/{childId}/sesiones-terapia/
- */
 export async function getTherapySessionsForChild(childId: number): Promise<TherapySession[]> {
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/`
   const { data } = await http.get(endpoint)
   return data
 }
 
-/**
- * ✅ ACTUALIZADA: Obtiene los detalles completos de una sesión de terapia específica.
- * Ahora usa TherapySessionDetail que incluye datos contextuales del niño.
- * Llama al endpoint: GET /seguimiento/ninos/{childId}/sesiones-terapia/{sessionId}/
- */
 export async function getTherapySessionById(childId: number, sessionId: number): Promise<TherapySessionDetail> {
-  // Validación de seguridad para evitar peticiones con IDs inválidos (NaN)
   if (!childId || isNaN(Number(childId))) {
-    console.error("❌ Error: childId es inválido para la petición:", childId);
+    console.error("❌ Error: childId es inválido:", childId);
     throw new Error("ID de niño no válido");
   }
-
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/${sessionId}/`
   const { data } = await http.get(endpoint)
   return data
 }
 
-/**
- * Actualiza una sesión de terapia existente (para guardar la documentación).
- * Llama al endpoint: PATCH /seguimiento/ninos/{childId}/sesiones-terapia/{sessionId}/
- */
 export async function updateTherapySession(
   childId: number,
   sessionId: number,
@@ -256,104 +219,57 @@ export async function updateTherapySession(
 // FUNCIONES PARA GESTIONAR OBJETIVOS (SessionGoal)
 // ===============================================
 
-/**
- * Obtiene todos los objetivos de una sesión específica.
- */
 export async function getGoalsForSession(childId: number, sessionId: number): Promise<SessionGoal[]> {
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/${sessionId}/objetivos/`;
   const { data } = await http.get(endpoint);
   return data;
 }
 
-/**
- * Crea un nuevo objetivo para una sesión específica.
- */
 export async function createGoalForSession(childId: number, sessionId: number, goalData: CreateGoalPayload): Promise<SessionGoal> {
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/${sessionId}/objetivos/`;
   const { data } = await http.post(endpoint, goalData);
   return data;
 }
 
-/**
- * Actualiza un objetivo específico.
- */
 export async function updateGoal(childId: number, sessionId: number, goalId: number, updatedData: Partial<SessionGoal>): Promise<SessionGoal> {
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/${sessionId}/objetivos/${goalId}/`;
   const { data } = await http.patch(endpoint, updatedData);
   return data;
 }
 
-/**
- * Elimina un objetivo específico.
- */
 export async function deleteGoal(childId: number, sessionId: number, goalId: number): Promise<void> {
   const endpoint = `/seguimiento/ninos/${childId}/sesiones-terapia/${sessionId}/objetivos/${goalId}/`;
   await http.delete(endpoint);
 }
 
 // ===============================================
-// ✅ NUEVA FUNCIÓN PARA OBTENER MÉTRICAS
+// FUNCIONES PARA MÉTRICAS, DIAGNÓSTICOS E INTERESES
 // ===============================================
 
-/**
- * Obtiene las métricas de terapia (stats) para un niño específico.
- * Llama al endpoint: GET /seguimiento/ninos/{childId}/metricas/
- */
 export async function getTherapyMetricsForChild(childId: number): Promise<TherapyMetrics> {
   const endpoint = `/seguimiento/ninos/${childId}/metricas/`;
-  
-  // Hacemos la llamada al endpoint de métricas
   const { data } = await http.get<MetricsApiResponse>(endpoint);
-  
-  // Devolvemos solo el objeto 'therapy_metrics' que contiene los contadores
   return data.therapy_metrics;
 }
 
-
-
-// ===============================================
-// FUNCIONES PARA GESTIONAR DIAGNÓSTICOS (Diagnosis)
-// ===============================================
-
-/**
- * Obtiene la lista de diagnósticos para un niño específico.
- * Llama a: GET /seguimiento/ninos/{childId}/diagnosticos/
- */
 export async function getDiagnosesForChild(childId: number): Promise<Diagnosis[]> {
   const endpoint = `/seguimiento/ninos/${childId}/diagnosticos/`;
   const { data } = await http.get(endpoint);
   return data;
 }
 
-/**
- * Crea un nuevo diagnóstico para un niño específico.
- * Llama a: POST /seguimiento/ninos/{childId}/diagnosticos/
- */
 export async function createDiagnosisForChild(childId: number, diagnosisData: CreateDiagnosisPayload): Promise<Diagnosis> {
   const endpoint = `/seguimiento/ninos/${childId}/diagnosticos/`;
   const { data } = await http.post(endpoint, diagnosisData);
   return data;
 }
 
-
-// ===============================================
-// FUNCIONES PARA GESTIONAR INTERESES (Interest) (NUEVO BLOQUE)
-// ===============================================
-
-/**
- * Obtiene la lista de intereses estables de un niño.
- * Llama a: GET /seguimiento/ninos/{childId}/intereses/
- */
 export async function getInterestsForChild(childId: number): Promise<Interest[]> {
   const endpoint = `/seguimiento/ninos/${childId}/intereses/`;
   const { data } = await http.get(endpoint);
   return data;
 }
 
-/**
- * Crea un nuevo interés estable para un niño.
- * Llama a: POST /seguimiento/ninos/{childId}/intereses/
- */
 export async function createInterestForChild(childId: number, interestData: CreateInterestPayload): Promise<Interest> {
   const endpoint = `/seguimiento/ninos/${childId}/intereses/`;
   const { data } = await http.post(endpoint, interestData);

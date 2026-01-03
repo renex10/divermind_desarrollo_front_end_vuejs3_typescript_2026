@@ -27,27 +27,32 @@
         :actions="false"
       >
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
           <div class="lg:col-span-2 flex flex-col gap-8">
-            <GestionObjetivosSesion :child-id="childId" :session-id="sessionId" />
+            <GestionObjetivosSesion 
+              ref="objetivosRef"
+              :child-id="childId" 
+              :session-id="sessionId" 
+            />
+            <SeccionRegistroRutina 
+              ref="rutinaRef"
+              :child-id="childId"
+              :session-id="sessionId"
+            />
             <SeccionNotasClinicas />
             <SeccionIntervenciones />
-
             <AsistenteIAWidget 
               :loading="isGeneratingIA"
               :draft-focus="iaDraftFocus"
               :draft-recommendations="iaDraftRecommendations"
-              @generar="generarSugerenciaIA"
+              @generar="prepararYGenerarIA"
               @aplicar-foco="aplicarFoco"
               @aplicar-familia="aplicarFamilia"
               @descartar="limpiarBorradoresIA"
               @edit-focus="abrirEditorIA('foco')"
               @edit-recommendations="abrirEditorIA('familia')"
             />
-
             <SeccionPlanificacionFutura />
           </div>
-
           <div class="lg:col-span-1">
             <div class="sticky top-24">
               <SeccionEstadoAsistencia />
@@ -65,7 +70,7 @@
           </button>
           <FormKit
             type="submit"
-            :label="isSaving ? 'Guardando...' : 'Guardar Informe'"
+            :label="isSaving ? 'Guardando...' : 'Guardar Informe Final'"
             :disabled="isSaving"
           />
         </div>
@@ -87,10 +92,8 @@
         <textarea 
           v-model="tempEditorContent" 
           class="w-full h-64 p-4 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm leading-relaxed text-gray-700 shadow-inner"
-          placeholder="Escribe aquí los ajustes terapéuticos..."
         ></textarea>
       </div>
-      
       <template #footer>
         <div class="flex justify-end gap-3">
           <button @click="showIAEditor = false" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">Descartar</button>
@@ -109,38 +112,32 @@ import { useRoute, useRouter } from 'vue-router'
 import { getTherapySessionById, updateTherapySession, type TherapySessionDetail } from '@/services/sessionService'
 import { useAlertModalStore } from '@/store/alertModalStore'
 import { useAlertStore } from '@/store/alertStore'
-
-// Servicios y Componentes de IA
 import { aiService, type AIAnalysisPayload } from '@/services/ia/aiService'
 import AsistenteIAWidget from '@/components/sesiones/widget/ia/AsistenteIAWidget.vue'
 import BaseModal from '@/components/modal/BaseModal.vue'
-
-// Componentes de Documentación
 import CabeceraDocumentacion from '@/components/sesiones/documentacion-sesion/CabeceraDocumentacion.vue'
 import SeccionEstadoAsistencia from '@/components/sesiones/documentacion-sesion/SeccionEstadoAsistencia.vue'
 import SeccionNotasClinicas from '@/components/sesiones/documentacion-sesion/SeccionNotasClinicas.vue'
 import SeccionIntervenciones from '@/components/sesiones/documentacion-sesion/SeccionIntervenciones.vue'
 import SeccionPlanificacionFutura from '@/components/sesiones/documentacion-sesion/SeccionPlanificacionFutura.vue'
 import GestionObjetivosSesion from '@/components/sesiones/documentacion-sesion/GestionObjetivosSesion.vue'
+import SeccionRegistroRutina from '@/components/sesiones/documentacion-sesion/SeccionRegistroRutina.vue'
 
 const route = useRoute()
 const router = useRouter()
 const alertModal = useAlertModalStore()
 const alert = useAlertStore()
 
+const objetivosRef = ref<any>(null)
+const rutinaRef = ref<any>(null)
 const childId = Number(route.params.childId)
 const sessionId = Number(route.params.sessionId)
-
 const sessionData = ref<TherapySessionDetail | null>(null)
 const isLoading = ref(true)
 const isSaving = ref(false)
-
-// Estados para IA
 const isGeneratingIA = ref(false)
 const iaDraftFocus = ref('')
 const iaDraftRecommendations = ref('')
-
-// Estados para el Modal de Edición Profesional
 const showIAEditor = ref(false)
 const editorTitle = ref('')
 const tempEditorContent = ref('')
@@ -159,7 +156,7 @@ async function cargarDatosSesion() {
   }
 }
 
-async function generarSugerenciaIA() {
+async function prepararYGenerarIA() {
   if (!sessionData.value) return
   isGeneratingIA.value = true
   try {
@@ -168,13 +165,16 @@ async function generarSugerenciaIA() {
       strengths: sessionData.value.strengths_observed || '',
       challenges: sessionData.value.challenges_encountered || '',
       techniques: sessionData.value.techniques_applied || '',
-      session_number: sessionData.value.session_number
+      session_number: sessionData.value.session_number,
+      emotional_state_start: sessionData.value.emotional_state_start || 'neutral',
+      emotional_state_end: sessionData.value.emotional_state_end || 'neutral',
+      goals_progress: objetivosRef.value?.getGoalsData() || [],
+      step_performance: rutinaRef.value?.getPerformanceData() || []
     }
-
     const response = await aiService.getPlanningSuggestion(payload)
     iaDraftFocus.value = response.draft_focus
     iaDraftRecommendations.value = response.draft_recommendations
-    alert.success('IA DiverMind', 'Análisis clínico y familiar completado.')
+    alert.success('IA DiverMind', 'Análisis clínico completado.')
   } catch (error) {
     alert.error('Error', 'No se pudo conectar con el motor de IA.')
   } finally {
@@ -182,9 +182,6 @@ async function generarSugerenciaIA() {
   }
 }
 
-/**
- * Abre el editor manual para refinar la propuesta de la IA.
- */
 function abrirEditorIA(tipo: 'foco' | 'familia') {
   editingType.value = tipo
   if (tipo === 'foco') {
@@ -197,9 +194,6 @@ function abrirEditorIA(tipo: 'foco' | 'familia') {
   showIAEditor.value = true
 }
 
-/**
- * Confirma los cambios realizados por el terapeuta en el modal.
- */
 function confirmarEdicionIA() {
   if (editingType.value === 'foco') {
     iaDraftFocus.value = tempEditorContent.value
@@ -207,7 +201,7 @@ function confirmarEdicionIA() {
     iaDraftRecommendations.value = tempEditorContent.value
   }
   showIAEditor.value = false
-  alert.info('Cambios Guardados', 'Has modificado la propuesta de la IA exitosamente.')
+  alert.info('Cambios Guardados', 'Sugerencia refinada exitosamente.')
 }
 
 function aplicarFoco() {
@@ -237,22 +231,21 @@ async function handleGuardarInforme(formData: any) {
   try {
     const { child_name, child_rut, guardian_name, entry_date, total_sessions, ...payload } = formData
     await updateTherapySession(childId, sessionId, payload)
-    alertModal.success('Éxito', 'Expediente clínico sincronizado correctamente.')
-    navegarAlPerfil()
+    if (rutinaRef.value) await rutinaRef.value.savePerformance()
+    alertModal.success('Sincronizado', 'El expediente clínico ha sido actualizado.')
+    router.push({ 
+      name: 'detalle-sesion-especifica', 
+      params: { childId: String(childId), sessionId: String(sessionId) } 
+    })
   } catch (error: any) {
-    alertModal.error('Error', 'Ocurrió un problema al guardar los cambios.')
+    alertModal.error('Error', 'No se pudieron guardar los cambios.')
   } finally {
     isSaving.value = false
   }
 }
 
 function navegarAlPerfil() {
-  // Verifica en tu router/index.ts si el parámetro se llama 'id' o 'childId'
-  // Según tus otros componentes, parece ser 'id' para el perfil
-  router.push({ 
-    name: 'perfil-nino', 
-    params: { id: childId } // Si el error persiste, prueba cambiar 'id' por 'childId'
-  })
+  router.push({ name: 'perfil-nino', params: { id: childId } })
 }
 </script>
 

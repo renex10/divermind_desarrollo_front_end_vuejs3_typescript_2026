@@ -1,3 +1,5 @@
+/* ruta de este archivo src\composables\useRoutineAnalytics.ts */
+
 /**
  * COMPOSABLE: useRoutineAnalytics
  * Propósito: Encapsular la lógica de transformación de datos clínicos.

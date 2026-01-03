@@ -2,8 +2,8 @@
   <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm h-full flex flex-col">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h3 class="text-lg font-black text-gray-900 leading-none">Tiempo Estimado vs. Real</h3>
-        <p class="text-xs text-gray-400 mt-1 font-medium uppercase tracking-wider">Eficiencia y cumplimiento de tiempos</p>
+        <h3 class="text-lg font-black text-gray-900 leading-none">Eficiencia por Paso</h3>
+        <p class="text-xs text-gray-400 mt-1 font-medium uppercase tracking-wider">Desvío temporal real vs. planificación</p>
       </div>
       <div class="p-2 bg-amber-50 rounded-xl">
         <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -13,8 +13,8 @@
     </div>
 
     <div class="flex-1 relative min-h-[300px]">
-      <div v-if="!chartData.labels || chartData.labels.length === 0" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-        <p class="text-gray-300 font-bold text-sm">No hay registros suficientes para comparar tiempos.</p>
+      <div v-if="!timeData || timeData.length === 0" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+        <p class="text-gray-300 font-bold text-sm">No hay registros de granularidad para comparar tiempos.</p>
       </div>
       
       <Bar 
@@ -40,58 +40,45 @@ import {
   type ChartOptions
 } from 'chart.js'
 import { Bar } from 'vue-chartjs'
-import type { TimeComparison } from '@/type/rutinas/reports'
+// ✅ Importamos la nueva interfaz desde el store
+import type { TimeEfficiencyData } from '@/store/rutinas/routineReportsStore'
 
-// Registrar componentes de Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
+/**
+ * PROPS: Actualizadas para recibir la granularidad de pasos
+ */
 const props = defineProps<{
-  timeData: TimeComparison[]
+  timeData: TimeEfficiencyData[]
 }>()
 
 /**
- * Diccionario de emojis para el impacto emocional registrado al final de la rutina
- */
-const emotionalEmojis: Record<string, string> = {
-  happy: '😊',
-  calm: '😌',
-  irritable: '😠',
-  anxious: '😰'
-}
-
-/**
- * ✅ Preparación de datos para el gráfico
+ * ✅ Preparación de datos: Ahora el eje X son los Pasos/Acciones
  */
 const chartData = computed<ChartData<'bar'>>(() => {
-  // Ordenamos cronológicamente
-  const sortedData = [...props.timeData].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
-
   return {
-    labels: sortedData.map(item => {
-      const d = new Date(item.date)
-      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-    }),
+    // Usamos el nombre de la acción como etiqueta
+    labels: props.timeData.map(item => item.step_action),
     datasets: [
       {
         label: 'Estimado (min)',
         backgroundColor: '#e2e8f0', // slate-200
         borderRadius: 6,
-        data: sortedData.map(item => item.estimated_minutes)
+        // Convertimos segundos a minutos para legibilidad clínica
+        data: props.timeData.map(item => Number((item.avg_estimated_seconds / 60).toFixed(1)))
       },
       {
-        label: 'Real (min)',
+        label: 'Real Promedio (min)',
         backgroundColor: '#f59e0b', // amber-500
         borderRadius: 6,
-        data: sortedData.map(item => item.actual_minutes)
+        data: props.timeData.map(item => Number((item.avg_real_seconds / 60).toFixed(1)))
       }
     ]
   }
 })
 
 /**
- * ✅ Configuración y Tooltips con contexto clínico
+ * ✅ Configuración: Ajustada para análisis de eficiencia
  */
 const chartOptions: ChartOptions<'bar'> = {
   responsive: true,
@@ -101,7 +88,7 @@ const chartOptions: ChartOptions<'bar'> = {
       position: 'bottom',
       labels: {
         usePointStyle: true,
-        font: { size: 11, weight: 'bold' },
+        font: { size: 10, weight: 'bold' },
         padding: 20
       }
     },
@@ -110,11 +97,12 @@ const chartOptions: ChartOptions<'bar'> = {
       padding: 12,
       cornerRadius: 12,
       callbacks: {
-        // Añadimos el emoji emocional al final del tooltip
+        // Mostramos el porcentaje de desvío en el tooltip
         afterBody: (context) => {
           const index = context[0].dataIndex
-          const emotion = props.timeData[index]?.emotional_impact || 'calm'
-          return `\nÁnimo final: ${emotionalEmojis[emotion] || 'Neutral'}`
+          const deviation = props.timeData[index]?.deviation_percentage || 0
+          const prefix = deviation > 0 ? '+' : ''
+          return `\nDesvío: ${prefix}${deviation}%`
         }
       }
     }
@@ -127,22 +115,22 @@ const chartOptions: ChartOptions<'bar'> = {
         color: '#94a3b8',
         font: { weight: 'bold' },
         callback: (val) => `${val}m`
+      },
+      title: {
+        display: true,
+        text: 'Minutos',
+        font: { size: 10, weight: 'bold' }
       }
     },
     x: {
       grid: { display: false },
       ticks: {
-        color: '#94a3b8',
-        font: { weight: 'bold', size: 10 }
+        color: '#64748b',
+        font: { weight: 'bold', size: 9 },
+        maxRotation: 45,
+        minRotation: 45
       }
     }
   }
 }
 </script>
-
-<style scoped>
-/* Estilos para el estado de hover de las barras */
-canvas {
-  transition: opacity 0.3s ease;
-}
-</style>

@@ -33,8 +33,8 @@
       <div v-if="uniqueChildSessions.length > 0">
         <TablaSessions 
           :sessions="uniqueChildSessions"
-          @view="navegarAHistorial"
-          @document="prepararDocumentacion"
+          @view="manejarNavegacionSesion"
+          @document="(s) => manejarNavegacionSesion(s, true)"
         />
       </div>
 
@@ -47,19 +47,25 @@
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showPreDocModal = false"></div>
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-blue-600 px-4 py-3 font-bold text-white">Contexto Clínico</div>
+          <div class="bg-blue-600 px-4 py-3 font-bold text-white">Contexto Clínico Anterior</div>
           <div class="p-6">
             <div v-if="selectedSessionForDoc" class="space-y-4">
               <p class="text-sm border-b pb-2 font-bold">{{ selectedSessionForDoc.child_name }}</p>
               <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
-                 <p class="text-xs text-amber-800 font-bold uppercase mb-1">Último Foco:</p>
-                 <p class="text-sm text-amber-900">{{ selectedSessionForDoc.next_session_focus || 'Sin definir' }}</p>
+                 <p class="text-xs text-amber-800 font-bold uppercase mb-1">Último Foco Terapéutico:</p>
+                 <p class="text-sm text-amber-900 leading-relaxed italic">
+                   {{ selectedSessionForDoc.next_session_focus || 'Sin foco definido previamente.' }}
+                 </p>
               </div>
             </div>
           </div>
           <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse gap-2">
-            <button @click="confirmarDocumentacion" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-bold">Comenzar</button>
-            <button @click="showPreDocModal = false" class="text-gray-600 text-sm px-4 py-2">Cerrar</button>
+            <button @click="confirmarDocumentacion" class="bg-blue-600 text-white px-6 py-2 rounded-md text-sm font-bold hover:bg-blue-700 transition-colors">
+              Comenzar Documentación
+            </button>
+            <button @click="showPreDocModal = false" class="text-gray-600 text-sm px-4 py-2 hover:underline">
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
@@ -70,6 +76,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+// Importación del servicio y tipos para gestionar sesiones
 import { getAllTherapySessions, type TherapySession } from '@/services/sessionService'; 
 import TablaSessions from '@/components/sesiones/tabla/TablaSessions.vue';
 import { useAlertModalStore } from '@/store/alertModalStore';
@@ -84,11 +91,14 @@ const searchQuery = ref('');
 const showPreDocModal = ref(false);
 const selectedSessionForDoc = ref<TherapySession | null>(null);
 
+/**
+ * Carga inicial: Obtiene todas las sesiones disponibles para el terapeuta.
+ */
 onMounted(async () => {
   try {
     sessions.value = await getAllTherapySessions();
   } catch (error) {
-    alertModal.error('Error', 'No se pudieron cargar las sesiones.');
+    alertModal.error('Error', 'No se pudieron cargar las sesiones desde el servidor.');
   } finally {
     isLoading.value = false;
   }
@@ -96,11 +106,13 @@ onMounted(async () => {
 
 /**
  * LÓGICA DE AGRUPAMIENTO: 
- * Filtra las sesiones para mostrar solo la más reciente de cada niño.
+ * Filtra las sesiones para mostrar solo la más reciente de cada niño para reducir carga cognitiva.
+ *
  */
 const uniqueChildSessions = computed(() => {
   const map = new Map<number, TherapySession>();
   
+  // Ordenar por fecha descendente para asegurar que tomamos la última
   const sortedSessions = [...sessions.value].sort((a, b) => 
     new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime()
   );
@@ -119,27 +131,29 @@ const uniqueChildSessions = computed(() => {
   return Array.from(map.values());
 });
 
-// --- ACCIONES ---
+// --- ACCIONES DE NAVEGACIÓN Y FLUJO ---
 
 /**
- * Navega al historial. 
- * IMPORTANTE: Si tu router pide childId y sessionId, debes pasarlos ambos.
- * Si solo quieres ir a la lista de sesiones del niño, usa la ruta que solo pide childId.
+ * Lógica de Portero: Decide si enviar al usuario a ver el detalle o a documentar.
+ * Reemplaza a 'navegarAHistorial' para corregir errores de TypeScript.
  */
-function navegarAHistorial(session: TherapySession) {
-  try {
-    // 1. Extraer IDs (Usando 'child' que es el nombre del campo en tu JSON)
-    const childId = session.child;
-    const sessionId = session.id;
+function manejarNavegacionSesion(session: TherapySession, forzarDocumentacion = false) {
+  const childId = session.child;
+  const sessionId = session.id;
 
-    // 2. Validación crítica para evitar el NaN
-    if (childId === undefined || childId === null) {
-      console.error("❌ Error: La sesión no contiene un 'child' ID válido:", session);
-      alertModal.warning("Datos Incompletos", "No se pudo identificar al niño en esta sesión.");
-      return;
-    }
+  // Validación de seguridad para IDs
+  if (childId === undefined || childId === null) {
+    alertModal.warning("Datos Incompletos", "No se pudo identificar al paciente.");
+    return;
+  }
 
-    // 3. Navegación con conversión explícita a string
+  // FLUJO SECUENCIAL:
+  // Si la sesión no tiene estado 'asistio' o se pide documentar explícitamente -> Ir a Documentar
+  // Basado en TherapySession interface
+  if (forzarDocumentacion || session.attendance_status !== 'asistio') {
+    prepararDocumentacion(session);
+  } else {
+    // Si ya existe documentación, ir a la vista de resumen (SessionId.vue)
     router.push({ 
       name: 'detalle-sesion-especifica', 
       params: { 
@@ -147,28 +161,36 @@ function navegarAHistorial(session: TherapySession) {
         sessionId: String(sessionId)
       } 
     });
-  } catch (err) {
-    console.error("Error en navegación:", err);
   }
 }
 
+/**
+ * Activa el modal de contexto clínico antes de entrar a la documentación.
+ */
 function prepararDocumentacion(session: TherapySession) {
   selectedSessionForDoc.value = session;
   showPreDocModal.value = true;
 }
 
+/**
+ * Redirige a la vista de DocumentarSesionView.vue tras confirmar en el modal.
+ *
+ */
 function confirmarDocumentacion() {
   if (selectedSessionForDoc.value) {
     const s = selectedSessionForDoc.value;
     showPreDocModal.value = false;
     router.push({ 
       name: 'documentar-sesion', 
-      params: { childId: s.child.toString(), sessionId: s.id.toString() } 
+      params: { 
+        childId: String(s.child), 
+        sessionId: String(s.id) 
+      } 
     });
   }
 }
 
 function crearNuevaSesion() {
-  alertModal.info('Aviso', 'Módulo de creación en desarrollo.');
+  alertModal.info('Módulo en Desarrollo', 'La creación de nuevas citas estará disponible en la próxima actualización.');
 }
 </script>

@@ -1,11 +1,3 @@
-/**
- * ESTE ARCHIVO ES EL "CEREBRO" DE LA ANALÍTICA (FASE 6).
- * * ¿Para qué sirve?
- * Guarda y gestiona todos los reportes de progreso de las rutinas de un niño.
- * Centraliza los datos de independencia, tiempos y sugerencias de la IA para que
- * los gráficos del dashboard se muestren de forma rápida y reactiva.
- */
-
 import { defineStore } from 'pinia'
 import { routineReportService } from '@/services/rutinas/routineReportService'
 import type { 
@@ -15,58 +7,86 @@ import type {
   AIReport 
 } from '@/type/rutinas/reports'
 
+// ✅ INTERFACES PARA GRANULARIDAD CLÍNICA
+export interface HeatMapData {
+  step_id: number;
+  step_action: string;
+  friction_count: number;
+  total_attempts: number;
+  friction_rate: number; 
+}
+
+export interface TimeEfficiencyData {
+  step_action: string;
+  avg_estimated_seconds: number;
+  avg_real_seconds: number;
+  deviation_percentage: number; 
+}
+
+export interface ExtendedRoutineSummary extends RoutineSummary {
+  avg_deviation_pct: number; 
+}
+
 interface RoutineReportsState {
-  summary: RoutineSummary | null
+  summary: ExtendedRoutineSummary | null
   evolution: IndependenceEvolution[]
   supportDistribution: SupportDistribution | null
+  heatMap: HeatMapData[]
+  timeEfficiency: TimeEfficiencyData[]
   aiReports: AIReport[]
   isLoading: boolean
   error: string | null
 }
 
 export const useRoutineReportsStore = defineStore('routineReports', {
-  // --- ESTADO (Los datos que guardamos) ---
+  // --- ESTADO INICIAL ---
   state: (): RoutineReportsState => ({
     summary: null,
     evolution: [],
     supportDistribution: null,
+    heatMap: [],
+    timeEfficiency: [],
     aiReports: [],
     isLoading: false,
     error: null
   }),
 
-  // --- GETTERS (Acceso rápido a datos calculados) ---
+  // --- GETTERS (Cómputos reactivos del estado) ---
   getters: {
     hasReports: (state) => state.evolution.length > 0 || !!state.summary,
     recentAIInsight: (state) => state.aiReports[0] || null
   },
 
-  // --- ACCIONES (Funciones para traer datos del servidor) ---
+  // --- ACCIONES (Lógica de negocio y llamadas a API) ---
   actions: {
     /**
-     * Carga todos los reportes necesarios para el Dashboard de una sola vez
+     * ✅ CARGA REAL: Obtiene toda la analítica clínica desde el servidor.
+     * Ejecuta las peticiones en paralelo para optimizar la carga del Dashboard.
      */
     async fetchAllReports(childId: string | number) {
       this.isLoading = true
       this.error = null
       
       try {
-        // Ejecutamos todas las peticiones en paralelo para mayor velocidad
-        const [summary, evolution, distribution, aiReports] = await Promise.all([
+        const [summary, evolution, distribution, aiReports, heatMap, timeEfficiency] = await Promise.all([
           routineReportService.getSummary(childId),
           routineReportService.getIndependenceHistory(childId),
           routineReportService.getSupportDistribution(childId),
-          routineReportService.getAIReports(childId)
+          routineReportService.getAIReports(childId),
+          routineReportService.getHeatMap(childId),
+          routineReportService.getTimeEfficiency(childId)
         ])
 
-        this.summary = summary
+        this.summary = summary as ExtendedRoutineSummary
         this.evolution = evolution
         this.supportDistribution = distribution
         this.aiReports = aiReports
+        this.heatMap = heatMap
+        this.timeEfficiency = timeEfficiency
         
-        console.log(`✅ Reportes cargados exitosamente para el niño ID: ${childId}`)
+        console.log(`✅ Evidencia clínica sincronizada para el niño ID: ${childId}`)
       } catch (err: any) {
-        this.error = 'No se pudieron cargar los informes analíticos.'
+        this.error = 'Error al sincronizar con el servidor de analíticas.'
         console.error('❌ Error en routineReportsStore:', err)
       } finally {
         this.isLoading = false
@@ -74,12 +94,15 @@ export const useRoutineReportsStore = defineStore('routineReports', {
     },
 
     /**
-     * Limpia los datos (útil cuando cambiamos de niño en el perfil)
+     * Limpia el estado de reportes. 
+     * Útil al cerrar sesión o cambiar de paciente.
      */
     clearReports() {
       this.summary = null
       this.evolution = []
       this.supportDistribution = null
+      this.heatMap = []
+      this.timeEfficiency = []
       this.aiReports = []
       this.error = null
     }

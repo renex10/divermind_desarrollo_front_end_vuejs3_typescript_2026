@@ -7,6 +7,39 @@
       </div>
     </div>
 
+    <div v-else-if="session && !session.objectives" class="max-w-7xl mx-auto px-4 py-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="bg-amber-50 p-8 md:p-12 text-center border-b border-amber-100">
+          <div class="bg-amber-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <svg class="w-10 h-10 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-3">Sesión #{{ session.session_number }} sin Documentación</h2>
+          <p class="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
+            Esta sesión con <strong>{{ session.child_name }}</strong> aún no cuenta con registros clínicos, 
+            objetivos logrados ni proyecciones terapéuticas.
+          </p>
+          <div class="flex justify-center gap-4">
+            <button @click="$router.back()" class="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 font-semibold transition-all">
+              Volver al Listado
+            </button>
+            <button @click="irADocumentar" class="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95">
+              Comenzar a Documentar
+            </button>
+          </div>
+        </div>
+        
+        <div class="p-6 bg-gray-50">
+           <TablaSessionForId 
+            :sessions="history" 
+            :currentSessionId="Number(sessionId)"
+            @select="cambiarSesion"
+          />
+        </div>
+      </div>
+    </div>
+
     <div v-else-if="session" class="max-w-7xl mx-auto px-4 py-8">
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -143,6 +176,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+// Uso del servicio para obtener datos detallados y listados
 import { getTherapySessionById, getTherapySessionsForChild, type TherapySession, type TherapySessionDetail } from '@/services/sessionService'
 import { useAlertModalStore } from '@/store/alertModalStore'
 import TablaSessionForId from '@/components/sesiones/tabla/TablaSessionForId.vue'
@@ -160,8 +194,7 @@ const history = ref<TherapySession[]>([])
 const isLoading = ref(true)
 
 /**
- * Carga inicial de datos coordinada.
- * Se integra el llamado al historial por childId.
+ * Carga coordinada del expediente clínico y el historial.
  */
 const cargarDatos = async () => {
   isLoading.value = true
@@ -169,7 +202,6 @@ const cargarDatos = async () => {
     const cId = Number(props.childId)
     const sId = Number(props.sessionId)
 
-    // Llamadas concurrentes para optimizar carga
     const [detalleRes, historialRes] = await Promise.all([
       getTherapySessionById(cId, sId),
       getTherapySessionsForChild(cId)
@@ -188,7 +220,7 @@ const cargarDatos = async () => {
 
 onMounted(cargarDatos)
 
-// Vigilar cambios en sessionId para refrescar la vista cuando se selecciona otra del historial
+// Refrescar vista si el usuario cambia de sesión en el historial
 watch(() => props.sessionId, cargarDatos)
 
 function formatDateFull(date: string) {

@@ -1,39 +1,78 @@
-//ruta src\services\ia\aiService.ts
+// src/services/ia/aiService.ts
 import http from "../http";
 
 /**
- * Payload de análisis: Estructura de datos que enviamos al motor de IA.
- * Contiene el contexto clínico capturado en tiempo real desde el formulario.
+ * Registro individual del desempeño en un paso de rutina.
+ * Alimenta los Requerimientos 1 (Desvío Temporal) y 3 (Mapa de Calor).
  */
-export interface AIAnalysisPayload {
-  objectives: string;      // Objetivos definidos para la sesión
-  strengths: string;       // Notas sobre Fortalezas Observadas
-  challenges: string;      // Notas sobre Dificultades Encontradas
-  techniques: string;      // Notas sobre Intervenciones y Técnicas Aplicadas
-  session_number: number;  // Número correlativo de la sesión actual
+export interface AIStepPerformance {
+  step_id: number;
+  step_action: string;
+  support_needed: string; // Cambiado de support_level para matchear el serializer
+  time_taken_seconds: number;
+  had_difficulty: boolean;
 }
 
 /**
- * Respuesta de la IA: Estructura de datos que el Backend devuelve tras el procesamiento.
- * Entrega dos borradores diferenciados por destinatario.
+ * Estado de progreso de los objetivos específicos.
+ * Alimenta el Requerimiento 4 (Logro de Objetivos).
+ */
+export interface AIGoalProgress {
+  goal_id: number;
+  description: string;
+  progress_percentage: number; // 0 a 100
+  achieved: boolean;
+}
+
+/**
+ * Payload de análisis: Estructura de datos completa enviada al motor de IA.
+ * Combina el contexto narrativo con métricas granulares para evitar el 0% de datos.
+ */
+export interface AIAnalysisPayload {
+  // --- Contexto Narrativo (Lo que el terapeuta escribe) ---
+  objectives: string;      // Objetivos generales de la sesión
+  strengths: string;       // Fortalezas observadas
+  challenges: string;      // Dificultades encontradas
+  techniques: string;      // Técnicas aplicadas
+  session_number: number;  // Para análisis evolutivo
+
+  // --- Contexto Estructurado (Métricas para Gráficos y Reportes) ---
+  
+  // Requerimiento 2: Análisis de Regulación Emocional
+  emotional_state_start: string; // Ej: 'calm', 'irritable', 'anxious'
+  emotional_state_end: string;   // Para medir el impacto de la sesión
+
+  // Requerimientos 1 y 3: Desempeño paso a paso
+  step_performance?: AIStepPerformance[];
+
+  // Requerimiento 4: Seguimiento de Metas
+  goals_progress?: AIGoalProgress[];
+
+  // Requerimiento 5: Comunicación y Habilidades Sociales
+  was_spontaneous?: boolean;      // ¿Inició comunicación solo?
+  interaction_partner?: string;   // 'peer', 'therapist', 'family'
+}
+
+/**
+ * Respuesta de la IA: Estructura de datos devuelta por Django.
+ * Genera borradores optimizados para reducir el esfuerzo cognitivo del terapeuta.
  */
 export interface AIAnalysisResponse {
   draft_focus: string;           // Sugerencia técnica para 'next_session_focus'
-  draft_recommendations: string;  // Sugerencia práctica para 'next_session_recommendations'
+  draft_recommendations: string; // Sugerencia práctica para el hogar (Padres)
+  clinical_insight?: string;      // Análisis profundo del patrón detectado (Opcional)
 }
 
 /**
  * ✅ SERVICIO DE INTELIGENCIA ARTIFICIAL (AI SERVICE)
- * * Centraliza las peticiones de análisis, resúmenes y proyecciones clínicas.
- * Este servicio es independiente de sessionService para permitir escalabilidad futura
- * (ej: análisis de hitos, reportes automáticos, etc.)
+ * Centraliza las peticiones de análisis, resúmenes y proyecciones clínicas.
  */
 export const aiService = {
   
   /**
-   * Envía las notas de la sesión actual para obtener una propuesta de planificación dual.
+   * Envía el contexto clínico completo para obtener sugerencias de planificación.
    * Llama al endpoint de Django: POST /seguimiento/ia/analizar-sesion/
-   * * @param payload Objeto con el contexto actual de la sesión.
+   * * @param payload Objeto con métricas y narrativa de la sesión actual.
    * @returns Promesa con los borradores para el terapeuta y la familia.
    */
   async getPlanningSuggestion(payload: AIAnalysisPayload): Promise<AIAnalysisResponse> {
@@ -41,19 +80,19 @@ export const aiService = {
     
     try {
       // Realizamos la petición POST al backend
+      // El backend ahora recibe datos granulares para cumplir con los 5 requerimientos
       const { data } = await http.post<AIAnalysisResponse>(endpoint, payload);
       return data;
     } catch (error) {
-      // Registramos el error de forma centralizada para facilitar el debug
-      console.error("❌ [AI Service Error]: No se pudo obtener la sugerencia de planificación.", error);
+      console.error("❌ [AI Service Error]: Fallo en la generación de inteligencia clínica.", error);
       throw error; 
     }
   },
 
   /**
-   * Nota: Aquí se pueden añadir futuras funciones relacionadas con IA:
-   * - analyzeEmotionalTrends(childId: number)
-   * - generateSummaryForGuardians(sessionId: number)
+   * Funciones proyectadas para la Fase de Automatización y Reportes de 30/90 días:
+   * - generateLongTermReport(childId, periodDays)
+   * - detectRegressionAlerts(childId)
    */
 }
 
