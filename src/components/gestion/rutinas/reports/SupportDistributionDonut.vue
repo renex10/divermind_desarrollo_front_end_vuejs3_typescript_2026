@@ -1,4 +1,5 @@
 <template>
+  <!-- src\components\gestion\rutinas\reports\SupportDistributionDonut.vue -->
   <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm h-full flex flex-col">
     <div class="flex items-center justify-between mb-6">
       <div>

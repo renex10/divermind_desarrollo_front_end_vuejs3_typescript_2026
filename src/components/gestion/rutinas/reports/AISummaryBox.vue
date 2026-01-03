@@ -11,11 +11,29 @@
           <p class="text-[10px] text-indigo-100 mt-1 font-bold uppercase tracking-[0.15em] opacity-80">Evidencia clínica automatizada</p>
         </div>
       </div>
-      <div v-if="report" class="flex items-center space-x-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="text-[10px] font-black bg-white/10 border border-white/20 px-3 py-1.5 rounded-full uppercase tracking-widest">
-          {{ formatDate(report.date) }}
-        </span>
+
+      <div v-if="report" class="flex items-center space-x-3">
+        <button 
+          @click="toggleAudio"
+          class="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl transition-all active:scale-95 group shadow-sm"
+          :class="{ 'ring-2 ring-emerald-400/50 bg-white/20': isReading }"
+          :title="isReading ? 'Detener audio' : 'Escuchar reporte clínico'"
+        >
+          <component 
+            :is="isReading ? SpeakerXMarkIcon : SpeakerWaveIcon" 
+            class="w-4 h-4 text-blue-100 group-hover:scale-110 transition-transform" 
+          />
+          <span class="text-[9px] font-black uppercase tracking-widest">
+            {{ isReading ? 'Detener' : 'Escuchar' }}
+          </span>
+        </button>
+
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-[10px] font-black bg-white/10 border border-white/20 px-3 py-1.5 rounded-full uppercase tracking-widest">
+            {{ formatDate(report.date) }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -61,7 +79,7 @@
       <div class="flex items-center space-x-2">
         <div class="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
         <p class="text-[9px] font-black uppercase tracking-widest text-indigo-200/60">
-          Análisis de ejecución: {{ childName }}
+          Paciente: {{ childName }}
         </p>
       </div>
       <p class="text-[9px] font-bold text-white/40 uppercase tracking-[0.1em]">Clinical IA Engine v2.0</p>
@@ -70,8 +88,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { SparklesIcon } from '@heroicons/vue/24/solid'
+import { ref, computed, onUnmounted } from 'vue'
+import { 
+  SparklesIcon, 
+  SpeakerWaveIcon, 
+  SpeakerXMarkIcon 
+} from '@heroicons/vue/24/solid'
 import type { AIReport } from '@/type/rutinas/reports'
 
 const props = defineProps<{
@@ -80,15 +102,53 @@ const props = defineProps<{
   childName: string
 }>()
 
+// --- LÓGICA DE AUDIO (WEB SPEECH API) ---
+const isReading = ref(false)
+let currentUtterance: SpeechSynthesisUtterance | null = null
+
 /**
- * Limpieza del texto generado
- * Elimina marcadores de Markdown sobrantes que ensucian la vista si no hay un parser.
+ * Control de Audio: Reproduce o detiene la lectura del texto limpio.
+ */
+const toggleAudio = () => {
+  if (isReading.value) {
+    window.speechSynthesis.cancel()
+    isReading.value = false
+    return
+  }
+
+  if (cleanText.value) {
+    window.speechSynthesis.cancel() // Limpia cualquier cola pendiente
+    
+    currentUtterance = new SpeechSynthesisUtterance(cleanText.value)
+    currentUtterance.lang = 'es-CL' // Acento local para Chile
+    currentUtterance.rate = 0.9     // Velocidad pausada para lectura clínica
+    currentUtterance.pitch = 1;
+
+    currentUtterance.onstart = () => { isReading.value = true }
+    currentUtterance.onend = () => { isReading.value = false }
+    currentUtterance.onerror = () => { isReading.value = false }
+
+    window.speechSynthesis.speak(currentUtterance)
+  }
+}
+
+// Limpiar audio si el usuario navega fuera de la vista
+onUnmounted(() => {
+  window.speechSynthesis.cancel()
+})
+
+// --- PROPIEDADES COMPUTADAS ---
+
+/**
+ * Limpieza del texto generado para evitar que el lector de voz
+ * deletree caracteres de Markdown (como asteriscos).
  */
 const cleanText = computed(() => {
   if (!props.report?.generated_text) return ''
   return props.report.generated_text
-    .replace(/\*\*\*/g, '') // Elimina negrita/itálica triple
-    .replace(/\*\*/g, '')  // Elimina negrita doble
+    .replace(/\*\*\*/g, '') 
+    .replace(/\*\*/g, '')  
+    .replace(/#/g, '')     
     .trim()
 })
 
@@ -102,22 +162,14 @@ const formatDate = (date: string) => {
 </script>
 
 <style scoped>
-/* Scrollbar Minimalista para no distraer de la lectura */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 20px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
-/* Suavizado tipográfico para modo oscuro */
 .antialiased {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

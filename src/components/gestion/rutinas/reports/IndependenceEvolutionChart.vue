@@ -1,4 +1,5 @@
 <template>
+  <!-- src\components\gestion\rutinas\reports\IndependenceEvolutionChart.vue -->
   <div class="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm h-full flex flex-col overflow-hidden">
     <div class="flex items-center justify-between mb-6 flex-shrink-0">
       <div>
