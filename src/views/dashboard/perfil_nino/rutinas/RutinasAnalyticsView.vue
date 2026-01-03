@@ -87,7 +87,13 @@
           <IndependenceEvolutionChart :evolution-data="reportsStore.evolution" />
         </div>
         
-        <div class="lg:col-span-4 bg-white p-8 rounded-[3.5rem] border border-gray-100 shadow-sm export-chart overflow-hidden flex flex-col h-[480px]">
+        <div class="lg:col-span-4 h-[480px] export-chart relative">
+          <SupportDistributionDonut :distribution="reportsStore.supportDistribution" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div class="lg:col-span-4 bg-white p-8 rounded-[3.5rem] border border-gray-100 shadow-sm export-chart flex flex-col h-[450px]">
           <div class="mb-6">
             <h3 class="text-xl font-black text-gray-900 tracking-tight">Mapa de Calor</h3>
             <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Barreras en la rutina diaria</p>
@@ -111,34 +117,37 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div class="lg:col-span-7">
+        <div class="lg:col-span-8">
           <AISummaryBox 
             :report="reportsStore.recentAIInsight" 
             :loading="isLoading"
             :child-name="childName"
           />
         </div>
+      </div>
 
-        <div class="lg:col-span-5 bg-white p-8 rounded-[3.5rem] border border-gray-100 shadow-sm export-chart h-[400px] relative">
-           <div class="mb-6">
-            <h3 class="text-xl font-black text-gray-900 tracking-tight">Análisis de Eficiencia</h3>
-            <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Desvío Temporal vs Planificación</p>
+      <div class="bg-white p-8 rounded-[3.5rem] border border-gray-100 shadow-sm export-chart h-[450px] relative">
+          <div class="mb-8 flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-black text-gray-900 tracking-tight">Análisis de Eficiencia Temporal</h3>
+              <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest">Desvío Real vs Planificación Terapéutica</p>
+            </div>
+            <div class="p-3 bg-amber-50 rounded-2xl">
+              <ClockIcon class="w-6 h-6 text-amber-600" />
+            </div>
           </div>
-          <div class="h-[280px]">
+          <div class="h-[300px]">
              <DurationVsEstimatedChart :time-data="reportsStore.timeEfficiency" />
           </div>
-        </div>
       </div>
 
       <div class="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-          Sincronizado el: {{ new Date().toLocaleString() }}
+          Consolidado clínico al: {{ new Date().toLocaleString() }}
         </p>
         <p class="text-[10px] text-gray-400 font-medium italic max-w-md text-center md:text-right">
-          * Los análisis se basan en los registros de ejecución y datos de granularidad de la app seguimiento.
+          * Los análisis se basan en registros de ejecución y datos de granularidad de la app de seguimiento.
         </p>
       </div>
     </div>
@@ -149,7 +158,8 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { 
   ExclamationTriangleIcon, 
-  DocumentArrowDownIcon 
+  DocumentArrowDownIcon,
+  ClockIcon 
 } from '@heroicons/vue/24/outline'
 
 import { useRoutineAnalytics } from '@/composables/useRoutineAnalytics'
@@ -172,7 +182,6 @@ const {
   loadAllData,
   independenceGrowth,
   independenceStatusColor,
-  predominantEmotion
 } = useRoutineAnalytics()
 
 const activePeriod = ref('30d')
@@ -252,20 +261,14 @@ watch(activePeriod, async () => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Evitar que el canvas se vuelva loco al redimensionar */
 .export-chart {
   position: relative;
   overflow: hidden;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f8fafc;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 10px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+.transition-all { transition-duration: 1000ms; }
 </style>
