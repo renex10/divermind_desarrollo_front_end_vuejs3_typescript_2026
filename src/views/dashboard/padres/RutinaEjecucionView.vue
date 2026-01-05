@@ -1,8 +1,11 @@
 <script setup>
-/* src\views\dashboard\padres\RutinaEjecucionView.vue */
+/* src/views/dashboard/padres/RutinaEjecucionView.vue */
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNinoActivoStore } from '@/store/ninoActivoStore';
+// ✅ IMPORTAR EL STORE DE RUTINAS (Para saber si ya se hizo hoy)
+import { useRoutinesStore } from '@/store/rutinas/routinesStore'; 
+
 import { routinesApi } from '@/services/rutinas/routinesApi';
 import Swal from 'sweetalert2';
 
@@ -11,6 +14,8 @@ import ExecutionHeader from '@/components/dashboard/padres/rutinas/ejecucion/Exe
 import StepExecutionCard from '@/components/dashboard/padres/rutinas/ejecucion/StepExecutionCard.vue';
 import ExecutionStrategiesDrawer from '@/components/dashboard/padres/rutinas/ejecucion/ExecutionStrategiesDrawer.vue';
 import ExecutionSummaryModal from '@/components/dashboard/padres/rutinas/ejecucion/ExecutionSummaryModal.vue';
+// ✅ IMPORTAR EL MODAL DE EXISTENCIA
+import RoutineExistsModal from '@/components/dashboard/padres/rutinas/modal/RoutineExistsModal.vue';
 
 const props = defineProps({
   routineId: {
@@ -21,6 +26,7 @@ const props = defineProps({
 
 const router = useRouter();
 const ninoStore = useNinoActivoStore();
+const routinesStore = useRoutinesStore(); // ✅ Instancia del store de rutinas
 
 // ✅ Estado local
 const routine = ref(null);
@@ -28,6 +34,9 @@ const currentStepIndex = ref(0);
 const loading = ref(true);
 const isExecuting = ref(false);
 const isFinished = ref(false);
+
+// Control del Modal de Duplicidad
+const showExistsModal = ref(false); // ✅ Controla la visibilidad del aviso
 
 const startTime = ref(null);
 const endTime = ref(null);
@@ -57,6 +66,7 @@ const progressPercentage = computed(() => {
 });
 
 // ✅ Métodos
+
 async function loadRoutine() {
   if (!childId.value) {
     console.error('❌ No hay childId para cargar rutina');
@@ -71,6 +81,18 @@ async function loadRoutine() {
     
     if (routine.value.steps) {
       routine.value.steps.sort((a, b) => a.order - b.order);
+    }
+    
+    // ✅ VERIFICACIÓN DE DUPLICIDAD:
+    // Consultamos al store si esta rutina ya fue completada hoy.
+    // Primero aseguramos tener la lista actualizada de pendientes.
+    await routinesStore.fetchPendingRoutines(childId.value);
+    
+    const isDoneToday = routinesStore.completedTodayIds.includes(Number(props.routineId));
+    
+    if (isDoneToday) {
+        console.warn("⚠️ Esta rutina ya fue realizada hoy. Mostrando modal de advertencia.");
+        showExistsModal.value = true;
     }
     
     console.log(`✅ Rutina cargada con ${routine.value.steps?.length || 0} pasos`);
@@ -161,6 +183,7 @@ async function saveExecutionReport(finalMood, generalNotes, generalSupport) {
   };
 
   console.log(`💾 Guardando reporte para niño ${childId.value}`);
+  // El backend manejará esto como un UPSERT (Actualizar si existe) gracias a tu cambio anterior.
   await routinesApi.createLog(childId.value, Number(props.routineId), logData);
   console.log('✅ Reporte guardado');
 }
@@ -227,6 +250,31 @@ const handleStepAction = (data) => {
   if (isFinished.value) {
     showSummary.value = true;
   }
+};
+
+// --- ✅ MANEJADORES DEL MODAL DE EXISTENCIA ---
+const handleConfirmUpdate = () => {
+    // El usuario decidió actualizar el registro existente.
+    // Cerramos el modal y dejamos que continúe.
+    showExistsModal.value = false;
+    
+    // Opcional: Podrías mostrar un toast pequeño indicando "Modo Edición"
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true
+    })
+    Toast.fire({
+      icon: 'info',
+      title: 'Modo Edición: Se actualizará el registro de hoy'
+    })
+};
+
+const handleCancelExecution = () => {
+    // El usuario decidió no continuar. Volvemos a la lista.
+    router.push({ name: 'parent-rutinas' });
 };
 
 const handleFinalSubmit = async (finalData) => {
@@ -325,9 +373,7 @@ const handleFinalSubmit = async (finalData) => {
             <p class="text-gray-500 mt-2">Selecciona un estado para iniciar el cronómetro.</p>
             
             <div class="mood-selector">
-              <button @click="handleStart('happy')" class="mood-btn">😊 Feliz / Motiv
-
-ado</button>
+              <button @click="handleStart('happy')" class="mood-btn">😊 Feliz / Motivado</button>
               <button @click="handleStart('calm')" class="mood-btn">😌 Tranquilo / Estable</button>
               <button @click="handleStart('frustrated')" class="mood-btn">😫 Irritable / Sensible</button>
             </div>
@@ -356,6 +402,12 @@ ado</button>
         v-if="showSummary"
         @submit="handleFinalSubmit"
         @close="showSummary = false"
+      />
+
+      <RoutineExistsModal 
+        v-model:show="showExistsModal"
+        @confirm="handleConfirmUpdate"
+        @cancel="handleCancelExecution"
       />
     </template>
   </div>

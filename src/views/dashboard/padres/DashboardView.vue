@@ -95,6 +95,10 @@
           </div>
         </div>
       </Transition>
+      
+      <div v-if="currentChild && !isLoading" class="animate-fade-in">
+        <PendingRoutinesBanner />
+      </div>
 
       <div v-if="currentChild && !isLoading" class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 animate-fade-in">
         
@@ -139,9 +143,9 @@ import PhotoUploadButton from '@/components/common/PhotoUploadButton.vue'
 import PhotoUploadModal from '@/components/dashboard/padres/PhotoUploadModal.vue'
 import DailyMission from '@/components/gestion/rutinas/reports/DailyMission.vue'
 import SessionUltimaNotificacion from '@/components/dashboard/padres/sesiones/SessionUltimaNotificacion.vue'
-// ✅ IMPORTAR EL NUEVO TIMELINE
 import SessionTimeline from '@/components/dashboard/padres/sesiones/SessionTimeline.vue'
-
+// ✅ IMPORTAR EL BANNER DE PENDIENTES
+import PendingRoutinesBanner from '@/components/dashboard/padres/rutinas/PendingRoutinesBanner.vue'
 
 // Stores y Composables
 import { useAuth } from '@/composables/useAuth'

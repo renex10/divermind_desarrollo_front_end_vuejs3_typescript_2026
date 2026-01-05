@@ -1,5 +1,5 @@
-// stores/routinesStore.ts
-// ✅ VERSIÓN ACTUALIZADA - Con tipos completos desde @/type/rutinas/rutinas
+// src/store/rutinas/routinesStore.ts
+// ✅ VERSIÓN FINAL - Con gestión de PENDIENTES y COMPLETADAS HOY
 
 import { defineStore } from 'pinia'
 import { routinesApi } from '@/services/rutinas/routinesApi'
@@ -25,7 +25,8 @@ export type RoutineUpdateData = Partial<RoutineWriteData>
  * Tipado del estado del store de Pinia.
  */
 export interface RoutinesState {
-  routines: DailyRoutineList[]
+  routines: DailyRoutineList[]        // Todas las rutinas (activas, pausadas, etc)
+  pendingRoutines: DailyRoutineList[] // ✅ NUEVO: Solo las pendientes de hoy
   currentRoutine: DailyRoutineDetail | null
   loading: boolean
   error: string | null
@@ -39,6 +40,7 @@ export interface RoutinesState {
 export const useRoutinesStore = defineStore('routines', {
   state: (): RoutinesState => ({
     routines: [],
+    pendingRoutines: [], // Inicializamos vacío
     currentRoutine: null,
     loading: false,
     error: null,
@@ -51,7 +53,7 @@ export const useRoutinesStore = defineStore('routines', {
 
   getters: {
     /**
-     * Rutinas activas
+     * Rutinas activas (status 'active' y flag is_active true)
      */
     activeRoutines: (state: RoutinesState): DailyRoutineList[] =>
       state.routines.filter(r => r.is_active && r.status === 'active'),
@@ -61,6 +63,26 @@ export const useRoutinesStore = defineStore('routines', {
      */
     archivedRoutines: (state: RoutinesState): DailyRoutineList[] =>
       state.routines.filter(r => r.status === 'archived'),
+
+    /**
+     * ✅ NUEVO: Cuenta de rutinas pendientes para el Badge rojo
+     */
+    pendingCount: (state: RoutinesState): number => state.pendingRoutines.length,
+
+    /**
+     * ✅ NUEVO: IDs de rutinas completadas hoy.
+     * Lógica: Si está activa pero NO está en pendientes, es que ya se hizo hoy.
+     */
+    completedTodayIds: (state: RoutinesState): number[] => {
+      const activeIds = state.routines
+        .filter(r => r.is_active && r.status === 'active')
+        .map(r => r.id)
+      
+      const pendingIds = state.pendingRoutines.map(r => r.id)
+      
+      // Retorna las activas que NO están pendientes
+      return activeIds.filter(id => !pendingIds.includes(id))
+    },
 
     /**
      * Rutinas filtradas según los filtros locales del store
@@ -108,12 +130,33 @@ export const useRoutinesStore = defineStore('routines', {
       try {
         const response = await routinesApi.getRoutines(childId, filters)
         this.routines = response.data
+        
+        // Al cargar las rutinas, también actualizamos las pendientes para sincronizar estados
+        // (Opcional: puedes llamarlo explícitamente desde el componente si prefieres)
+        await this.fetchPendingRoutines(childId)
+        
       } catch (err: any) {
         this.error = err.message || 'Error al cargar rutinas'
         console.error('Error en fetchRoutines:', err)
         throw err
       } finally {
         this.loading = false
+      }
+    },
+
+    /**
+     * ✅ NUEVO: Carga las rutinas pendientes para el día de hoy
+     * Llama al endpoint /pending/ del backend
+     */
+    async fetchPendingRoutines(childId: number): Promise<void> {
+      // No ponemos loading global para no bloquear toda la UI si esto es secundario
+      try {
+        // Asumimos que agregaste getPendingRoutines a tu routinesApi service
+        const response = await routinesApi.getPendingRoutines(childId)
+        this.pendingRoutines = response.data
+      } catch (err: any) {
+        console.error('Error cargando rutinas pendientes:', err)
+        // No lanzamos error crítico, solo logueamos
       }
     },
 
@@ -147,6 +190,8 @@ export const useRoutinesStore = defineStore('routines', {
       try {
         const response = await routinesApi.createRoutine(childId, data)
         this.routines.push(response.data)
+        // Si creamos una nueva, por defecto estará pendiente hoy
+        await this.fetchPendingRoutines(childId) 
         return response.data
       } catch (err: any) {
         this.error = err.message || 'Error al crear rutina'
@@ -182,6 +227,9 @@ export const useRoutinesStore = defineStore('routines', {
           this.currentRoutine = { ...this.currentRoutine, ...response.data }
         }
         
+        // Refrescamos pendientes por si cambió de estado o se desactivó
+        await this.fetchPendingRoutines(childId)
+
         return response.data
       } catch (err: any) {
         this.error = err.message || 'Error al actualizar rutina'
@@ -194,7 +242,6 @@ export const useRoutinesStore = defineStore('routines', {
 
     /**
      * Elimina (archiva) una rutina
-     * La API no borra físicamente, sino que cambia status a 'archived'
      */
     async deleteRoutine(childId: number, routineId: number): Promise<void> {
       this.loading = true
@@ -214,6 +261,10 @@ export const useRoutinesStore = defineStore('routines', {
         if (this.currentRoutine?.id === routineId) {
           this.currentRoutine = null
         }
+
+        // Refrescar pendientes (si la borré, ya no está pendiente)
+        await this.fetchPendingRoutines(childId)
+
       } catch (err: any) {
         this.error = err.message || 'Error al eliminar rutina'
         console.error('Error en deleteRoutine:', err)
@@ -243,6 +294,8 @@ export const useRoutinesStore = defineStore('routines', {
         
         // Añade la nueva rutina clonada al listado
         this.routines.push(response.data)
+        // La clonada aparecerá como pendiente
+        await this.fetchPendingRoutines(childId)
         
         return response.data
       } catch (err: any) {
@@ -279,6 +332,9 @@ export const useRoutinesStore = defineStore('routines', {
           this.currentRoutine.status = response.data.status
           this.currentRoutine.is_active = response.data.status === 'active'
         }
+        
+        // Refrescar pendientes
+        await this.fetchPendingRoutines(childId)
         
         return response.data
       } catch (err: any) {
@@ -322,46 +378,26 @@ export const useRoutinesStore = defineStore('routines', {
       }
     },
 
-    /**
-     * Añade una rutina directamente al estado local sin hacer petición a la API.
-     * Útil cuando ya tienes el objeto de rutina (ej: después de crearla en el wizard).
-     */
+    // --- MÉTODOS LOCALES (Sin API) ---
+
     addRoutineLocal(routine: DailyRoutineList): void {
-      // Verificar que no exista ya en el array
       const exists = this.routines.some(r => r.id === routine.id)
       if (!exists) {
         this.routines.push(routine)
-        console.log(`✅ Rutina ${routine.id} añadida al store local`)
-      } else {
-        console.log(`⚠️ Rutina ${routine.id} ya existe en el store, no se añade duplicada`)
       }
     },
 
-    /**
-     * Actualiza una rutina en el estado local
-     * Útil cuando recibes una rutina actualizada de otra fuente
-     */
     updateRoutineLocal(routine: Partial<DailyRoutineList> & { id: number }): void {
       const index = this.routines.findIndex(r => r.id === routine.id)
       if (index !== -1) {
         this.routines[index] = { ...this.routines[index], ...routine }
-        console.log(`✅ Rutina ${routine.id} actualizada en el store local`)
-      } else {
-        console.log(`⚠️ Rutina ${routine.id} no encontrada en el store`)
       }
     },
 
-    /**
-     * Elimina una rutina del estado local
-     * Útil para remover rutinas del listado sin hacer petición
-     */
     removeRoutineLocal(routineId: number): void {
       const index = this.routines.findIndex(r => r.id === routineId)
       if (index !== -1) {
         this.routines.splice(index, 1)
-        console.log(`✅ Rutina ${routineId} eliminada del store local`)
-        
-        // Si era la rutina actual, limpiarla
         if (this.currentRoutine?.id === routineId) {
           this.currentRoutine = null
         }

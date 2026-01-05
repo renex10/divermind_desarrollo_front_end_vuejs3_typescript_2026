@@ -1,7 +1,7 @@
 // src/services/rutinas/routinesApi.ts
 // -------------------------------------------------------------
 // Servicio de API para el Módulo de Rutinas
-// ✅ CORREGIDO: Usa RoutineWriteData en lugar de RoutineCreateData
+// ✅ ACTUALIZADO: Incluye método getPendingRoutines para el Banner/Badge
 // -------------------------------------------------------------
 
 import http from '@/services/http'
@@ -55,7 +55,6 @@ export const routinesApi = {
 
   /**
    * Crea una nueva rutina
-   * ✅ CORREGIDO: Usa RoutineWriteData en lugar de RoutineCreateData
    */
   createRoutine(childId: number, data: RoutineWriteData): Promise<AxiosResponse<DailyRoutineDetail>> {
     return http.post(`${API_BASE_URL(childId)}/`, data)
@@ -76,8 +75,16 @@ export const routinesApi = {
   },
 
   // ==========================================================
-  // 2. Acciones Personalizadas
+  // 2. Acciones Personalizadas y Filtros
   // ==========================================================
+
+  /**
+   * ✅ NUEVO: Obtiene las rutinas pendientes para el día de hoy.
+   * Usado para el Banner de recordatorio y el Badge rojo.
+   */
+  getPendingRoutines(childId: number): Promise<AxiosResponse<DailyRoutineList[]>> {
+    return http.get(`${API_BASE_URL(childId)}/pending/`)
+  },
 
   /**
    * Alterna el estado de una rutina (activa/pausada)
@@ -188,4 +195,4 @@ export const routinesApi = {
       params: { period_days: periodDays }
     })
   }
-} 
+}
