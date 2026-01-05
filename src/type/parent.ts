@@ -1,13 +1,22 @@
-// src/type/parent.ts
+// src/types/parent.ts
 
-/**
- * Define la estructura de datos que devuelve el endpoint
- * GET /api/seguimiento/parent/latest-update/
- * * Basado en ParentLatestUpdateSerializer de Django.
- */
+
+export interface TimelineEvent {
+  time_label: string;
+  title: string;
+  description: string;
+  category: 'EMOCION' | 'LOGRO' | 'JUEGO' | 'DESAFIO' | string;
+}
+
 export interface LatestSessionUpdate {
-  child_name: string
-  therapist_full_name: string
-  message: string
-  session_date: string // string en formato ISO (ej: "2025-11-10T09:00:00Z")
+  id: number;
+  child_name: string;
+  therapist_full_name: string;
+  session_date: string;
+  message: string;
+  homework_assigned: string;
+  next_session_focus: string;
+  emotional_state_display: string;
+  // ✅ AGREGAMOS ESTO: El array opcional de eventos
+  timeline_events?: TimelineEvent[];
 }

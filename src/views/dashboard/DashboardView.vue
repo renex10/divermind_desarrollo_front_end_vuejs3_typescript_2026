@@ -1,4 +1,5 @@
 <template>
+<!--   src\views\dashboard\DashboardView.vue -->
   <div class="dashboard-view p-6">
     <h1 class="text-3xl font-bold text-gray-900 mb-6">
       Dashboard Principal

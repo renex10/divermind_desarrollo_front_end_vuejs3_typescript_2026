@@ -1,31 +1,31 @@
 // src/services/parentService.ts
-
-import http from '@/services/http' // ✅ Tu instancia de Axios
-import type { LatestSessionUpdate } from '@/type/parent' // ✅ El tipo que acabamos de crear
+import http from '@/services/http' // ✅ Tu instancia de Axios que añade '/api'
+import type { LatestSessionUpdate } from '@/type/parent' 
 
 /**
  * Llama al nuevo endpoint del backend para obtener la última
- * actualización de sesión para el padre logueado.
+ * actualización de sesión del niño seleccionado.
  *
- * Endpoint: GET /seguimiento/parent/latest-update/
- * (Tu 'http.ts' ya añade el prefijo '/api')
+ * Endpoint corregido: GET /seguimiento/padres/ninos/{childId}/latest-update/
  */
-export const fetchLatestSessionUpdate = async (): Promise<LatestSessionUpdate> => {
+export const fetchLatestSessionUpdate = async (childId: number): Promise<LatestSessionUpdate> => {
   try {
-    console.log('[parentService] 🔍 Obteniendo última actualización de sesión...')
+    // Validamos que el ID exista antes de la petición
+    if (!childId) {
+      throw new Error("Se requiere el ID del niño para obtener actualizaciones.");
+    }
+
+    console.log(`[parentService] 🔍 Obteniendo actualización para el niño ID: ${childId}...`);
     
-    // Tu http.ts se encarga del 'baseURL' y del token
-    const { data } = await http.get<LatestSessionUpdate>('/seguimiento/parent/latest-update/')
+    // ✅ URL ACTUALIZADA: Coincide con seguimiento/urls/padre_urls.py
+    const { data } = await http.get<LatestSessionUpdate>(`/seguimiento/padres/ninos/${childId}/latest-update/`);
     
-    console.log('[parentService] ✅ Actualización obtenida.')
-    return data
+    console.log('[parentService] ✅ Actualización obtenida con éxito.');
+    return data;
   
   } catch (error: any) {
-    // El composable/componente que llame a esto manejará el error
-    console.error("Error al cargar la última actualización:", error)
-    throw error
+    // Proporcionamos un log más descriptivo para el 404 o errores de permisos
+    console.error(`[parentService] ❌ Error al cargar actualización (ID: ${childId}):`, error.response?.data || error.message);
+    throw error;
   }
 }
-
-// Aquí puedes agregar más funciones de servicio para padres en el futuro
-// export const fetchMisFacturas = async (): ...
